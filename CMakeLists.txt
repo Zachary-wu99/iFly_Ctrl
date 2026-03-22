@@ -50,6 +50,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/app_main.cpp
     iFly/dev/usb_dev/usb_uart.cpp
     iFly/lib/freelock_queue/lock_free_queue.cpp
+    iFly/lib/soft_timer/soft_timer.cpp
     iFly/lib/usb_cdc/usb_cdc.cpp
 )
 
@@ -58,6 +59,8 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     iFly
     iFly/dev/usb_dev
     iFly/lib/freelock_queue
+    iFly/lib/soft_timer
+    iFly/lib/msg
     iFly/lib/usb_cdc
 )
 

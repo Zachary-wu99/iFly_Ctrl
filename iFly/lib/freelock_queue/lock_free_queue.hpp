@@ -8,6 +8,10 @@
 
 namespace iFly {
 
+// Concurrency contract:
+// - Enqueue is safe for exactly one producer.
+// - Dequeue is safe for multiple competing consumers.
+// - Each successful dequeue claims a unique byte range.
 /**
  * @brief 单生产者/单消费者无锁字节队列基类。
  *
@@ -81,6 +85,7 @@ public:
    * - 当队列内数据不足时，函数会执行“尽力读取”，只返回当前已有的数据。
    * - 若队列未创建、data 为 nullptr 或 length 为 0，则直接返回 0。
    */
+  // Safe for multiple concurrent consumers.
   uint32_t Dequeue(uint8_t *data, uint32_t length) noexcept;
 
   /** @brief 返回当前已使用的空间大小，单位为字节。 */

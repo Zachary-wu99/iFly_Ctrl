@@ -133,31 +133,34 @@ uint32_t LockFreeQueueBase::Dequeue(uint8_t *data, uint32_t length) noexcept {
   }
 
   const uint32_t size = storageSize_;
-  // 消费者自己推进 tail，因此读取 tail 使用 relaxed 即可。
-  const uint32_t tail = tail_.load(std::memory_order_relaxed);
-  // head 由生产者更新，需要以 acquire 语义观察其最新值。
-  const uint32_t head = head_.load(std::memory_order_acquire);
-  const uint32_t used = Distance(head, tail, size);
-  const uint32_t readLength = MinU32(length, used);
+  while (true) {
+    // Multiple consumers may race on tail_. Copy first, then claim the range
+    // with CAS. If CAS fails, another consumer committed first, so retry.
+    const uint32_t tail = tail_.load(std::memory_order_acquire);
+    const uint32_t head = head_.load(std::memory_order_acquire);
+    const uint32_t used = Distance(head, tail, size);
+    const uint32_t readLength = MinU32(length, used);
 
-  if (readLength == 0U) {
-    return 0U;
+    if (readLength == 0U) {
+      return 0U;
+    }
+
+    const uint32_t firstLength = MinU32(readLength, size - tail);
+    (void)memcpy(data, storage_ + tail, firstLength);
+
+    const uint32_t secondLength = readLength - firstLength;
+    if (secondLength > 0U) {
+      (void)memcpy(data + firstLength, storage_, secondLength);
+    }
+
+    const uint32_t nextTail = (tail + readLength) % size;
+    uint32_t expectedTail = tail;
+    if (tail_.compare_exchange_weak(expectedTail, nextTail,
+                                    std::memory_order_acq_rel,
+                                    std::memory_order_acquire)) {
+      return readLength;
+    }
   }
-
-  // 第一段：从当前 tail 连续读取到缓冲区末尾。
-  const uint32_t firstLength = MinU32(readLength, size - tail);
-  (void)memcpy(data, storage_ + tail, firstLength);
-
-  // 第二段：若发生回卷，则从缓冲区起始位置继续读取剩余数据。
-  const uint32_t secondLength = readLength - firstLength;
-  if (secondLength > 0U) {
-    (void)memcpy(data + firstLength, storage_, secondLength);
-  }
-
-  const uint32_t nextTail = (tail + readLength) % size;
-  // 发布新的 tail，通知生产者这部分空间已经释放。
-  tail_.store(nextTail, std::memory_order_release);
-  return readLength;
 }
 
 /*
