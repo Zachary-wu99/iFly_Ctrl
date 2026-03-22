@@ -47,11 +47,17 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
+    iFly/app_main.cpp
+    iFly/dev/usb_dev/usb_uart.cpp
+    iFly/lib/freelock_queue/lock_free_queue.cpp
     iFly/lib/usb_cdc/usb_cdc.cpp
 )
 
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
+    iFly
+    iFly/dev/usb_dev
+    iFly/lib/freelock_queue
     iFly/lib/usb_cdc
 )
 

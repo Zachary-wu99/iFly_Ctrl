@@ -1,21 +1,23 @@
-﻿#include "usb_cdc.hpp"
-#include "usb_cdc.h"
+#include "usb_cdc.hpp"
 
+#include <new>
 #include <string.h>
+
+#include "main.h"
+#include "usb_otg.h"
 
 namespace {
 
-// USB 标准请求类型
+// ---------------- USB 请求与描述符常量 ----------------
+
 constexpr uint8_t kReqTypeMask = 0x60U;
 constexpr uint8_t kReqTypeStandard = 0x00U;
 constexpr uint8_t kReqTypeClass = 0x20U;
 
 constexpr uint8_t kRecipientMask = 0x1FU;
-constexpr uint8_t kRecipientDevice = 0x00U;
 constexpr uint8_t kRecipientInterface = 0x01U;
 constexpr uint8_t kRecipientEndpoint = 0x02U;
 
-// USB 标准请求
 constexpr uint8_t kReqGetStatus = 0x00U;
 constexpr uint8_t kReqClearFeature = 0x01U;
 constexpr uint8_t kReqSetFeature = 0x03U;
@@ -26,32 +28,34 @@ constexpr uint8_t kReqSetConfiguration = 0x09U;
 constexpr uint8_t kReqGetInterface = 0x0AU;
 constexpr uint8_t kReqSetInterface = 0x0BU;
 
-// CDC 类请求
 constexpr uint8_t kCdcReqSetLineCoding = 0x20U;
 constexpr uint8_t kCdcReqGetLineCoding = 0x21U;
 constexpr uint8_t kCdcReqSetControlLineState = 0x22U;
 
-// 描述符类型
 constexpr uint8_t kDescTypeDevice = 0x01U;
 constexpr uint8_t kDescTypeConfiguration = 0x02U;
 constexpr uint8_t kDescTypeString = 0x03U;
 
 constexpr uint8_t kFeatureEndpointHalt = 0x00U;
-
 constexpr uint8_t kEndpoint0Out = 0x00U;
 constexpr uint8_t kEndpoint0In = 0x80U;
-
 constexpr uint16_t kCdcConfigValue = 0x0001U;
 
-constexpr uint16_t MinU16(uint16_t a, uint16_t b) {
-  return (a < b) ? a : b;
+constexpr uint16_t MinU16(uint16_t left, uint16_t right) {
+  return (left < right) ? left : right;
 }
 
-constexpr uint32_t MinU32(uint32_t a, uint32_t b) {
-  return (a < b) ? a : b;
+constexpr uint32_t MinU32(uint32_t left, uint32_t right) {
+  return (left < right) ? left : right;
 }
 
-// 使用 RAII 保护临界区，避免中断与主循环并发访问时破坏状态。
+/*
+ * 使用 RAII 方式屏蔽中断，避免主循环与 USB 回调在访问共享状态时彼此打断。
+ *
+ * 当前类主要在以下场景使用该保护：
+ * - 主循环调用 `Write()` / `Read()` / `Service()` 时；
+ * - 需要同时操作“底层环形缓冲区 + 上层无锁队列 + 发送双缓冲状态”时。
+ */
 class IrqGuard final {
 public:
   IrqGuard() : primask_(__get_PRIMASK()) {
@@ -66,25 +70,100 @@ private:
   uint32_t primask_;
 };
 
-// 设备描述符：使用标准单 CDC ACM 设备类声明。
-const uint8_t kDeviceDescriptor[] = {
-  0x12U,                    // 描述符长度
-  0x01U,                    // 描述符类型（设备）
-  0x00U, 0x02U,             // USB 版本 2.00
-  0x02U,                    // 设备类（CDC）
-  0x02U,                    // 设备子类（抽象控制模型）
-  0x00U,                    // 设备协议
-  0x40U,                    // 端点 0 最大包长
-  0x83U, 0x04U,             // 厂商 ID（ST）
-  0x40U, 0x57U,             // 产品 ID（虚拟串口）
-  0x00U, 0x02U,             // 设备版本
-  0x01U,                    // 厂商字符串索引
-  0x02U,                    // 产品字符串索引
-  0x03U,                    // 序列号字符串索引
-  0x01U                     // 配置数量
+/*
+ * 该适配器把 STM32 HAL PCD 操作封装在一个独立模块里。
+ *
+ * 以后若移植到别的平台，只需替换这里的实现：
+ * - 端点打开/关闭
+ * - Setup 包读取
+ * - OUT 接收挂起
+ * - IN 数据发送
+ * - FIFO 配置与总线启动
+ *
+ * 上层 `UsbCdcAcm` 不直接依赖具体 HAL 细节。
+ */
+class Stm32FsPcdAdapter final {
+public:
+  PCD_HandleTypeDef *Handle() const noexcept {
+    return &hpcd_USB_OTG_FS;
+  }
+
+  bool Matches(PCD_HandleTypeDef *hpcd) const noexcept {
+    return hpcd == Handle();
+  }
+
+  void ConfigureFifos() const noexcept {
+    (void)HAL_PCDEx_SetRxFiFo(Handle(), 128U);
+    (void)HAL_PCDEx_SetTxFiFo(Handle(), 0U, 64U);
+    (void)HAL_PCDEx_SetTxFiFo(Handle(), 1U, 64U);
+    (void)HAL_PCDEx_SetTxFiFo(Handle(), 2U, 16U);
+  }
+
+  HAL_StatusTypeDef Start() const noexcept {
+    return HAL_PCD_Start(Handle());
+  }
+
+  HAL_StatusTypeDef OpenEndpoint(uint8_t epAddr, uint16_t mps, uint8_t epType) const noexcept {
+    return HAL_PCD_EP_Open(Handle(), epAddr, mps, epType);
+  }
+
+  HAL_StatusTypeDef CloseEndpoint(uint8_t epAddr) const noexcept {
+    return HAL_PCD_EP_Close(Handle(), epAddr);
+  }
+
+  HAL_StatusTypeDef Receive(uint8_t epAddr, uint8_t *buffer, uint32_t length) const noexcept {
+    return HAL_PCD_EP_Receive(Handle(), epAddr, buffer, length);
+  }
+
+  HAL_StatusTypeDef Transmit(uint8_t epAddr, uint8_t *buffer, uint32_t length) const noexcept {
+    return HAL_PCD_EP_Transmit(Handle(), epAddr, buffer, length);
+  }
+
+  uint32_t GetRxCount(uint8_t epAddr) const noexcept {
+    return HAL_PCD_EP_GetRxCount(Handle(), epAddr);
+  }
+
+  void SetAddress(uint8_t address) const noexcept {
+    (void)HAL_PCD_SetAddress(Handle(), address);
+  }
+
+  void SetStall(uint8_t epAddr) const noexcept {
+    (void)HAL_PCD_EP_SetStall(Handle(), epAddr);
+  }
+
+  void ClearStall(uint8_t epAddr) const noexcept {
+    (void)HAL_PCD_EP_ClrStall(Handle(), epAddr);
+  }
+
+  const uint8_t *SetupBuffer() const noexcept {
+    return reinterpret_cast<const uint8_t *>(Handle()->Setup);
+  }
 };
 
-// 配置描述符：CDC ACM，2 个接口，3 个端点。
+Stm32FsPcdAdapter &UsbPcd() {
+  static Stm32FsPcdAdapter adapter;
+  return adapter;
+}
+
+// ---------------- USB 描述符 ----------------
+
+const uint8_t kDeviceDescriptor[] = {
+  0x12U,
+  0x01U,
+  0x00U, 0x02U,
+  0x02U,
+  0x02U,
+  0x00U,
+  0x40U,
+  0x83U, 0x04U,
+  0x40U, 0x57U,
+  0x00U, 0x02U,
+  0x01U,
+  0x02U,
+  0x03U,
+  0x01U
+};
+
 const uint8_t kConfigurationDescriptor[] = {
   0x09U, 0x02U, 0x43U, 0x00U, 0x02U, 0x01U, 0x00U, 0x80U, 0x32U,
   0x09U, 0x04U, 0x00U, 0x00U, 0x01U, 0x02U, 0x02U, 0x01U, 0x00U,
@@ -121,208 +200,466 @@ const uint8_t kSerialStringDescriptor[] = {
   '2', 0x00U, '6', 0x00U
 };
 
-} // 匿名命名空间
+} // namespace
 
-namespace ifly {
+namespace iFly {
+
+// ---------------- ByteRingBuffer 实现 ----------------
+
+ByteRingBuffer::ByteRingBuffer(uint32_t storageSize) noexcept {
+  (void)Recreate(storageSize);
+}
+
+ByteRingBuffer::~ByteRingBuffer() {
+  delete[] storage_;
+}
+
+bool ByteRingBuffer::Recreate(uint32_t storageSize) noexcept {
+  delete[] storage_;
+  storage_ = nullptr;
+  storageSize_ = 0U;
+  head_ = 0U;
+  tail_ = 0U;
+
+  if (storageSize < 2U) {
+    return false;
+  }
+
+  storage_ = new (std::nothrow) uint8_t[storageSize] {};
+  if (storage_ == nullptr) {
+    return false;
+  }
+
+  storageSize_ = storageSize;
+  return true;
+}
+
+void ByteRingBuffer::Clear() noexcept {
+  head_ = 0U;
+  tail_ = 0U;
+}
+
+uint32_t ByteRingBuffer::Push(const uint8_t *data, uint32_t length) noexcept {
+  if ((!IsCreated()) || (data == nullptr) || (length == 0U)) {
+    return 0U;
+  }
+
+  const uint32_t free = FreeSize();
+  const uint32_t writeLength = MinU32(length, free);
+  if (writeLength == 0U) {
+    return 0U;
+  }
+
+  const uint32_t firstLength = MinU32(writeLength, storageSize_ - head_);
+  (void)memcpy(storage_ + head_, data, firstLength);
+
+  const uint32_t secondLength = writeLength - firstLength;
+  if (secondLength > 0U) {
+    (void)memcpy(storage_, data + firstLength, secondLength);
+  }
+
+  head_ = (head_ + writeLength) % storageSize_;
+  return writeLength;
+}
+
+uint32_t ByteRingBuffer::Pop(uint8_t *data, uint32_t length) noexcept {
+  const uint32_t readLength = Peek(data, length);
+  if (readLength > 0U) {
+    (void)Discard(readLength);
+  }
+  return readLength;
+}
+
+uint32_t ByteRingBuffer::Peek(uint8_t *data, uint32_t length) const noexcept {
+  if ((!IsCreated()) || (data == nullptr) || (length == 0U)) {
+    return 0U;
+  }
+
+  const uint32_t used = UsedSize();
+  const uint32_t readLength = MinU32(length, used);
+  if (readLength == 0U) {
+    return 0U;
+  }
+
+  const uint32_t firstLength = MinU32(readLength, storageSize_ - tail_);
+  (void)memcpy(data, storage_ + tail_, firstLength);
+
+  const uint32_t secondLength = readLength - firstLength;
+  if (secondLength > 0U) {
+    (void)memcpy(data + firstLength, storage_, secondLength);
+  }
+
+  return readLength;
+}
+
+uint32_t ByteRingBuffer::Discard(uint32_t length) noexcept {
+  if ((!IsCreated()) || (length == 0U)) {
+    return 0U;
+  }
+
+  const uint32_t discardLength = MinU32(length, UsedSize());
+  tail_ = (tail_ + discardLength) % storageSize_;
+  return discardLength;
+}
+
+uint32_t ByteRingBuffer::UsedSize() const noexcept {
+  if (!IsCreated()) {
+    return 0U;
+  }
+
+  return Distance(head_, tail_, storageSize_);
+}
+
+uint32_t ByteRingBuffer::FreeSize() const noexcept {
+  const uint32_t capacity = Capacity();
+  const uint32_t used = UsedSize();
+  return (used < capacity) ? (capacity - used) : 0U;
+}
+
+uint32_t ByteRingBuffer::Capacity() const noexcept {
+  return (storageSize_ > 0U) ? (storageSize_ - 1U) : 0U;
+}
+
+bool ByteRingBuffer::IsCreated() const noexcept {
+  return (storage_ != nullptr) && (storageSize_ >= 2U);
+}
+
+bool ByteRingBuffer::IsEmpty() const noexcept {
+  return UsedSize() == 0U;
+}
+
+uint32_t ByteRingBuffer::MinU32(uint32_t left, uint32_t right) noexcept {
+  return (left < right) ? left : right;
+}
+
+uint32_t ByteRingBuffer::Distance(uint32_t head, uint32_t tail, uint32_t size) noexcept {
+  if (head >= tail) {
+    return head - tail;
+  }
+
+  return size - (tail - head);
+}
+
+// ---------------- UsbTxDoubleBuffer 实现 ----------------
+
+UsbTxDoubleBuffer::UsbTxDoubleBuffer(uint16_t packetSize) noexcept {
+  (void)Recreate(packetSize);
+}
+
+UsbTxDoubleBuffer::~UsbTxDoubleBuffer() {
+  delete[] storage_;
+}
+
+bool UsbTxDoubleBuffer::Recreate(uint16_t packetSize) noexcept {
+  delete[] storage_;
+  storage_ = nullptr;
+  packetSize_ = 0U;
+  Clear();
+
+  if (packetSize == 0U) {
+    return false;
+  }
+
+  storage_ = new (std::nothrow) uint8_t[static_cast<uint32_t>(packetSize) * kSlotCount] {};
+  if (storage_ == nullptr) {
+    return false;
+  }
+
+  packetSize_ = packetSize;
+  Clear();
+  return true;
+}
+
+void UsbTxDoubleBuffer::Clear() noexcept {
+  for (uint32_t i = 0U; i < kSlotCount; ++i) {
+    slots_[i].length = 0U;
+    slots_[i].ready = false;
+  }
+
+  activeSlot_ = kInvalidSlot;
+  nextLoadSlot_ = 0U;
+  nextSendSlot_ = 0U;
+}
+
+uint32_t UsbTxDoubleBuffer::LoadFromQueue(LockFreeQueueBase &queue) noexcept {
+  if ((!IsCreated()) || (!queue.IsCreated())) {
+    return 0U;
+  }
+
+  uint32_t loadedBytes = 0U;
+
+  for (uint32_t pass = 0U; pass < kSlotCount; ++pass) {
+    const uint8_t slotIndex = static_cast<uint8_t>((nextLoadSlot_ + pass) % kSlotCount);
+    if ((slotIndex == activeSlot_) || slots_[slotIndex].ready) {
+      continue;
+    }
+
+    const uint32_t pulled = queue.Dequeue(SlotBuffer(slotIndex), packetSize_);
+    if (pulled == 0U) {
+      break;
+    }
+
+    slots_[slotIndex].length = static_cast<uint16_t>(pulled);
+    slots_[slotIndex].ready = true;
+    nextLoadSlot_ = static_cast<uint8_t>((slotIndex + 1U) % kSlotCount);
+    loadedBytes += pulled;
+  }
+
+  return loadedBytes;
+}
+
+bool UsbTxDoubleBuffer::PeekReadyPacket(uint8_t &slotIndex, uint8_t *&data, uint16_t &length) noexcept {
+  slotIndex = kInvalidSlot;
+  data = nullptr;
+  length = 0U;
+
+  if ((!IsCreated()) || (activeSlot_ != kInvalidSlot)) {
+    return false;
+  }
+
+  for (uint32_t pass = 0U; pass < kSlotCount; ++pass) {
+    const uint8_t index = static_cast<uint8_t>((nextSendSlot_ + pass) % kSlotCount);
+    if (!slots_[index].ready || (slots_[index].length == 0U)) {
+      continue;
+    }
+
+    slotIndex = index;
+    data = SlotBuffer(index);
+    length = slots_[index].length;
+    return true;
+  }
+
+  return false;
+}
+
+void UsbTxDoubleBuffer::MarkTransferStarted(uint8_t slotIndex) noexcept {
+  if ((!IsCreated()) || (slotIndex >= kSlotCount)) {
+    return;
+  }
+
+  activeSlot_ = slotIndex;
+  slots_[slotIndex].ready = false;
+  nextSendSlot_ = static_cast<uint8_t>((slotIndex + 1U) % kSlotCount);
+}
+
+void UsbTxDoubleBuffer::CompleteTransfer() noexcept {
+  if ((!IsCreated()) || (activeSlot_ >= kSlotCount)) {
+    activeSlot_ = kInvalidSlot;
+    return;
+  }
+
+  slots_[activeSlot_].length = 0U;
+  slots_[activeSlot_].ready = false;
+  activeSlot_ = kInvalidSlot;
+}
+
+bool UsbTxDoubleBuffer::HasReadyPacket() const noexcept {
+  for (uint32_t i = 0U; i < kSlotCount; ++i) {
+    if (slots_[i].ready && (slots_[i].length > 0U)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+bool UsbTxDoubleBuffer::IsCreated() const noexcept {
+  return (storage_ != nullptr) && (packetSize_ > 0U);
+}
+
+uint8_t *UsbTxDoubleBuffer::SlotBuffer(uint8_t slotIndex) noexcept {
+  return (storage_ == nullptr) ? nullptr : (storage_ + (static_cast<uint32_t>(slotIndex) * packetSize_));
+}
+
+const uint8_t *UsbTxDoubleBuffer::SlotBuffer(uint8_t slotIndex) const noexcept {
+  return (storage_ == nullptr) ? nullptr : (storage_ + (static_cast<uint32_t>(slotIndex) * packetSize_));
+}
+
+// ---------------- UsbCdcAcm 实现 ----------------
 
 UsbCdcAcm &UsbCdcAcm::Instance() {
   static UsbCdcAcm instance;
   return instance;
 }
 
-/*
- * 绑定底层 PCD 句柄并启动 USB 外设。
- * 这里不直接打开 CDC 数据端点，只有主机完成 SET_CONFIGURATION 后才会打开。
- */
-void UsbCdcAcm::Init(PCD_HandleTypeDef *hpcd) {
-  if (hpcd == nullptr) {
+UsbCdcAcm::UsbCdcAcm() noexcept
+  : transportRxRing_(kTransportRxRingStorageSize),
+    txQueue_(kTxQueueStorageSize),
+    txDoubleBuffer_(kEpDataMps) {
+}
+
+void UsbCdcAcm::Init() {
+  IrqGuard guard;
+
+  if (!transportRxRing_.IsCreated()) {
+    (void)transportRxRing_.Recreate(kTransportRxRingStorageSize);
+  }
+  if (!txQueue_.IsCreated()) {
+    (void)txQueue_.Recreate(kTxQueueStorageSize);
+  }
+  if (!txDoubleBuffer_.IsCreated()) {
+    (void)txDoubleBuffer_.Recreate(kEpDataMps);
+  }
+
+  if ((!transportRxRing_.IsCreated()) || (!txQueue_.IsCreated()) || (!txDoubleBuffer_.IsCreated())) {
     return;
   }
 
-  {
-    IrqGuard guard;
-    pcd_ = hpcd;
-    ResetRuntimeState();
+  if (initialized_) {
+    ServiceRxPath();
+    ServiceTxPath();
+    return;
   }
 
-  // 配置全速 FIFO 深度，为控制端点和 CDC 数据端点预留空间。
-  (void)HAL_PCDEx_SetRxFiFo(pcd_, 0x40U);
-  (void)HAL_PCDEx_SetTxFiFo(pcd_, 0U, 0x20U);
-  (void)HAL_PCDEx_SetTxFiFo(pcd_, 1U, 0x80U);
-  (void)HAL_PCDEx_SetTxFiFo(pcd_, 2U, 0x20U);
-
-  (void)HAL_PCD_Start(pcd_);
+  ResetRuntimeState();
+  UsbPcd().ConfigureFifos();
+  (void)UsbPcd().Start();
+  initialized_ = true;
 }
 
-/*
- * 上层写数据时先拷贝到双缓冲槽位中。
- * 这样即使 USB 中断正在发送另一块数据，也不会破坏调用方传入的原始缓冲区。
- */
+void UsbCdcAcm::AttachRxQueue(LockFreeQueueBase *queue) {
+  IrqGuard guard;
+  appRxQueue_ = queue;
+
+  if ((appRxQueue_ != nullptr) && appRxQueue_->IsCreated()) {
+    appRxQueue_->Clear();
+    ServiceRxPath();
+  }
+}
+
+void UsbCdcAcm::Service() {
+  IrqGuard guard;
+  ServiceRxPath();
+  ServiceTxPath();
+}
+
 uint32_t UsbCdcAcm::Write(const uint8_t *data, uint32_t len) {
-  if ((data == nullptr) || (len == 0U)) {
+  if ((data == nullptr) || (len == 0U) || (!txQueue_.IsCreated())) {
     return 0U;
   }
 
-  uint32_t accepted = 0U;
-
-  {
-    IrqGuard guard;
-
-    while (accepted < len) {
-      // 查找空闲发送槽位；若两个槽位都被占用，则本次最多只能接收部分数据。
-      int freeSlot = -1;
-      for (int i = 0; i < 2; ++i) {
-        if (!txSlots_[i].queued) {
-          freeSlot = i;
-          break;
-        }
-      }
-
-      if (freeSlot < 0) {
-        break;
-      }
-
-      // 把待发送数据复制到静态缓冲区，由 USB 中断回调负责后续分包发送。
-      TxSlot &slot = txSlots_[freeSlot];
-      const uint32_t copyLen = MinU32(len - accepted, static_cast<uint32_t>(sizeof(slot.data)));
-      (void)memcpy(slot.data, data + accepted, copyLen);
-      slot.len = static_cast<uint16_t>(copyLen);
-      slot.sent = 0U;
-      slot.queued = true;
-      accepted += copyLen;
-    }
-
-    TryStartTxTransfer();
-  }
-
+  IrqGuard guard;
+  const uint32_t accepted = txQueue_.Enqueue(data, len);
+  ServiceTxPath();
   return accepted;
 }
 
-/*
- * 从接收环形缓冲区取走已经到达的数据。
- * Read 只负责“搬出数据”，不直接操作 USB 端点。
- */
 uint32_t UsbCdcAcm::Read(uint8_t *data, uint32_t len) {
-  if ((data == nullptr) || (len == 0U)) {
+  if ((appRxQueue_ == nullptr) || (!appRxQueue_->IsCreated())) {
     return 0U;
   }
 
-  IrqGuard guard;
-  return PopRxData(data, len);
+  Service();
+  return appRxQueue_->Dequeue(data, len);
 }
 
 uint32_t UsbCdcAcm::Available() const {
-  IrqGuard guard;
-  const uint32_t head = rxHead_;
-  const uint32_t tail = rxTail_;
-  if (head >= tail) {
-    return head - tail;
-  }
-  return (kRxRingSize - tail) + head;
+  return UpperRxUsed();
+}
+
+uint32_t UsbCdcAcm::TxUsed() const {
+  return txQueue_.UsedSize();
+}
+
+uint32_t UsbCdcAcm::TxFree() const {
+  return txQueue_.FreeSize();
+}
+
+uint32_t UsbCdcAcm::RxUsed() const {
+  return UpperRxUsed();
+}
+
+uint32_t UsbCdcAcm::RxFree() const {
+  return UpperRxFree();
+}
+
+uint32_t UsbCdcAcm::RxDropped() const {
+  return rxDropped_;
 }
 
 bool UsbCdcAcm::IsConfigured() const {
-  return configured_;
+  return initialized_ && configured_ && !suspended_;
 }
 
-// -------- 运行期状态与端点管理 --------
-
-/*
- * 恢复到枚举初始状态。
- * 每次 USB 总线复位后都必须把配置、接口、控制传输和收发状态清空。
- */
 void UsbCdcAcm::ResetRuntimeState() {
   configured_ = false;
   suspended_ = false;
   currentConfig_ = 0U;
   currentInterface_ = 0U;
   controlLineState_ = 0U;
+  lineCoding_ = {115200U, 0U, 0U, 8U};
 
   ep0OutState_ = Ep0OutState::kIdle;
   ep0OutExpectedLen_ = 0U;
   ep0InPtr_ = nullptr;
   ep0InRemaining_ = 0U;
   ep0InRequestLen_ = 0U;
+  ep0ZlpDummy_ = 0U;
+  (void)memset(lineCodingBuffer_, 0, sizeof(lineCodingBuffer_));
 
-  txBusy_ = false;
-  txActiveSlot_ = -1;
-  txLastPacketLen_ = 0U;
-  for (int i = 0; i < 2; ++i) {
-    txSlots_[i].len = 0U;
-    txSlots_[i].sent = 0U;
-    txSlots_[i].queued = false;
+  transportRxRing_.Clear();
+  txQueue_.Clear();
+  txDoubleBuffer_.Clear();
+
+  if ((appRxQueue_ != nullptr) && appRxQueue_->IsCreated()) {
+    appRxQueue_->Clear();
   }
 
-  rxHead_ = 0U;
-  rxTail_ = 0U;
+  txBusy_ = false;
   rxDropped_ = 0U;
 }
 
-// 打开控制端点 EP0 的输入和输出方向，所有标准请求与类请求都从这里进入。
 void UsbCdcAcm::OpenControlEndpoints() {
-  (void)HAL_PCD_EP_Open(pcd_, kEndpoint0Out, kEp0Mps, EP_TYPE_CTRL);
-  (void)HAL_PCD_EP_Open(pcd_, kEndpoint0In, kEp0Mps, EP_TYPE_CTRL);
+  (void)UsbPcd().OpenEndpoint(kEndpoint0Out, kEp0Mps, EP_TYPE_CTRL);
+  (void)UsbPcd().OpenEndpoint(kEndpoint0In, kEp0Mps, EP_TYPE_CTRL);
 }
 
-// 在主机完成“设置配置”请求后，打开 CDC 的三个数据相关端点。
 void UsbCdcAcm::OpenDataEndpoints() {
-  (void)HAL_PCD_EP_Open(pcd_, kEpCdcCmdIn, kEpCmdMps, EP_TYPE_INTR);
-  (void)HAL_PCD_EP_Open(pcd_, kEpCdcDataOut, kEpDataMps, EP_TYPE_BULK);
-  (void)HAL_PCD_EP_Open(pcd_, kEpCdcDataIn, kEpDataMps, EP_TYPE_BULK);
+  (void)UsbPcd().OpenEndpoint(kEpCdcCmdIn, kEpCmdMps, EP_TYPE_INTR);
+  (void)UsbPcd().OpenEndpoint(kEpCdcDataOut, kEpDataMps, EP_TYPE_BULK);
+  (void)UsbPcd().OpenEndpoint(kEpCdcDataIn, kEpDataMps, EP_TYPE_BULK);
+  PrimeOutEndpoint();
 }
 
-// 关闭 CDC 端点并清空发送上下文，避免复位后残留旧发送状态。
 void UsbCdcAcm::CloseDataEndpoints() {
-  (void)HAL_PCD_EP_Close(pcd_, kEpCdcCmdIn);
-  (void)HAL_PCD_EP_Close(pcd_, kEpCdcDataOut);
-  (void)HAL_PCD_EP_Close(pcd_, kEpCdcDataIn);
+  (void)UsbPcd().CloseEndpoint(kEpCdcCmdIn);
+  (void)UsbPcd().CloseEndpoint(kEpCdcDataOut);
+  (void)UsbPcd().CloseEndpoint(kEpCdcDataIn);
   txBusy_ = false;
-  txActiveSlot_ = -1;
-  txLastPacketLen_ = 0U;
-  for (int i = 0; i < 2; ++i) {
-    txSlots_[i].len = 0U;
-    txSlots_[i].sent = 0U;
-    txSlots_[i].queued = false;
-  }
+  txDoubleBuffer_.Clear();
 }
 
-// 为批量输出端点挂起下一次接收，使主机后续发包时始终有缓存可写。
 void UsbCdcAcm::PrimeOutEndpoint() {
-  (void)HAL_PCD_EP_Receive(pcd_, kEpCdcDataOut, rxPacketBuffer_, kEpDataMps);
+  (void)UsbPcd().Receive(kEpCdcDataOut, rxPacketBuffer_, kEpDataMps);
 }
 
-// -------- HAL PCD 回调入口 --------
-
-/*
- * USB 总线复位后重新打开 EP0，并把设备地址恢复为 0。
- * CDC 数据端点不会在这里打开，而是等主机显式配置后再打开。
- */
-void UsbCdcAcm::OnReset(PCD_HandleTypeDef *hpcd) {
-  if ((pcd_ == nullptr) || (hpcd != pcd_)) {
-    return;
-  }
-
+void UsbCdcAcm::OnReset() {
   ResetRuntimeState();
-  (void)HAL_PCD_SetAddress(pcd_, 0U);
+  UsbPcd().SetAddress(0U);
   OpenControlEndpoints();
 }
 
-// 解析 8 字节 Setup 包，并按标准请求或类请求分别处理。
-void UsbCdcAcm::OnSetupStage(PCD_HandleTypeDef *hpcd) {
-  if ((pcd_ == nullptr) || (hpcd != pcd_)) {
+void UsbCdcAcm::OnSetupStage() {
+  const uint8_t *setupBuffer = UsbPcd().SetupBuffer();
+  if (setupBuffer == nullptr) {
     return;
   }
 
-  SetupPacket setup {};
-  (void)memcpy(&setup, reinterpret_cast<uint8_t *>(hpcd->Setup), sizeof(SetupPacket));
+  const SetupPacket setup {
+    setupBuffer[0],
+    setupBuffer[1],
+    static_cast<uint16_t>(setupBuffer[2] | (static_cast<uint16_t>(setupBuffer[3]) << 8U)),
+    static_cast<uint16_t>(setupBuffer[4] | (static_cast<uint16_t>(setupBuffer[5]) << 8U)),
+    static_cast<uint16_t>(setupBuffer[6] | (static_cast<uint16_t>(setupBuffer[7]) << 8U))
+  };
 
-  const uint8_t reqType = setup.bmRequestType & kReqTypeMask;
-  if (reqType == kReqTypeStandard) {
+  const uint8_t requestType = setup.bmRequestType & kReqTypeMask;
+  if (requestType == kReqTypeStandard) {
     HandleStandardRequest(setup);
     return;
   }
 
-  if (reqType == kReqTypeClass) {
+  if (requestType == kReqTypeClass) {
     HandleClassRequest(setup);
     return;
   }
@@ -330,195 +667,139 @@ void UsbCdcAcm::OnSetupStage(PCD_HandleTypeDef *hpcd) {
   StallControlEndpoint();
 }
 
-/*
- * IN 方向传输完成回调：
- * 1. 若是 EP0，则继续控制传输的后续分包；
- * 2. 若是 CDC BULK IN，则推进双缓冲槽位的发送进度。
- */
-void UsbCdcAcm::OnDataInStage(PCD_HandleTypeDef *hpcd, uint8_t epnum) {
-  if ((pcd_ == nullptr) || (hpcd != pcd_)) {
-    return;
-  }
-
-  if ((epnum & 0x7FU) == 0U) {
+void UsbCdcAcm::OnDataInStage(uint8_t epnum) {
+  if (epnum == 0U) {
     ContinueControlInTransfer();
     return;
   }
 
-  if ((epnum & 0x7FU) == (kEpCdcDataIn & 0x7FU)) {
-    if ((txActiveSlot_ >= 0) && txBusy_) {
-      TxSlot &slot = txSlots_[txActiveSlot_];
-      slot.sent = static_cast<uint16_t>(slot.sent + txLastPacketLen_);
-      if (slot.sent < slot.len) {
-        const uint16_t packetLen = MinU16(static_cast<uint16_t>(slot.len - slot.sent), kEpDataMps);
-        txLastPacketLen_ = packetLen;
-        (void)HAL_PCD_EP_Transmit(pcd_, kEpCdcDataIn, slot.data + slot.sent, packetLen);
-      } else {
-        slot.len = 0U;
-        slot.sent = 0U;
-        slot.queued = false;
-        txBusy_ = false;
-        txActiveSlot_ = -1;
-        txLastPacketLen_ = 0U;
-        TryStartTxTransfer();
-      }
-    }
+  if (epnum == (kEpCdcDataIn & 0x7FU)) {
+    txBusy_ = false;
+    txDoubleBuffer_.CompleteTransfer();
+    ServiceTxPath();
   }
 }
 
-/*
- * OUT 方向传输完成回调：
- * 1. EP0 OUT 用于接收控制请求的数据阶段，例如 SET_LINE_CODING；
- * 2. CDC BULK OUT 收到的数据会先进入单包缓存，再搬运到环形缓冲区。
- */
-void UsbCdcAcm::OnDataOutStage(PCD_HandleTypeDef *hpcd, uint8_t epnum) {
-  if ((pcd_ == nullptr) || (hpcd != pcd_)) {
-    return;
-  }
-
-  if ((epnum & 0x7FU) == 0U) {
+void UsbCdcAcm::OnDataOutStage(uint8_t epnum) {
+  if (epnum == 0U) {
     if (ep0OutState_ == Ep0OutState::kSetLineCoding) {
-      const uint32_t rxLen = HAL_PCD_EP_GetRxCount(pcd_, kEndpoint0Out);
+      const uint32_t rxLen = UsbPcd().GetRxCount(kEndpoint0Out);
+      ep0OutState_ = Ep0OutState::kIdle;
+      ep0OutExpectedLen_ = 0U;
+
       if (rxLen >= 7U) {
-        lineCoding_.baudrate = (static_cast<uint32_t>(ep0OutBuffer_[0]) << 0) |
-                               (static_cast<uint32_t>(ep0OutBuffer_[1]) << 8) |
-                               (static_cast<uint32_t>(ep0OutBuffer_[2]) << 16) |
-                               (static_cast<uint32_t>(ep0OutBuffer_[3]) << 24);
+        lineCoding_.baudrate = static_cast<uint32_t>(ep0OutBuffer_[0]) |
+                               (static_cast<uint32_t>(ep0OutBuffer_[1]) << 8U) |
+                               (static_cast<uint32_t>(ep0OutBuffer_[2]) << 16U) |
+                               (static_cast<uint32_t>(ep0OutBuffer_[3]) << 24U);
         lineCoding_.stopBits = ep0OutBuffer_[4];
         lineCoding_.parityType = ep0OutBuffer_[5];
         lineCoding_.dataBits = ep0OutBuffer_[6];
+        SendControlStatus();
+      } else {
+        StallControlEndpoint();
       }
-      ep0OutState_ = Ep0OutState::kIdle;
-      ep0OutExpectedLen_ = 0U;
-      SendControlStatus();
     }
     return;
   }
 
-  if ((epnum & 0x7FU) == (kEpCdcDataOut & 0x7FU)) {
-    const uint32_t rxLen = HAL_PCD_EP_GetRxCount(pcd_, kEpCdcDataOut);
-    if (rxLen > 0U) {
-      PushRxData(rxPacketBuffer_, rxLen);
-    }
+  if (epnum == (kEpCdcDataOut & 0x7FU)) {
+    const uint32_t rxLen = UsbPcd().GetRxCount(kEpCdcDataOut);
+    PushReceivedPacket(rxPacketBuffer_, rxLen);
     PrimeOutEndpoint();
+    ServiceRxPath();
   }
 }
 
-void UsbCdcAcm::OnSuspend(PCD_HandleTypeDef *hpcd) {
-  if ((pcd_ != nullptr) && (hpcd == pcd_)) {
-    suspended_ = true;
-  }
+void UsbCdcAcm::OnSuspend() {
+  suspended_ = true;
 }
 
-void UsbCdcAcm::OnResume(PCD_HandleTypeDef *hpcd) {
-  if ((pcd_ != nullptr) && (hpcd == pcd_)) {
-    suspended_ = false;
-  }
+void UsbCdcAcm::OnResume() {
+  suspended_ = false;
+  ServiceTxPath();
 }
 
-// -------- 控制传输处理 --------
-
-/*
- * 处理标准 USB 请求。
- * 这里实现了 CDC 枚举所必需的一组最小请求集合。
- */
 void UsbCdcAcm::HandleStandardRequest(const SetupPacket &setup) {
   switch (setup.bRequest) {
-  case kReqGetDescriptor:
-    HandleGetDescriptor(setup);
-    break;
+    case kReqGetDescriptor:
+      HandleGetDescriptor(setup);
+      break;
 
-  case kReqSetAddress:
-    if ((setup.wIndex == 0U) &&
-        (setup.wLength == 0U) &&
-        ((setup.wValue & 0x7FU) == setup.wValue)) {
-            // 按 STM32 官方 USB 设备协议栈的处理方式，先写入地址，再返回状态包，
-      // 避免主机在地址切换后的下一阶段控制传输中重复复位设备。
-      (void)HAL_PCD_SetAddress(pcd_, static_cast<uint8_t>(setup.wValue & 0x7FU));
+    case kReqSetAddress:
+      UsbPcd().SetAddress(static_cast<uint8_t>(setup.wValue & 0x7FU));
       SendControlStatus();
-    } else {
-      StallControlEndpoint();
-    }
-    break;
+      break;
 
-  case kReqSetConfiguration:
-    if ((setup.wLength == 0U) &&
-        ((setup.wValue == 0U) || (setup.wValue == kCdcConfigValue))) {
-      if (setup.wValue == kCdcConfigValue) {
-        if (configured_) {
-          CloseDataEndpoints();
-        }
-        OpenDataEndpoints();
-        PrimeOutEndpoint();
+    case kReqGetConfiguration: {
+      const uint8_t config = currentConfig_;
+      StartControlInTransfer(&config, 1U, setup.wLength);
+      break;
+    }
+
+    case kReqSetConfiguration: {
+      const uint16_t configValue = setup.wValue & 0x00FFU;
+      if ((configValue != 0U) && (configValue != kCdcConfigValue)) {
+        StallControlEndpoint();
+        break;
+      }
+
+      CloseDataEndpoints();
+      configured_ = false;
+      currentConfig_ = static_cast<uint8_t>(configValue);
+
+      if (configValue == kCdcConfigValue) {
         configured_ = true;
-        currentConfig_ = 1U;
-      } else {
-        CloseDataEndpoints();
-        configured_ = false;
-        currentConfig_ = 0U;
+        OpenDataEndpoints();
+        ServiceTxPath();
       }
+
       SendControlStatus();
-    } else {
-      StallControlEndpoint();
+      break;
     }
-    break;
 
-  case kReqGetConfiguration:
-    ep0OutBuffer_[0] = currentConfig_;
-    StartControlInTransfer(ep0OutBuffer_, 1U, setup.wLength);
-    break;
+    case kReqGetInterface: {
+      const uint8_t interfaceNumber = currentInterface_;
+      StartControlInTransfer(&interfaceNumber, 1U, setup.wLength);
+      break;
+    }
 
-  case kReqGetStatus: {
-    // 当前最小实现不声明远程唤醒和端点暂停状态，因此固定返回 0。
-    ep0OutBuffer_[0] = 0U;
-    ep0OutBuffer_[1] = 0U;
-    StartControlInTransfer(ep0OutBuffer_, 2U, setup.wLength);
-    break;
-  }
-
-  case kReqSetInterface:
-    if ((setup.wLength == 0U) && (setup.wValue == 0U)) {
-      currentInterface_ = 0U;
+    case kReqSetInterface:
+      currentInterface_ = static_cast<uint8_t>(setup.wValue & 0x00FFU);
       SendControlStatus();
-    } else {
-      StallControlEndpoint();
+      break;
+
+    case kReqGetStatus: {
+      const uint8_t status[2] = {0U, 0U};
+      StartControlInTransfer(status, sizeof(status), setup.wLength);
+      break;
     }
-    break;
 
-  case kReqGetInterface:
-    ep0OutBuffer_[0] = currentInterface_;
-    StartControlInTransfer(ep0OutBuffer_, 1U, setup.wLength);
-    break;
+    case kReqClearFeature:
+    case kReqSetFeature: {
+      const uint8_t recipient = setup.bmRequestType & kRecipientMask;
+      if ((recipient != kRecipientEndpoint) || (setup.wValue != kFeatureEndpointHalt)) {
+        StallControlEndpoint();
+        break;
+      }
 
-  case kReqSetFeature:
-  case kReqClearFeature: {
-    const uint8_t recipient = setup.bmRequestType & kRecipientMask;
-    if ((recipient == kRecipientEndpoint) &&
-        (setup.wValue == kFeatureEndpointHalt) &&
-        (setup.wLength == 0U)) {
-      const uint8_t epAddr = static_cast<uint8_t>(setup.wIndex & 0xFFU);
+      const uint8_t epAddr = static_cast<uint8_t>(setup.wIndex & 0x00FFU);
       if (setup.bRequest == kReqSetFeature) {
-        (void)HAL_PCD_EP_SetStall(pcd_, epAddr);
+        UsbPcd().SetStall(epAddr);
       } else {
-        (void)HAL_PCD_EP_ClrStall(pcd_, epAddr);
+        UsbPcd().ClearStall(epAddr);
       }
-      SendControlStatus();
-    } else {
-      StallControlEndpoint();
-    }
-    break;
-  }
 
-  default:
-    StallControlEndpoint();
-    break;
+      SendControlStatus();
+      break;
+    }
+
+    default:
+      StallControlEndpoint();
+      break;
   }
 }
 
-/*
- * 处理 CDC 类请求。
- * 当前实现覆盖了主机常见串口工具会使用的 Line Coding 和 Control Line State。
- */
 void UsbCdcAcm::HandleClassRequest(const SetupPacket &setup) {
   const uint8_t recipient = setup.bmRequestType & kRecipientMask;
   if (recipient != kRecipientInterface) {
@@ -527,255 +808,258 @@ void UsbCdcAcm::HandleClassRequest(const SetupPacket &setup) {
   }
 
   switch (setup.bRequest) {
-  case kCdcReqSetLineCoding:
-    if ((setup.wLength == 7U) && ((setup.bmRequestType & 0x80U) == 0U)) {
+    case kCdcReqSetLineCoding:
+      if (setup.wLength != 7U) {
+        StallControlEndpoint();
+        return;
+      }
+
       ep0OutState_ = Ep0OutState::kSetLineCoding;
       ep0OutExpectedLen_ = 7U;
-      (void)HAL_PCD_EP_Receive(pcd_, kEndpoint0Out, ep0OutBuffer_, ep0OutExpectedLen_);
-    } else {
-      StallControlEndpoint();
-    }
-    break;
+      (void)UsbPcd().Receive(kEndpoint0Out, ep0OutBuffer_, ep0OutExpectedLen_);
+      break;
 
-  case kCdcReqGetLineCoding:
-    if ((setup.wLength == 7U) && ((setup.bmRequestType & 0x80U) != 0U)) {
-      ep0OutBuffer_[0] = static_cast<uint8_t>(lineCoding_.baudrate & 0xFFU);
-      ep0OutBuffer_[1] = static_cast<uint8_t>((lineCoding_.baudrate >> 8) & 0xFFU);
-      ep0OutBuffer_[2] = static_cast<uint8_t>((lineCoding_.baudrate >> 16) & 0xFFU);
-      ep0OutBuffer_[3] = static_cast<uint8_t>((lineCoding_.baudrate >> 24) & 0xFFU);
-      ep0OutBuffer_[4] = lineCoding_.stopBits;
-      ep0OutBuffer_[5] = lineCoding_.parityType;
-      ep0OutBuffer_[6] = lineCoding_.dataBits;
-      StartControlInTransfer(ep0OutBuffer_, 7U, setup.wLength);
-    } else {
-      StallControlEndpoint();
-    }
-    break;
+    case kCdcReqGetLineCoding:
+      lineCodingBuffer_[0] = static_cast<uint8_t>(lineCoding_.baudrate & 0xFFU);
+      lineCodingBuffer_[1] = static_cast<uint8_t>((lineCoding_.baudrate >> 8U) & 0xFFU);
+      lineCodingBuffer_[2] = static_cast<uint8_t>((lineCoding_.baudrate >> 16U) & 0xFFU);
+      lineCodingBuffer_[3] = static_cast<uint8_t>((lineCoding_.baudrate >> 24U) & 0xFFU);
+      lineCodingBuffer_[4] = lineCoding_.stopBits;
+      lineCodingBuffer_[5] = lineCoding_.parityType;
+      lineCodingBuffer_[6] = lineCoding_.dataBits;
+      StartControlInTransfer(lineCodingBuffer_, sizeof(lineCodingBuffer_), setup.wLength);
+      break;
 
-  case kCdcReqSetControlLineState:
-    if (setup.wLength == 0U) {
-      controlLineState_ = static_cast<uint8_t>(setup.wValue & 0x03U);
+    case kCdcReqSetControlLineState:
+      controlLineState_ = static_cast<uint8_t>(setup.wValue & 0x00FFU);
       SendControlStatus();
-    } else {
-      StallControlEndpoint();
-    }
-    break;
+      break;
 
-  default:
-    StallControlEndpoint();
-    break;
+    default:
+      StallControlEndpoint();
+      break;
   }
 }
 
-// 根据 wValue 高字节判断描述符类型，低字节判断字符串描述符索引。
 void UsbCdcAcm::HandleGetDescriptor(const SetupPacket &setup) {
-  const uint8_t descriptorType = static_cast<uint8_t>((setup.wValue >> 8) & 0xFFU);
-  const uint8_t descriptorIndex = static_cast<uint8_t>(setup.wValue & 0xFFU);
+  const uint8_t descriptorType = static_cast<uint8_t>((setup.wValue >> 8U) & 0x00FFU);
+  const uint8_t descriptorIndex = static_cast<uint8_t>(setup.wValue & 0x00FFU);
 
   const uint8_t *descriptor = nullptr;
-  uint16_t descriptorLen = 0U;
+  uint16_t descriptorLength = 0U;
 
   switch (descriptorType) {
-  case kDescTypeDevice:
-    descriptor = kDeviceDescriptor;
-    descriptorLen = static_cast<uint16_t>(sizeof(kDeviceDescriptor));
-    break;
+    case kDescTypeDevice:
+      descriptor = kDeviceDescriptor;
+      descriptorLength = sizeof(kDeviceDescriptor);
+      break;
 
-  case kDescTypeConfiguration:
-    descriptor = kConfigurationDescriptor;
-    descriptorLen = static_cast<uint16_t>(sizeof(kConfigurationDescriptor));
-    break;
+    case kDescTypeConfiguration:
+      descriptor = kConfigurationDescriptor;
+      descriptorLength = sizeof(kConfigurationDescriptor);
+      break;
 
-  case kDescTypeString:
-    if (descriptorIndex == 0U) {
-      descriptor = kLangIdStringDescriptor;
-      descriptorLen = static_cast<uint16_t>(sizeof(kLangIdStringDescriptor));
-    } else if (descriptorIndex == 1U) {
-      descriptor = kManufacturerStringDescriptor;
-      descriptorLen = static_cast<uint16_t>(sizeof(kManufacturerStringDescriptor));
-    } else if (descriptorIndex == 2U) {
-      descriptor = kProductStringDescriptor;
-      descriptorLen = static_cast<uint16_t>(sizeof(kProductStringDescriptor));
-    } else if (descriptorIndex == 3U) {
-      descriptor = kSerialStringDescriptor;
-      descriptorLen = static_cast<uint16_t>(sizeof(kSerialStringDescriptor));
-    } else {
-      descriptor = nullptr;
-      descriptorLen = 0U;
-    }
-    break;
+    case kDescTypeString:
+      switch (descriptorIndex) {
+        case 0U:
+          descriptor = kLangIdStringDescriptor;
+          descriptorLength = sizeof(kLangIdStringDescriptor);
+          break;
 
-  default:
-    descriptor = nullptr;
-    descriptorLen = 0U;
-    break;
+        case 1U:
+          descriptor = kManufacturerStringDescriptor;
+          descriptorLength = sizeof(kManufacturerStringDescriptor);
+          break;
+
+        case 2U:
+          descriptor = kProductStringDescriptor;
+          descriptorLength = sizeof(kProductStringDescriptor);
+          break;
+
+        case 3U:
+          descriptor = kSerialStringDescriptor;
+          descriptorLength = sizeof(kSerialStringDescriptor);
+          break;
+
+        default:
+          break;
+      }
+      break;
+
+    default:
+      break;
   }
 
-  if ((descriptor == nullptr) || (descriptorLen == 0U)) {
+  if ((descriptor == nullptr) || (descriptorLength == 0U)) {
     StallControlEndpoint();
     return;
   }
 
-  StartControlInTransfer(descriptor, descriptorLen, setup.wLength);
+  StartControlInTransfer(descriptor, descriptorLength, setup.wLength);
 }
 
-/*
- * 启动一次 EP0 IN 控制传输。
- * 若描述符长度大于 EP0 最大包长，则只先发送第一包，后续由 IN 完成回调继续补发。
- */
 void UsbCdcAcm::StartControlInTransfer(const uint8_t *data, uint16_t len, uint16_t requestLen) {
+  const uint16_t actualLen = MinU16(len, requestLen);
   ep0InPtr_ = data;
+  ep0InRemaining_ = actualLen;
   ep0InRequestLen_ = requestLen;
-  ep0InRemaining_ = MinU16(len, requestLen);
 
-  if (ep0InRemaining_ == 0U) {
-    (void)HAL_PCD_EP_Transmit(pcd_, kEndpoint0In, &ep0ZlpDummy_, 0U);
+  if (actualLen == 0U) {
+    (void)UsbPcd().Transmit(kEndpoint0In, &ep0ZlpDummy_, 0U);
     return;
   }
 
   const uint16_t packetLen = MinU16(ep0InRemaining_, kEp0Mps);
-  (void)HAL_PCD_EP_Transmit(pcd_, kEndpoint0In, const_cast<uint8_t *>(ep0InPtr_), packetLen);
+  (void)UsbPcd().Transmit(kEndpoint0In, const_cast<uint8_t *>(ep0InPtr_), packetLen);
   ep0InPtr_ += packetLen;
   ep0InRemaining_ = static_cast<uint16_t>(ep0InRemaining_ - packetLen);
 }
 
-// 在 EP0 输入完成回调里继续后续分包；全部发完后切回状态阶段。
 void UsbCdcAcm::ContinueControlInTransfer() {
   if (ep0InRemaining_ == 0U) {
     ep0InPtr_ = nullptr;
     ep0InRequestLen_ = 0U;
-    (void)HAL_PCD_EP_Receive(pcd_, kEndpoint0Out, ep0OutBuffer_, 0U);
+    (void)UsbPcd().Receive(kEndpoint0Out, ep0OutBuffer_, 0U);
     return;
   }
 
   const uint16_t packetLen = MinU16(ep0InRemaining_, kEp0Mps);
-  (void)HAL_PCD_EP_Transmit(pcd_, kEndpoint0In, const_cast<uint8_t *>(ep0InPtr_), packetLen);
+  (void)UsbPcd().Transmit(kEndpoint0In, const_cast<uint8_t *>(ep0InPtr_), packetLen);
   ep0InPtr_ += packetLen;
   ep0InRemaining_ = static_cast<uint16_t>(ep0InRemaining_ - packetLen);
 }
 
 void UsbCdcAcm::SendControlStatus() {
-  (void)HAL_PCD_EP_Transmit(pcd_, kEndpoint0In, &ep0ZlpDummy_, 0U);
+  (void)UsbPcd().Transmit(kEndpoint0In, &ep0ZlpDummy_, 0U);
 }
 
 void UsbCdcAcm::StallControlEndpoint() {
-  (void)HAL_PCD_EP_SetStall(pcd_, kEndpoint0In);
-  (void)HAL_PCD_EP_SetStall(pcd_, kEndpoint0Out);
+  UsbPcd().SetStall(kEndpoint0In);
+  UsbPcd().SetStall(kEndpoint0Out);
 }
 
-// -------- 数据缓冲管理 --------
-
-/*
- * 把 USB 收到的一包数据逐字节写入环形缓冲区。
- * 若环形缓冲区已满，则丢弃新字节并累计 rxDropped_ 计数。
- */
-void UsbCdcAcm::PushRxData(const uint8_t *data, uint32_t len) {
+void UsbCdcAcm::PushReceivedPacket(const uint8_t *data, uint32_t len) {
   if ((data == nullptr) || (len == 0U)) {
     return;
   }
 
-  for (uint32_t i = 0U; i < len; ++i) {
-    const uint32_t nextHead = (rxHead_ + 1U) % kRxRingSize;
-    if (nextHead == rxTail_) {
-      rxDropped_++;
-      continue;
-    }
-    rxRing_[rxHead_] = data[i];
-    rxHead_ = nextHead;
+  const uint32_t pushed = transportRxRing_.Push(data, len);
+  if (pushed < len) {
+    rxDropped_ += (len - pushed);
   }
 }
 
-// 从环形缓冲区顺序读出数据，供主循环或其他上层逻辑消费。
-uint32_t UsbCdcAcm::PopRxData(uint8_t *data, uint32_t len) {
-  uint32_t readLen = 0U;
-  while ((readLen < len) && (rxTail_ != rxHead_)) {
-    data[readLen++] = rxRing_[rxTail_];
-    rxTail_ = (rxTail_ + 1U) % kRxRingSize;
-  }
-  return readLen;
-}
-
-/*
- * 若当前 USB IN 端点空闲，则尝试从双缓冲队列中取出一个槽位启动发送。
- * 真正的连续分包推进由 OnDataInStage 回调完成。
- */
-void UsbCdcAcm::TryStartTxTransfer() {
-  if ((pcd_ == nullptr) || !configured_ || suspended_ || txBusy_) {
+void UsbCdcAcm::ServiceRxPath() {
+  if ((appRxQueue_ == nullptr) || (!appRxQueue_->IsCreated()) || transportRxRing_.IsEmpty()) {
     return;
   }
 
-  for (int i = 0; i < 2; ++i) {
-    TxSlot &slot = txSlots_[i];
-    if (slot.queued && (slot.sent < slot.len)) {
-      const uint16_t packetLen = MinU16(static_cast<uint16_t>(slot.len - slot.sent), kEpDataMps);
-      if (HAL_PCD_EP_Transmit(pcd_, kEpCdcDataIn, slot.data + slot.sent, packetLen) == HAL_OK) {
-        txBusy_ = true;
-        txActiveSlot_ = static_cast<int8_t>(i);
-        txLastPacketLen_ = packetLen;
-      }
-      return;
+  while (!transportRxRing_.IsEmpty()) {
+    const uint32_t queueFree = appRxQueue_->FreeSize();
+    if (queueFree == 0U) {
+      break;
+    }
+
+    const uint32_t chunk = MinU32(MinU32(queueFree, sizeof(rxDrainBuffer_)), transportRxRing_.UsedSize());
+    if (chunk == 0U) {
+      break;
+    }
+
+    const uint32_t peeked = transportRxRing_.Peek(rxDrainBuffer_, chunk);
+    if (peeked == 0U) {
+      break;
+    }
+
+    const uint32_t pushed = appRxQueue_->Enqueue(rxDrainBuffer_, peeked);
+    if (pushed == 0U) {
+      break;
+    }
+
+    (void)transportRxRing_.Discard(pushed);
+
+    if (pushed < peeked) {
+      break;
     }
   }
 }
 
-} // ifly 命名空间
+void UsbCdcAcm::ServiceTxPath() {
+  if ((!initialized_) || (!configured_) || suspended_ || (!txQueue_.IsCreated()) || (!txDoubleBuffer_.IsCreated())) {
+    return;
+  }
+
+  (void)txDoubleBuffer_.LoadFromQueue(txQueue_);
+  if (txBusy_) {
+    return;
+  }
+
+  uint8_t slotIndex = 0U;
+  uint8_t *data = nullptr;
+  uint16_t length = 0U;
+  if (!txDoubleBuffer_.PeekReadyPacket(slotIndex, data, length) || (data == nullptr) || (length == 0U)) {
+    return;
+  }
+
+  if (UsbPcd().Transmit(kEpCdcDataIn, data, length) == HAL_OK) {
+    txDoubleBuffer_.MarkTransferStarted(slotIndex);
+    txBusy_ = true;
+  }
+}
+
+uint32_t UsbCdcAcm::UpperRxUsed() const {
+  if ((appRxQueue_ == nullptr) || (!appRxQueue_->IsCreated())) {
+    return 0U;
+  }
+
+  return appRxQueue_->UsedSize();
+}
+
+uint32_t UsbCdcAcm::UpperRxFree() const {
+  if ((appRxQueue_ == nullptr) || (!appRxQueue_->IsCreated())) {
+    return 0U;
+  }
+
+  return appRxQueue_->FreeSize();
+}
+
+} // namespace iFly
 
 extern "C" {
 
-// -------- C 接口与 HAL 回调桥接 --------
-
-void IFly_USBCDC_Init(PCD_HandleTypeDef *hpcd) {
-  ifly::UsbCdcAcm::Instance().Init(hpcd);
-}
-
-uint32_t IFly_USBCDC_Write(const uint8_t *data, uint32_t len) {
-  return ifly::UsbCdcAcm::Instance().Write(data, len);
-}
-
-uint32_t IFly_USBCDC_Read(uint8_t *data, uint32_t len) {
-  return ifly::UsbCdcAcm::Instance().Read(data, len);
-}
-
-uint32_t IFly_USBCDC_Available(void) {
-  return ifly::UsbCdcAcm::Instance().Available();
-}
-
-uint8_t IFly_USBCDC_IsConfigured(void) {
-  return ifly::UsbCdcAcm::Instance().IsConfigured() ? 1U : 0U;
-}
-
 void HAL_PCD_ResetCallback(PCD_HandleTypeDef *hpcd) {
-  ifly::UsbCdcAcm::Instance().OnReset(hpcd);
+  if (UsbPcd().Matches(hpcd)) {
+    iFly::UsbCdcAcm::Instance().OnReset();
+  }
 }
 
 void HAL_PCD_SetupStageCallback(PCD_HandleTypeDef *hpcd) {
-  ifly::UsbCdcAcm::Instance().OnSetupStage(hpcd);
+  if (UsbPcd().Matches(hpcd)) {
+    iFly::UsbCdcAcm::Instance().OnSetupStage();
+  }
 }
 
 void HAL_PCD_DataInStageCallback(PCD_HandleTypeDef *hpcd, uint8_t epnum) {
-  ifly::UsbCdcAcm::Instance().OnDataInStage(hpcd, epnum);
+  if (UsbPcd().Matches(hpcd)) {
+    iFly::UsbCdcAcm::Instance().OnDataInStage(epnum);
+  }
 }
 
 void HAL_PCD_DataOutStageCallback(PCD_HandleTypeDef *hpcd, uint8_t epnum) {
-  ifly::UsbCdcAcm::Instance().OnDataOutStage(hpcd, epnum);
+  if (UsbPcd().Matches(hpcd)) {
+    iFly::UsbCdcAcm::Instance().OnDataOutStage(epnum);
+  }
 }
 
 void HAL_PCD_SuspendCallback(PCD_HandleTypeDef *hpcd) {
-  ifly::UsbCdcAcm::Instance().OnSuspend(hpcd);
+  if (UsbPcd().Matches(hpcd)) {
+    iFly::UsbCdcAcm::Instance().OnSuspend();
+  }
 }
 
 void HAL_PCD_ResumeCallback(PCD_HandleTypeDef *hpcd) {
-  ifly::UsbCdcAcm::Instance().OnResume(hpcd);
+  if (UsbPcd().Matches(hpcd)) {
+    iFly::UsbCdcAcm::Instance().OnResume();
+  }
 }
 
-} // extern "C" 结束
-
-
-
-
-
-
-
-
-
-
+} // extern "C"

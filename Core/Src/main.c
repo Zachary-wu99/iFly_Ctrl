@@ -20,10 +20,9 @@
 #include "main.h"
 #include "usb_otg.h"
 #include "gpio.h"
-
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "usb_cdc.h"
+#include "app_main.h"
 
 /* USER CODE END Includes */
 
@@ -45,8 +44,6 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-/* USB CDC 接收临时缓冲区，用于主循环回环验证 */
-static uint8_t g_usb_rx_temp[64];
 
 /* USER CODE END PV */
 
@@ -92,9 +89,13 @@ int main(void)
   MX_GPIO_Init();
   MX_USB_OTG_FS_PCD_Init();
   /* USER CODE BEGIN 2 */
-  /* 初始化 C++ USB CDC 协议层 */
-  IFly_USBCDC_Init(&hpcd_USB_OTG_FS);
-
+  /*
+   * 上层应用逻辑放在 C++ 文件 `iFly/app_main.cpp` 中。
+   *
+   * main.c 仍然保留为 CubeMX 工程的启动入口，
+   * 后续只需要在主循环中持续调用 app_main() 即可。
+   */
+  app_main();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -104,23 +105,8 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    const uint32_t rx_len = IFly_USBCDC_Read(g_usb_rx_temp, sizeof(g_usb_rx_temp));
-    if (rx_len > 0U)
-    {
-      /* 将收到的数据原样回发，便于串口工具快速验证收发链路 */
-      uint32_t sent = 0U;
-      while (sent < rx_len)
-      {
-        const uint32_t pushed = IFly_USBCDC_Write(&g_usb_rx_temp[sent], rx_len - sent);
-        if (pushed == 0U)
-        {
-          break;
-        }
-        sent += pushed;
-      }
-    }
-
-    HAL_Delay(1);
+    
+    //HAL_Delay(1);
   }
   /* USER CODE END 3 */
 }
