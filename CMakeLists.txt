@@ -48,20 +48,29 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/app_main.cpp
+    iFly/dev/can_dev/hardware_can.cpp
+    iFly/dev/uart_dev/hardware_uart.cpp
     iFly/dev/usb_dev/usb_uart.cpp
     iFly/lib/freelock_queue/lock_free_queue.cpp
     iFly/lib/soft_timer/soft_timer.cpp
+    iFly/lib/uart/uart_dma.cpp
     iFly/lib/usb_cdc/usb_cdc.cpp
+    iFly/lib/can/can.cpp
 )
 
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     iFly
+    iFly/lib/double_buffer
+    iFly/dev/can_dev
+    iFly/dev/uart_dev
     iFly/dev/usb_dev
     iFly/lib/freelock_queue
     iFly/lib/soft_timer
-    iFly/lib/msg
+    iFly/lib/uart
     iFly/lib/usb_cdc
+    iFly/lib/can
+    iFly/lib/double_buffer
 )
 
 # Add project symbols (macros)

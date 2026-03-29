@@ -2,85 +2,63 @@
 
 namespace iFly {
 
-UsbUart::UsbUart(uint32_t rxQueueStorageSize) noexcept
-  : DynamicLockFreeQueue(rxQueueStorageSize) {
+/* 构造时只记录 RX 队列配置，不在这里做底层 USB 初始化。 */
+UsbUart::UsbUart(uint32_t rxQueueStorageSize) noexcept : SerialIoBase(rxQueueStorageSize) {
 }
 
 /*
- * 初始化顺序说明：
- * 1. 先确保当前 usb_uart 对象自带的接收队列已经创建成功；
- * 2. 再把该队列注册给 UsbCdcAcm，作为“usb_cdc -> 上层应用”的无锁队列；
- * 3. 最后启动 USB CDC 协议层。
- *
- * 这样应用层完全不需要了解 PCD、端点号和 HAL 回调，只需把 usb_uart 当普通串口使用。
+ * 初始化流程：
+ * 1. 先确保统一 RX 队列已经创建成功；
+ * 2. 再把该队列注册给 USB CDC 底层；
+ * 3. 最后启动 CDC 协议层。
  */
 void UsbUart::Init() {
-  if (!IsCreated()) {
-    (void)Recreate(kDefaultRxQueueStorageSize);
+  if (!EnsureRxQueueCreated()) {
+    return;
   }
 
-  Device().AttachRxQueue(this);
+  Device().AttachRxQueue(RxQueue());
   Device().Init();
 }
 
-/*
- * 发送方向保持串口式封装：
- * - 上层只管写入字节流；
- * - 底层会先进入 usb_cdc 的发送队列；
- * - 再由 USB PCD 双缓冲发送状态机自动逐包发出。
- */
-uint32_t UsbUart::Write(const uint8_t *data, uint32_t len) const {
+/* 上层写入的数据交给 USB CDC 发送路径处理。 */
+uint32_t UsbUart::Write(const uint8_t *data, uint32_t len) {
   return Device().Write(data, len);
 }
 
-/*
- * 接收方向直接从当前对象继承而来的无锁队列中取数。
- * 为了让“传输层接收环形缓冲区”中的数据尽快上抛到应用队列，
- * 这里先让 UsbCdcAcm 做一次链路服务，再执行真正的出队读取。
- */
-uint32_t UsbUart::Read(uint8_t *data, uint32_t len) {
-  Device().Service();
-  return Dequeue(data, len);
-}
-
-/* 返回当前应用层接收队列中的可读字节数。 */
-uint32_t UsbUart::Available() const {
-  return UsedSize();
-}
-
-/* 返回 USB CDC 内部发送队列剩余空间。 */
+/* 查询 CDC 底层发送队列剩余空间。 */
 uint32_t UsbUart::TxFree() const {
   return Device().TxFree();
 }
 
-/* 返回 USB CDC 内部发送队列已用空间。 */
+/* 查询 CDC 底层发送队列已用空间。 */
 uint32_t UsbUart::TxUsed() const {
   return Device().TxUsed();
 }
 
-/* 返回当前对象接收队列剩余空间。 */
-uint32_t UsbUart::RxFree() const {
-  return FreeSize();
-}
-
-/* 返回当前对象接收队列已用空间。 */
-uint32_t UsbUart::RxUsed() const {
-  return UsedSize();
-}
-
-/* 返回底层接收链路累计丢包字节数。 */
+/* 查询 CDC 接收链路累计丢弃的字节数。 */
 uint32_t UsbUart::RxDropped() const {
   return Device().RxDropped();
 }
 
-/* 查询主机是否已经完成 USB 枚举配置。 */
+/* 只有在主机完成配置后，CDC 才算真正“连接可用”。 */
 bool UsbUart::IsConnected() const {
   return Device().IsConfigured();
 }
 
 /* 统一封装底层单例获取逻辑。 */
-UsbCdcAcm &UsbUart::Device() {
+UsbCdcAcm &UsbUart::Device() noexcept {
   return UsbCdcAcm::Instance();
+}
+
+/*
+ * `SerialIoBase::Read()` 在真正出队前会先调用这里。
+ *
+ * USB CDC 的接收链路里还存在一层内部暂存，因此每次读取前
+ * 先执行一次 `Service()`，让底层尽量把数据继续推到统一 RX 队列。
+ */
+void UsbUart::BeforeRead() {
+  Device().Service();
 }
 
 } // namespace iFly

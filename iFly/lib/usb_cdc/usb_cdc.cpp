@@ -1,6 +1,5 @@
 #include "usb_cdc.hpp"
 
-#include <new>
 #include <string.h>
 
 #include "main.h"
@@ -56,20 +55,6 @@ constexpr uint32_t MinU32(uint32_t left, uint32_t right) {
  * - 主循环调用 `Write()` / `Read()` / `Service()` 时；
  * - 需要同时操作“底层环形缓冲区 + 上层无锁队列 + 发送双缓冲状态”时。
  */
-class IrqGuard final {
-public:
-  IrqGuard() : primask_(__get_PRIMASK()) {
-    __disable_irq();
-  }
-
-  ~IrqGuard() {
-    __set_PRIMASK(primask_);
-  }
-
-private:
-  uint32_t primask_;
-};
-
 /*
  * 该适配器把 STM32 HAL PCD 操作封装在一个独立模块里。
  *
@@ -204,114 +189,6 @@ const uint8_t kSerialStringDescriptor[] = {
 
 namespace iFly {
 
-// ---------------- ByteRingBuffer 实现 ----------------
-
-UsbEndpointDoubleBuffer::UsbEndpointDoubleBuffer(uint16_t packetSize) noexcept {
-  (void)Recreate(packetSize);
-}
-
-UsbEndpointDoubleBuffer::~UsbEndpointDoubleBuffer() {
-  delete[] storage_;
-}
-
-bool UsbEndpointDoubleBuffer::Recreate(uint16_t packetSize) noexcept {
-  delete[] storage_;
-  storage_ = nullptr;
-  packetSize_ = 0U;
-  lengths_[0] = 0U;
-  lengths_[1] = 0U;
-  activeSlot_ = 0U;
-
-  if (packetSize == 0U) {
-    return false;
-  }
-
-  storage_ = new (std::nothrow) uint8_t[static_cast<uint32_t>(packetSize) * kSlotCount] {};
-  if (storage_ == nullptr) {
-    return false;
-  }
-
-  packetSize_ = packetSize;
-  return true;
-}
-
-void UsbEndpointDoubleBuffer::Clear() noexcept {
-  lengths_[0] = 0U;
-  lengths_[1] = 0U;
-  activeSlot_ = 0U;
-}
-
-bool UsbEndpointDoubleBuffer::IsCreated() const noexcept {
-  return (storage_ != nullptr) && (packetSize_ > 0U);
-}
-
-uint16_t UsbEndpointDoubleBuffer::PacketSize() const noexcept {
-  return packetSize_;
-}
-
-uint8_t *UsbEndpointDoubleBuffer::ActiveBuffer() noexcept {
-  return SlotBuffer(activeSlot_);
-}
-
-const uint8_t *UsbEndpointDoubleBuffer::ActiveBuffer() const noexcept {
-  return SlotBuffer(activeSlot_);
-}
-
-uint8_t *UsbEndpointDoubleBuffer::InactiveBuffer() noexcept {
-  return SlotBuffer(static_cast<uint8_t>(activeSlot_ ^ 0x01U));
-}
-
-const uint8_t *UsbEndpointDoubleBuffer::InactiveBuffer() const noexcept {
-  return SlotBuffer(static_cast<uint8_t>(activeSlot_ ^ 0x01U));
-}
-
-void UsbEndpointDoubleBuffer::SwapBuffers() noexcept {
-  activeSlot_ ^= 0x01U;
-}
-
-void UsbEndpointDoubleBuffer::SetActiveLength(uint16_t length) noexcept {
-  lengths_[activeSlot_] = length;
-}
-
-uint16_t UsbEndpointDoubleBuffer::ActiveLength() const noexcept {
-  return lengths_[activeSlot_];
-}
-
-void UsbEndpointDoubleBuffer::SetInactiveLength(uint16_t length) noexcept {
-  lengths_[activeSlot_ ^ 0x01U] = length;
-}
-
-uint16_t UsbEndpointDoubleBuffer::InactiveLength() const noexcept {
-  return lengths_[activeSlot_ ^ 0x01U];
-}
-
-void UsbEndpointDoubleBuffer::ClearActive() noexcept {
-  lengths_[activeSlot_] = 0U;
-}
-
-void UsbEndpointDoubleBuffer::ClearInactive() noexcept {
-  lengths_[activeSlot_ ^ 0x01U] = 0U;
-}
-
-bool UsbEndpointDoubleBuffer::HasInactiveData() const noexcept {
-  return InactiveLength() > 0U;
-}
-
-// ---------------- UsbTxDoubleBuffer 实现 ----------------
-
-uint8_t *UsbEndpointDoubleBuffer::SlotBuffer(uint8_t slotIndex) noexcept {
-  return (storage_ == nullptr)
-             ? nullptr
-             : (storage_ + (static_cast<uint32_t>(slotIndex) * packetSize_));
-}
-
-const uint8_t *UsbEndpointDoubleBuffer::SlotBuffer(uint8_t slotIndex) const noexcept {
-  return (storage_ == nullptr)
-             ? nullptr
-             : (storage_ + (static_cast<uint32_t>(slotIndex) * packetSize_));
-}
-
-
 // ---------------- UsbCdcAcm 实现 ----------------
 
 UsbCdcAcm &UsbCdcAcm::Instance() {
@@ -321,28 +198,20 @@ UsbCdcAcm &UsbCdcAcm::Instance() {
 
 UsbCdcAcm::UsbCdcAcm() noexcept
   : rxEndpointBuffer_(kEpDataMps),
-    txQueue_(kTxQueueStorageSize),
+    txQueue_(),
     txEndpointBuffer_(kEpDataMps) {
 }
 
 void UsbCdcAcm::Init() {
-  IrqGuard guard;
-
-  if (!txQueue_.IsCreated()) {
-    (void)txQueue_.Recreate(kTxQueueStorageSize);
-  }
-  if (!rxEndpointBuffer_.IsCreated()) {
-    (void)rxEndpointBuffer_.Recreate(kEpDataMps);
-  }
-  if (!txEndpointBuffer_.IsCreated()) {
-    (void)txEndpointBuffer_.Recreate(kEpDataMps);
-  }
+  txQueue_.Recreate();
+  (void)rxEndpointBuffer_.Recreate(kEpDataMps);
+  (void)txEndpointBuffer_.Recreate(kEpDataMps);
 
   if ((!txQueue_.IsCreated()) || (!rxEndpointBuffer_.IsCreated()) || (!txEndpointBuffer_.IsCreated())) {
     return;
   }
 
-  if (initialized_) {
+  if (initialized_.load(std::memory_order_acquire)) {
     ServiceTxPath();
     return;
   }
@@ -350,11 +219,10 @@ void UsbCdcAcm::Init() {
   ResetRuntimeState();
   UsbPcd().ConfigureFifos();
   (void)UsbPcd().Start();
-  initialized_ = true;
+  initialized_.store(true, std::memory_order_release);
 }
 
 void UsbCdcAcm::AttachRxQueue(LockFreeQueueBase *queue) {
-  IrqGuard guard;
   appRxQueue_ = queue;
 
   if ((appRxQueue_ != nullptr) && appRxQueue_->IsCreated()) {
@@ -363,7 +231,6 @@ void UsbCdcAcm::AttachRxQueue(LockFreeQueueBase *queue) {
 }
 
 void UsbCdcAcm::Service() {
-  IrqGuard guard;
   ServiceTxPath();
 }
 
@@ -372,7 +239,6 @@ uint32_t UsbCdcAcm::Write(const uint8_t *data, uint32_t len) {
     return 0U;
   }
 
-  IrqGuard guard;
   const uint32_t accepted = txQueue_.Enqueue(data, len);
   ServiceTxPath();
   return accepted;
@@ -407,16 +273,18 @@ uint32_t UsbCdcAcm::RxFree() const {
 }
 
 uint32_t UsbCdcAcm::RxDropped() const {
-  return rxDropped_;
+  return rxDropped_.load(std::memory_order_acquire);
 }
 
 bool UsbCdcAcm::IsConfigured() const {
-  return initialized_ && configured_ && !suspended_;
+  return initialized_.load(std::memory_order_acquire) &&
+         configured_.load(std::memory_order_acquire) &&
+         !suspended_.load(std::memory_order_acquire);
 }
 
 void UsbCdcAcm::ResetRuntimeState() {
-  configured_ = false;
-  suspended_ = false;
+  configured_.store(false, std::memory_order_release);
+  suspended_.store(false, std::memory_order_release);
   currentConfig_ = 0U;
   currentInterface_ = 0U;
   controlLineState_ = 0U;
@@ -438,8 +306,10 @@ void UsbCdcAcm::ResetRuntimeState() {
     appRxQueue_->Clear();
   }
 
-  txBusy_ = false;
-  rxDropped_ = 0U;
+  txBusy_.store(false, std::memory_order_release);
+  txServiceRequests_.store(0U, std::memory_order_release);
+  txServiceRunning_.store(false, std::memory_order_release);
+  rxDropped_.store(0U, std::memory_order_release);
 }
 
 void UsbCdcAcm::OpenControlEndpoints() {
@@ -458,7 +328,7 @@ void UsbCdcAcm::CloseDataEndpoints() {
   (void)UsbPcd().CloseEndpoint(kEpCdcCmdIn);
   (void)UsbPcd().CloseEndpoint(kEpCdcDataOut);
   (void)UsbPcd().CloseEndpoint(kEpCdcDataIn);
-  txBusy_ = false;
+  txBusy_.store(false, std::memory_order_release);
   rxEndpointBuffer_.Clear();
   txEndpointBuffer_.Clear();
 }
@@ -511,7 +381,7 @@ void UsbCdcAcm::OnDataInStage(uint8_t epnum) {
   }
 
   if (epnum == (kEpCdcDataIn & 0x7FU)) {
-    txBusy_ = false;
+    txBusy_.store(false, std::memory_order_release);
     txEndpointBuffer_.ClearActive();
     ServiceTxPath();
   }
@@ -552,11 +422,11 @@ void UsbCdcAcm::OnDataOutStage(uint8_t epnum) {
 }
 
 void UsbCdcAcm::OnSuspend() {
-  suspended_ = true;
+  suspended_.store(true, std::memory_order_release);
 }
 
 void UsbCdcAcm::OnResume() {
-  suspended_ = false;
+  suspended_.store(false, std::memory_order_release);
   ServiceTxPath();
 }
 
@@ -585,11 +455,11 @@ void UsbCdcAcm::HandleStandardRequest(const SetupPacket &setup) {
       }
 
       CloseDataEndpoints();
-      configured_ = false;
+      configured_.store(false, std::memory_order_release);
       currentConfig_ = static_cast<uint8_t>(configValue);
 
       if (configValue == kCdcConfigValue) {
-        configured_ = true;
+        configured_.store(true, std::memory_order_release);
         OpenDataEndpoints();
         ServiceTxPath();
       }
@@ -789,35 +659,64 @@ void UsbCdcAcm::PushReceivedPacket(const uint8_t *data, uint32_t len) {
   }
 
   if (pushed < len) {
-    rxDropped_ += (len - pushed);
+    (void)rxDropped_.fetch_add(len - pushed, std::memory_order_relaxed);
   }
 }
 
 void UsbCdcAcm::ServiceTxPath() {
-  if ((!initialized_) || (!configured_) || suspended_ || (!txQueue_.IsCreated()) ||
-      (!txEndpointBuffer_.IsCreated())) {
+  (void)txServiceRequests_.fetch_add(1U, std::memory_order_acq_rel);
+  if (txServiceRunning_.exchange(true, std::memory_order_acq_rel)) {
     return;
   }
 
-  (void)LoadTxPacketToInactiveBuffer();
-  if (txBusy_) {
-    return;
-  }
+  for (;;) {
+    while (txServiceRequests_.exchange(0U, std::memory_order_acq_rel) != 0U) {
+      if ((!initialized_.load(std::memory_order_acquire)) ||
+          (!configured_.load(std::memory_order_acquire)) ||
+          suspended_.load(std::memory_order_acquire) ||
+          (!txQueue_.IsCreated()) || (!txEndpointBuffer_.IsCreated())) {
+        continue;
+      }
 
-  if (!txEndpointBuffer_.HasInactiveData()) {
-    return;
-  }
+      (void)LoadTxPacketToInactiveBuffer();
+      if (txBusy_.load(std::memory_order_acquire)) {
+        continue;
+      }
 
-  uint8_t *data = txEndpointBuffer_.InactiveBuffer();
-  const uint16_t length = txEndpointBuffer_.InactiveLength();
-  if ((data == nullptr) || (length == 0U)) {
-    return;
-  }
+      if (!txEndpointBuffer_.HasInactiveData()) {
+        continue;
+      }
 
-  if (UsbPcd().Transmit(kEpCdcDataIn, data, length) == HAL_OK) {
-    txEndpointBuffer_.SwapBuffers();
-    txBusy_ = true;
-    (void)LoadTxPacketToInactiveBuffer();
+      uint8_t *data = txEndpointBuffer_.InactiveBuffer();
+      const uint16_t length = txEndpointBuffer_.InactiveLength();
+      if ((data == nullptr) || (length == 0U)) {
+        continue;
+      }
+
+      bool expectedBusy = false;
+      if (!txBusy_.compare_exchange_strong(expectedBusy, true,
+                                           std::memory_order_acq_rel,
+                                           std::memory_order_acquire)) {
+        continue;
+      }
+
+      if (UsbPcd().Transmit(kEpCdcDataIn, data, length) == HAL_OK) {
+        txEndpointBuffer_.SwapBuffers();
+        (void)LoadTxPacketToInactiveBuffer();
+        continue;
+      }
+
+      txBusy_.store(false, std::memory_order_release);
+    }
+
+    txServiceRunning_.store(false, std::memory_order_release);
+    if (txServiceRequests_.load(std::memory_order_acquire) == 0U) {
+      return;
+    }
+
+    if (txServiceRunning_.exchange(true, std::memory_order_acq_rel)) {
+      return;
+    }
   }
 }
 

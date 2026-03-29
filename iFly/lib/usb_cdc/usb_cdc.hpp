@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "double_buffer.hpp"
 #include "lock_free_queue.hpp"
 
 namespace iFly {
@@ -16,47 +17,15 @@ namespace iFly {
  * - 发送方向可在当前包传输时，向另一个槽位预装下一包数据；
  * - 接收方向可在处理当前包时，立即把另一个槽位重新挂给 OUT 端点。
  */
-class UsbEndpointDoubleBuffer final {
+class UsbEndpointDoubleBuffer final : public StaticByteDoubleBuffer<200U> {
 public:
   UsbEndpointDoubleBuffer() noexcept = default;
-  explicit UsbEndpointDoubleBuffer(uint16_t packetSize) noexcept;
-  ~UsbEndpointDoubleBuffer();
-
-  UsbEndpointDoubleBuffer(const UsbEndpointDoubleBuffer &) = delete;
-  UsbEndpointDoubleBuffer &operator=(const UsbEndpointDoubleBuffer &) = delete;
-
-  bool Recreate(uint16_t packetSize) noexcept;
-  void Clear() noexcept;
-  bool IsCreated() const noexcept;
-  uint16_t PacketSize() const noexcept;
-
-  uint8_t *ActiveBuffer() noexcept;
-  const uint8_t *ActiveBuffer() const noexcept;
-  uint8_t *InactiveBuffer() noexcept;
-  const uint8_t *InactiveBuffer() const noexcept;
-
-  void SwapBuffers() noexcept;
-
-  void SetActiveLength(uint16_t length) noexcept;
-  uint16_t ActiveLength() const noexcept;
-  void SetInactiveLength(uint16_t length) noexcept;
-  uint16_t InactiveLength() const noexcept;
-
-  void ClearActive() noexcept;
-  void ClearInactive() noexcept;
-  bool HasInactiveData() const noexcept;
+  explicit UsbEndpointDoubleBuffer(uint16_t packetSize) noexcept
+      : StaticByteDoubleBuffer<200U>(packetSize) {
+  }
 
 private:
-  static constexpr uint8_t kSlotCount = 2U;
-
-  uint8_t *SlotBuffer(uint8_t slotIndex) noexcept;
-  const uint8_t *SlotBuffer(uint8_t slotIndex) const noexcept;
-
-private:
-  uint8_t *storage_ = nullptr;
-  uint16_t packetSize_ = 0U;
-  uint16_t lengths_[kSlotCount] {};
-  uint8_t activeSlot_ = 0U;
+  using StaticByteDoubleBuffer<200U>::StaticByteDoubleBuffer;
 };
 
 /**
@@ -120,7 +89,7 @@ private:
   static constexpr uint8_t kEpCdcCmdIn = 0x82U;
   static constexpr uint16_t kEpDataMps = 64U;
   static constexpr uint16_t kEpCmdMps = 8U;
-  static constexpr uint32_t kTxQueueStorageSize = 1025U;
+  static constexpr uint32_t kTxQueueStorageSize = 200U;
 
   void ResetRuntimeState();
   void OpenControlEndpoints();
@@ -146,9 +115,9 @@ private:
 private:
   LockFreeQueueBase *appRxQueue_ = nullptr;
 
-  bool initialized_ = false;
-  volatile bool configured_ = false;
-  volatile bool suspended_ = false;
+  std::atomic<bool> initialized_ {false};
+  std::atomic<bool> configured_ {false};
+  std::atomic<bool> suspended_ {false};
   volatile uint8_t currentConfig_ = 0U;
   volatile uint8_t currentInterface_ = 0U;
   LineCoding lineCoding_ {115200U, 0U, 0U, 8U};
@@ -165,11 +134,13 @@ private:
   uint8_t lineCodingBuffer_[7] {};
 
   UsbEndpointDoubleBuffer rxEndpointBuffer_ {};
-  DynamicLockFreeQueue txQueue_ {};
+  StaticLockFreeQueue<kTxQueueStorageSize> txQueue_ {};
   UsbEndpointDoubleBuffer txEndpointBuffer_ {};
 
-  volatile bool txBusy_ = false;
-  volatile uint32_t rxDropped_ = 0U;
+  std::atomic<bool> txBusy_ {false};
+  std::atomic<uint32_t> rxDropped_ {0U};
+  std::atomic<uint32_t> txServiceRequests_ {0U};
+  std::atomic<bool> txServiceRunning_ {false};
 };
 
 } // namespace iFly
