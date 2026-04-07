@@ -26,7 +26,7 @@ namespace iFly {
  * 也就是说，统一接口的核心不是把所有底层细节都塞到一个类里，
  * 而是统一“面向上层”的那层队列式字节流抽象。
  */
-class SerialIoBase : public StaticLockFreeQueue<200U> {
+class SerialIoBase : public DynamicLockFreeQueue {
 public:
   /** @brief 默认 RX 队列底层总存储大小，实际可用容量为该值减 1。 */
   static constexpr uint32_t kDefaultRxQueueStorageSize = 200U;
@@ -39,8 +39,8 @@ public:
    * 因为嵌入式环境下动态分配可能失败，所以后续 `Init()` 里还会再次兜底检查。
    */
   explicit SerialIoBase(uint32_t rxQueueStorageSize = kDefaultRxQueueStorageSize) noexcept
-      : StaticLockFreeQueue<200U>() {
-    (void)rxQueueStorageSize;
+      : DynamicLockFreeQueue(),
+        rxQueueStorageSize_((rxQueueStorageSize >= 2U) ? rxQueueStorageSize : kDefaultRxQueueStorageSize) {
   }
 
   virtual ~SerialIoBase() = default;
@@ -100,7 +100,7 @@ protected:
    */
   bool EnsureRxQueueCreated() noexcept {
     if (!IsCreated()) {
-      Recreate();
+      (void)Recreate(rxQueueStorageSize_);
     }
     return IsCreated();
   }
@@ -125,6 +125,11 @@ protected:
    */
   virtual void BeforeRead() {
   }
+
+private:
+  // 记录期望的 RX 队列总存储大小，真正分配放到 Init() 阶段兜底执行。
+  // 这样派生类传下来的 rxQueueStorageSize 就不会再被忽略。
+  uint32_t rxQueueStorageSize_ = kDefaultRxQueueStorageSize;
 
 };
 

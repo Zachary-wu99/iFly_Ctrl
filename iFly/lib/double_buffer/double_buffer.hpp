@@ -11,6 +11,7 @@ public:
   DoubleBufferLengthBase() noexcept = default;
 
   DoubleBufferLengthBase(const DoubleBufferLengthBase &) = delete;
+  /*禁用拷贝*/
   DoubleBufferLengthBase &operator=(const DoubleBufferLengthBase &) = delete;
 
   void ResetLengths() noexcept {
