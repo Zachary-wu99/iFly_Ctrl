@@ -29,7 +29,7 @@ namespace iFly {
 class SerialIoBase : public DynamicLockFreeQueue {
 public:
   /** @brief 默认 RX 队列底层总存储大小，实际可用容量为该值减 1。 */
-  static constexpr uint32_t kDefaultRxQueueStorageSize = 200U;
+  static constexpr uint32_t kDefaultRxQueueStorageSize = 120U;
 
   /**
    * @brief 构造时记录期望的 RX 队列大小。

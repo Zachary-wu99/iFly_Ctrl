@@ -40,13 +40,14 @@ SoftTimerService &SoftTimerService::Instance() noexcept
 SoftTimerService::TaskHandle SoftTimerService::CreateTask(const TaskConfig &config) noexcept
 {
   // 回调为空或周期为 0 都属于非法配置，直接拒绝创建。
-  if ((config.callback == nullptr) || (config.interval_ms == 0U)) {
+  if (config.callback == nullptr) {
     return kInvalidTaskHandle;
   }
 
   // 默认情况下，首次触发延时与周期保持一致。
-  const uint32_t first_delay_ms =
-      (config.start_delay_ms == kUseIntervalAsStartDelay) ? config.interval_ms : config.start_delay_ms;
+  const uint32_t first_delay_ms = (config.start_delay_ms == kUseIntervalAsStartDelay)
+                                      ? ((config.interval_ms > 0U) ? config.interval_ms : 0U)
+                                      : config.start_delay_ms;
 
   IrqGuard irq_guard;
 
@@ -73,17 +74,41 @@ SoftTimerService::TaskHandle SoftTimerService::CreateTask(const TaskConfig &conf
     slot.context = config.context;
     slot.interval_ms = config.interval_ms;
     slot.next_release_tick = tick_count_ + first_delay_ms;
+    slot.requested_delay_ms = 0U;
     slot.creation_order = creation_order;
     slot.generation = generation;
     slot.priority = config.priority;
     slot.allocated = true;
     slot.auto_reload = config.auto_reload;
     slot.running = false;
+    slot.delay_requested = false;
     slot.pending_delete = false;
     return MakeTaskHandle(slot_index, generation);
   }
 
   return kInvalidTaskHandle;
+}
+
+bool SoftTimerService::DelayCurrentTask(uint32_t delay_ms) noexcept
+{
+  if (__get_IPSR() != 0U) {
+    return false;
+  }
+
+  if (!running_dispatch_ || (current_task_index_ >= kMaxTasks) ||
+      !IsValidTaskHandle(current_task_handle_)) {
+    return false;
+  }
+
+  IrqGuard irq_guard;
+  TaskSlot &slot = tasks_[current_task_index_];
+  if (!IsHandleMatch(slot, current_task_handle_, current_task_index_) || !slot.running) {
+    return false;
+  }
+
+  slot.requested_delay_ms = delay_ms;
+  slot.delay_requested = true;
+  return true;
 }
 
 bool SoftTimerService::DeleteTask(TaskHandle handle) noexcept
@@ -158,9 +183,13 @@ uint32_t SoftTimerService::Dispatch() noexcept
       TaskSlot &slot = tasks_[ready_index];
       // 标记为运行中，防止被立即删除或重复选中。
       slot.running = true;
+      slot.delay_requested = false;
+      slot.requested_delay_ms = 0U;
       callback = slot.callback;
       context = slot.context;
       handle = MakeTaskHandle(ready_index, slot.generation);
+      current_task_index_ = ready_index;
+      current_task_handle_ = handle;
     }
 
     // 真正的用户回调始终在中断外执行。
@@ -172,6 +201,8 @@ uint32_t SoftTimerService::Dispatch() noexcept
     {
       IrqGuard irq_guard;
       TaskSlot &slot = tasks_[ready_index];
+      current_task_index_ = kMaxTasks;
+      current_task_handle_ = kInvalidTaskHandle;
       if (!IsHandleMatch(slot, handle, ready_index)) {
         continue;
       }
@@ -185,11 +216,23 @@ uint32_t SoftTimerService::Dispatch() noexcept
       }
 
       // 周期任务以下一次“当前时刻 + 周期”重新装载。
-      slot.next_release_tick = tick_count_ + slot.interval_ms;
+      if (slot.interval_ms > 0U) {
+        slot.next_release_tick = tick_count_ + slot.interval_ms;
+        continue;
+      }
+
+      if (slot.delay_requested) {
+        slot.next_release_tick = tick_count_ + slot.requested_delay_ms;
+        continue;
+      }
+
+      ClearTaskSlot(ready_index);
     }
   }
 
   running_dispatch_ = false;
+  current_task_index_ = kMaxTasks;
+  current_task_handle_ = kInvalidTaskHandle;
   return executed_count;
 }
 
@@ -275,11 +318,13 @@ void SoftTimerService::ClearTaskSlot(uint8_t slot_index) noexcept
   slot.context = nullptr;
   slot.interval_ms = 0U;
   slot.next_release_tick = 0U;
+  slot.requested_delay_ms = 0U;
   slot.creation_order = 0U;
   slot.priority = kLowestPriority;
   slot.allocated = false;
   slot.auto_reload = true;
   slot.running = false;
+  slot.delay_requested = false;
   slot.pending_delete = false;
 }
 

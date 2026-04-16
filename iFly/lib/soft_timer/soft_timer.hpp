@@ -60,6 +60,7 @@ public:
   struct TaskConfig final {
     TaskCallback callback = nullptr;
     void *context = nullptr;
+    // interval_ms == 0 means the task has no fixed period and must reschedule itself.
     uint32_t interval_ms = 0U;
     uint32_t start_delay_ms = kUseIntervalAsStartDelay;
     uint8_t priority = kLowestPriority;
@@ -75,6 +76,8 @@ public:
    * @return 创建成功返回有效句柄，失败返回 `kInvalidTaskHandle`。
    */
   TaskHandle CreateTask(const TaskConfig &config) noexcept;
+  // Called inside the currently running callback to request the next wake-up delay.
+  bool DelayCurrentTask(uint32_t delay_ms) noexcept;
 
   /**
    * @brief 删除指定任务。
@@ -113,12 +116,14 @@ private:
     void *context = nullptr;
     uint32_t interval_ms = 0U;
     uint32_t next_release_tick = 0U;
+    uint32_t requested_delay_ms = 0U;
     uint32_t creation_order = 0U;
     uint32_t generation = 0U;
     uint8_t priority = kLowestPriority;
     bool allocated = false;
     bool auto_reload = true;
     bool running = false;
+    bool delay_requested = false;
     bool pending_delete = false;
   };
 
@@ -154,6 +159,8 @@ private:
   uint32_t creation_counter_ = 0U;
   /** @brief 防止 `Dispatch()` 重入。 */
   bool running_dispatch_ = false;
+  uint8_t current_task_index_ = kMaxTasks;
+  TaskHandle current_task_handle_ = kInvalidTaskHandle;
   /** @brief 固定大小任务表。 */
   TaskSlot tasks_[kMaxTasks] {};
 };

@@ -48,6 +48,9 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/app_main.cpp
+    iFly/app/ctrl/pidctrl/pid.cpp
+    iFly/app/proto/crsf/crsf_protocol.cpp
+    iFly/app/proto/sbus/sbus_protocol.cpp
     iFly/dev/can_dev/hardware_can.cpp
     iFly/dev/uart_dev/hardware_uart.cpp
     iFly/dev/usb_dev/usb_uart.cpp
@@ -61,6 +64,9 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     iFly
+    iFly/app/ctrl/pidctrl
+    iFly/app/proto/crsf
+    iFly/app/proto/sbus
     iFly/lib/double_buffer
     iFly/dev/can_dev
     iFly/dev/uart_dev
