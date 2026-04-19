@@ -22,7 +22,7 @@ namespace iFly {
 class UsbUart final : public SerialIoBase {
 public:
   /** @brief 构造一个 USB CDC 串口对象，并记录 RX 队列大小。 */
-  explicit UsbUart(uint32_t rxQueueStorageSize = kDefaultRxQueueStorageSize) noexcept;
+  explicit UsbUart(uint32_t rxQueueStorageSize = kDefaultRxQueueStorageSize);
 
   /** @brief 初始化 USB CDC，并把本对象的 RX 队列挂接到 CDC 底层。 */
   void Init() override;
@@ -39,7 +39,7 @@ public:
 
 private:
   /** @brief 获取底层 USB CDC 单例。 */
-  static UsbCdcAcm &Device() noexcept;
+  static UsbCdcAcm &Device();
 
   /** @brief 在真正 `Read()` 前先推动 CDC 链路服务，把暂存数据上抛到 RX 队列。 */
   void BeforeRead() override;

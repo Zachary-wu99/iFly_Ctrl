@@ -38,7 +38,7 @@ public:
    * 这里并不强制要求构造阶段就一定创建成功，
    * 因为嵌入式环境下动态分配可能失败，所以后续 `Init()` 里还会再次兜底检查。
    */
-  explicit SerialIoBase(uint32_t rxQueueStorageSize = kDefaultRxQueueStorageSize) noexcept
+  explicit SerialIoBase(uint32_t rxQueueStorageSize = kDefaultRxQueueStorageSize)
       : DynamicLockFreeQueue(),
         rxQueueStorageSize_((rxQueueStorageSize >= 2U) ? rxQueueStorageSize : kDefaultRxQueueStorageSize) {
   }
@@ -77,17 +77,17 @@ public:
   }
 
   /** @brief 返回当前 RX 队列中的可读字节数。 */
-  uint32_t Available() const noexcept {
+  uint32_t Available() const {
     return UsedSize();
   }
 
   /** @brief 返回当前 RX 队列剩余可写空间。 */
-  uint32_t RxFree() const noexcept {
+  uint32_t RxFree() const {
     return FreeSize();
   }
 
   /** @brief 返回当前 RX 队列已用空间。 */
-  uint32_t RxUsed() const noexcept {
+  uint32_t RxUsed() const {
     return UsedSize();
   }
 
@@ -98,7 +98,7 @@ protected:
    * @details
    * 如果构造阶段创建失败，这里会按记录下来的默认大小再次尝试。
    */
-  bool EnsureRxQueueCreated() noexcept {
+  bool EnsureRxQueueCreated() {
     if (!IsCreated()) {
       (void)Recreate(rxQueueStorageSize_);
     }
@@ -112,7 +112,7 @@ protected:
    * 底层传输层并不需要知道当前对象的具体类型，
    * 只需要拿到一个 `LockFreeQueueBase*`，把收到的数据塞进去即可。
    */
-  LockFreeQueueBase *RxQueue() noexcept {
+  LockFreeQueueBase *RxQueue() {
     return this;
   }
 

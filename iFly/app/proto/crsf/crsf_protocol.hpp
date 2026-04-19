@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-namespace iFly::crsf {
+namespace iFly {
 
 struct CrsfFrame final {
   static constexpr uint8_t kMaxPayloadSize = 60U;
@@ -47,49 +47,49 @@ public:
     uint32_t resyncCount = 0U;
   };
 
-  CrsfProtocol() noexcept = default;
+  CrsfProtocol() = default;
 
-  void Reset() noexcept;
+  void Reset();
 
   uint32_t Parse(const uint8_t *data,
                  uint32_t length,
                  CrsfFrame *outFrames,
-                 uint32_t maxFrames) noexcept;
+                 uint32_t maxFrames);
 
   bool Encode(const CrsfFrame &frame,
               uint8_t *outFrame,
               uint32_t outCapacity,
-              uint32_t *writtenLength = nullptr) const noexcept;
+              uint32_t *writtenLength = nullptr) const;
 
-  const ParseStats &Stats() const noexcept {
+  const ParseStats &Stats() const {
     return stats_;
   }
 
   static bool TryDecodeFrame(const uint8_t *rawFrame,
                              uint32_t rawLength,
-                             CrsfFrame *frame) noexcept;
+                             CrsfFrame *frame);
 
-  static bool IsValidFrame(const uint8_t *rawFrame, uint32_t rawLength) noexcept;
-  static bool IsExtendedType(uint8_t type) noexcept;
-  static uint8_t ComputeCrc(const uint8_t *data, uint32_t length) noexcept;
+  static bool IsValidFrame(const uint8_t *rawFrame, uint32_t rawLength);
+  static bool IsExtendedType(uint8_t type);
+  static uint8_t ComputeCrc(const uint8_t *data, uint32_t length);
 
   static bool DecodeRcChannelsPacked(const CrsfFrame &frame,
-                                     CrsfRcChannelsPacked *channels) noexcept;
+                                     CrsfRcChannelsPacked *channels);
 
   static bool EncodeRcChannelsPacked(uint8_t deviceAddress,
                                      const CrsfRcChannelsPacked &channels,
                                      uint8_t *outFrame,
                                      uint32_t outCapacity,
-                                     uint32_t *writtenLength = nullptr) noexcept;
+                                     uint32_t *writtenLength = nullptr);
 
 private:
-  static uint8_t ComputeExpectedPacketSize(uint8_t frameLength) noexcept;
-  static uint16_t ReadChannel11(const uint8_t *payload, uint8_t channelIndex) noexcept;
-  static void WriteChannel11(uint8_t *payload, uint8_t channelIndex, uint16_t value) noexcept;
+  static uint8_t ComputeExpectedPacketSize(uint8_t frameLength);
+  static uint16_t ReadChannel11(const uint8_t *payload, uint8_t channelIndex);
+  static void WriteChannel11(uint8_t *payload, uint8_t channelIndex, uint16_t value);
 
-  void RefreshExpectedPacketSize() noexcept;
-  void ConsumeLeadingBytes(uint8_t count) noexcept;
-  void DropLeadingBytes(uint8_t count) noexcept;
+  void RefreshExpectedPacketSize();
+  void ConsumeLeadingBytes(uint8_t count);
+  void DropLeadingBytes(uint8_t count);
 
 private:
   uint8_t buffer_[kMaxPacketSize] {};
@@ -98,6 +98,6 @@ private:
   ParseStats stats_ {};
 };
 
-} // namespace iFly::crsf
+} // namespace iFly::Crsf
 
 #endif /* IFLY_APP_PROTO_CRSF_PROTOCOL_HPP */

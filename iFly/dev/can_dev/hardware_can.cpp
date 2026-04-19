@@ -3,7 +3,7 @@
 namespace iFly {
 
 // 构造时只记录端口号，并把接收队列容量交给 SerialIoBase 基类管理。
-HardwareCan::HardwareCan(CanPortId port, uint32_t rxQueueStorageSize) noexcept
+HardwareCan::HardwareCan(CanPortId port, uint32_t rxQueueStorageSize)
     : SerialIoBase(rxQueueStorageSize), port_(port) {
 }
 
@@ -43,7 +43,7 @@ bool HardwareCan::IsConnected() const {
   return Device().IsReady(port_);
 }
 
-CanPortId HardwareCan::Port() const noexcept {
+CanPortId HardwareCan::Port() const {
   return port_;
 }
 
@@ -86,7 +86,7 @@ uint32_t HardwareCan::RxUsed() {
 }
 
 // 返回底层 CAN 服务单例。
-CanService &HardwareCan::Device() noexcept {
+CanService &HardwareCan::Device() {
   return CanService::Instance();
 }
 

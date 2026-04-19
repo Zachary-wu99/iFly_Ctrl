@@ -3,10 +3,8 @@
 
 #include <stdint.h>
 
-namespace iFly::pidctrl {
+namespace iFly {
 
-// Reusable PID controller inspired by PX4's generic controller structure:
-// derivative-on-measurement by default, filtered D-term, integral clamping and saturation-aware anti-windup.
 class Pid final {
 public:
   enum class DerivativeMode : uint8_t {
@@ -74,44 +72,44 @@ public:
     bool initialized = false;
   };
 
-  Pid() noexcept = default;
-  explicit Pid(const Config &config) noexcept;
+  Pid() = default;
+  explicit Pid(const Config &config);
 
-  void Configure(const Config &config) noexcept;
-  const Config &GetConfig() const noexcept {
+  void Configure(const Config &config);
+  const Config &GetConfig() const {
     return config_;
   }
 
-  const State &GetState() const noexcept {
+  const State &GetState() const {
     return state_;
   }
 
-  void Reset() noexcept;
-  void ResetIntegrator(float integral = 0.0f) noexcept;
-  void SetIntegrator(float integral) noexcept;
-  float Integrator() const noexcept {
+  void Reset();
+  void ResetIntegrator(float integral = 0.0f);
+  void SetIntegrator(float integral);
+  float Integrator() const {
     return state_.integral;
   }
 
-  UpdateResult Update(const UpdateInput &input) noexcept;
+  UpdateResult Update(const UpdateInput &input);
 
 private:
-  static bool IsFinite(float value) noexcept;
-  static float Clamp(float value, float lower, float upper) noexcept;
-  static float SanitizeValue(float value, float fallback) noexcept;
-  static void NormalizeRange(float *lower, float *upper) noexcept;
-  static bool HasValidRange(float lower, float upper) noexcept;
+  static bool IsFinite(float value);
+  static float Clamp(float value, float lower, float upper);
+  static float SanitizeValue(float value, float fallback);
+  static void NormalizeRange(float *lower, float *upper);
+  static bool HasValidRange(float lower, float upper);
 
-  float SanitizeDt(float dt_s) const noexcept;
-  float ApplyDerivativeFilter(float derivative_raw, float dt_s, bool reset) noexcept;
-  float ClampIntegral(float integral) const noexcept;
-  float ClampOutput(float output, bool *clamped_low, bool *clamped_high) const noexcept;
+  float SanitizeDt(float dt_s) const;
+  float ApplyDerivativeFilter(float derivative_raw, float dt_s, bool reset);
+  float ClampIntegral(float integral) const;
+  float ClampOutput(float output, bool *clamped_low, bool *clamped_high) const;
 
 private:
   Config config_ {};
   State state_ {};
 };
 
-} // namespace iFly::pidctrl
+} // namespace iFly
 
 #endif /* IFLY_APP_CTRL_PIDCTRL_PID_HPP */

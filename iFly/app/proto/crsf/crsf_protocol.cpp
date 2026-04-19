@@ -2,7 +2,7 @@
 
 #include <string.h>
 
-namespace iFly::crsf {
+namespace iFly {
 
 namespace {
 
@@ -10,7 +10,7 @@ constexpr uint16_t k11BitMask = 0x07FFU;
 
 } // namespace
 
-void CrsfProtocol::Reset() noexcept
+void CrsfProtocol::Reset()
 {
   (void)memset(buffer_, 0, sizeof(buffer_));
   bufferedBytes_ = 0U;
@@ -21,7 +21,7 @@ void CrsfProtocol::Reset() noexcept
 uint32_t CrsfProtocol::Parse(const uint8_t *data,
                              uint32_t length,
                              CrsfFrame *outFrames,
-                             uint32_t maxFrames) noexcept
+                             uint32_t maxFrames)
 {
   if ((data == nullptr) || (length == 0U)) {
     return 0U;
@@ -65,7 +65,7 @@ uint32_t CrsfProtocol::Parse(const uint8_t *data,
 bool CrsfProtocol::Encode(const CrsfFrame &frame,
                           uint8_t *outFrame,
                           uint32_t outCapacity,
-                          uint32_t *writtenLength) const noexcept
+                          uint32_t *writtenLength) const
 {
   if (outFrame == nullptr) {
     return false;
@@ -108,7 +108,7 @@ bool CrsfProtocol::Encode(const CrsfFrame &frame,
 
 bool CrsfProtocol::TryDecodeFrame(const uint8_t *rawFrame,
                                   uint32_t rawLength,
-                                  CrsfFrame *frame) noexcept
+                                  CrsfFrame *frame)
 {
   if ((frame == nullptr) || !IsValidFrame(rawFrame, rawLength)) {
     return false;
@@ -141,7 +141,7 @@ bool CrsfProtocol::TryDecodeFrame(const uint8_t *rawFrame,
   return true;
 }
 
-bool CrsfProtocol::IsValidFrame(const uint8_t *rawFrame, uint32_t rawLength) noexcept
+bool CrsfProtocol::IsValidFrame(const uint8_t *rawFrame, uint32_t rawLength)
 {
   if ((rawFrame == nullptr) || (rawLength < kMinPacketSize) || (rawLength > kMaxPacketSize)) {
     return false;
@@ -166,12 +166,12 @@ bool CrsfProtocol::IsValidFrame(const uint8_t *rawFrame, uint32_t rawLength) noe
   return actualCrc == expectedCrc;
 }
 
-bool CrsfProtocol::IsExtendedType(uint8_t type) noexcept
+bool CrsfProtocol::IsExtendedType(uint8_t type)
 {
   return type >= kExtendedTypeMin;
 }
 
-uint8_t CrsfProtocol::ComputeCrc(const uint8_t *data, uint32_t length) noexcept
+uint8_t CrsfProtocol::ComputeCrc(const uint8_t *data, uint32_t length)
 {
   if ((data == nullptr) || (length == 0U)) {
     return 0U;
@@ -193,7 +193,7 @@ uint8_t CrsfProtocol::ComputeCrc(const uint8_t *data, uint32_t length) noexcept
 }
 
 bool CrsfProtocol::DecodeRcChannelsPacked(const CrsfFrame &frame,
-                                          CrsfRcChannelsPacked *channels) noexcept
+                                          CrsfRcChannelsPacked *channels)
 {
   if ((channels == nullptr) || (frame.type != kRcChannelsPackedType) ||
       frame.extended || (frame.payloadLength != kRcChannelsPayloadSize)) {
@@ -211,7 +211,7 @@ bool CrsfProtocol::EncodeRcChannelsPacked(uint8_t deviceAddress,
                                           const CrsfRcChannelsPacked &channels,
                                           uint8_t *outFrame,
                                           uint32_t outCapacity,
-                                          uint32_t *writtenLength) noexcept
+                                          uint32_t *writtenLength)
 {
   CrsfFrame frame {};
   frame.deviceAddress = deviceAddress;
@@ -227,7 +227,7 @@ bool CrsfProtocol::EncodeRcChannelsPacked(uint8_t deviceAddress,
   return CrsfProtocol {}.Encode(frame, outFrame, outCapacity, writtenLength);
 }
 
-uint8_t CrsfProtocol::ComputeExpectedPacketSize(uint8_t frameLength) noexcept
+uint8_t CrsfProtocol::ComputeExpectedPacketSize(uint8_t frameLength)
 {
   if ((frameLength < kMinFrameLength) || (frameLength > kMaxFrameLength)) {
     return 0U;
@@ -236,7 +236,7 @@ uint8_t CrsfProtocol::ComputeExpectedPacketSize(uint8_t frameLength) noexcept
   return static_cast<uint8_t>(frameLength + 2U);
 }
 
-uint16_t CrsfProtocol::ReadChannel11(const uint8_t *payload, uint8_t channelIndex) noexcept
+uint16_t CrsfProtocol::ReadChannel11(const uint8_t *payload, uint8_t channelIndex)
 {
   if (payload == nullptr) {
     return 0U;
@@ -256,7 +256,7 @@ uint16_t CrsfProtocol::ReadChannel11(const uint8_t *payload, uint8_t channelInde
   return value;
 }
 
-void CrsfProtocol::WriteChannel11(uint8_t *payload, uint8_t channelIndex, uint16_t value) noexcept
+void CrsfProtocol::WriteChannel11(uint8_t *payload, uint8_t channelIndex, uint16_t value)
 {
   if (payload == nullptr) {
     return;
@@ -277,7 +277,7 @@ void CrsfProtocol::WriteChannel11(uint8_t *payload, uint8_t channelIndex, uint16
   }
 }
 
-void CrsfProtocol::RefreshExpectedPacketSize() noexcept
+void CrsfProtocol::RefreshExpectedPacketSize()
 {
   expectedPacketSize_ = 0U;
   while (bufferedBytes_ >= 2U) {
@@ -290,7 +290,7 @@ void CrsfProtocol::RefreshExpectedPacketSize() noexcept
   }
 }
 
-void CrsfProtocol::DropLeadingBytes(uint8_t count) noexcept
+void CrsfProtocol::DropLeadingBytes(uint8_t count)
 {
   if ((count == 0U) || (bufferedBytes_ == 0U)) {
     return;
@@ -308,7 +308,7 @@ void CrsfProtocol::DropLeadingBytes(uint8_t count) noexcept
   ++stats_.resyncCount;
 }
 
-void CrsfProtocol::ConsumeLeadingBytes(uint8_t count) noexcept
+void CrsfProtocol::ConsumeLeadingBytes(uint8_t count)
 {
   if ((count == 0U) || (bufferedBytes_ == 0U)) {
     return;
@@ -324,4 +324,4 @@ void CrsfProtocol::ConsumeLeadingBytes(uint8_t count) noexcept
   expectedPacketSize_ = 0U;
 }
 
-} // namespace iFly::crsf
+} // namespace iFly::Crsf

@@ -2,42 +2,16 @@
 
 #include "stm32f4xx_hal.h"
 
-namespace {
-
-/**
- * @brief 简单的关中断保护对象。
- * @details
- * 构造时保存当前 PRIMASK 并关中断，析构时恢复原始状态。
- * 这里用于保护任务表和软件 tick 的并发访问。
- */
-class IrqGuard final {
-public:
-  IrqGuard() noexcept : primask_(__get_PRIMASK())
-  {
-    __disable_irq();
-  }
-
-  ~IrqGuard()
-  {
-    __set_PRIMASK(primask_);
-  }
-
-private:
-  uint32_t primask_;
-};
-
-} // namespace
-
 namespace iFly {
 
-SoftTimerService &SoftTimerService::Instance() noexcept
+SoftTimerService &SoftTimerService::Instance()
 {
   // 使用函数内静态对象实现单例，避免全局初始化顺序问题。
   static SoftTimerService instance;
   return instance;
 }
 
-SoftTimerService::TaskHandle SoftTimerService::CreateTask(const TaskConfig &config) noexcept
+SoftTimerService::TaskHandle SoftTimerService::CreateTask(const TaskConfig &config)
 {
   // 回调为空或周期为 0 都属于非法配置，直接拒绝创建。
   if (config.callback == nullptr) {
@@ -48,8 +22,6 @@ SoftTimerService::TaskHandle SoftTimerService::CreateTask(const TaskConfig &conf
   const uint32_t first_delay_ms = (config.start_delay_ms == kUseIntervalAsStartDelay)
                                       ? ((config.interval_ms > 0U) ? config.interval_ms : 0U)
                                       : config.start_delay_ms;
-
-  IrqGuard irq_guard;
 
   // 在固定槽位数组中寻找空闲位置，不做动态内存分配。
   for (uint8_t slot_index = 0U; slot_index < kMaxTasks; ++slot_index) {
@@ -89,7 +61,7 @@ SoftTimerService::TaskHandle SoftTimerService::CreateTask(const TaskConfig &conf
   return kInvalidTaskHandle;
 }
 
-bool SoftTimerService::DelayCurrentTask(uint32_t delay_ms) noexcept
+bool SoftTimerService::DelayCurrentTask(uint32_t delay_ms)
 {
   if (__get_IPSR() != 0U) {
     return false;
@@ -100,7 +72,6 @@ bool SoftTimerService::DelayCurrentTask(uint32_t delay_ms) noexcept
     return false;
   }
 
-  IrqGuard irq_guard;
   TaskSlot &slot = tasks_[current_task_index_];
   if (!IsHandleMatch(slot, current_task_handle_, current_task_index_) || !slot.running) {
     return false;
@@ -111,13 +82,12 @@ bool SoftTimerService::DelayCurrentTask(uint32_t delay_ms) noexcept
   return true;
 }
 
-bool SoftTimerService::DeleteTask(TaskHandle handle) noexcept
+bool SoftTimerService::DeleteTask(TaskHandle handle)
 {
   if (!IsValidTaskHandle(handle)) {
     return false;
   }
 
-  IrqGuard irq_guard;
   const uint8_t slot_index = ExtractTaskIndex(handle);
   TaskSlot &slot = tasks_[slot_index];
   if (!IsHandleMatch(slot, handle, slot_index)) {
@@ -135,10 +105,8 @@ bool SoftTimerService::DeleteTask(TaskHandle handle) noexcept
   return true;
 }
 
-void SoftTimerService::DeleteAllTasks() noexcept
+void SoftTimerService::DeleteAllTasks()
 {
-  IrqGuard irq_guard;
-
   for (uint8_t slot_index = 0U; slot_index < kMaxTasks; ++slot_index) {
     TaskSlot &slot = tasks_[slot_index];
     if (!slot.allocated) {
@@ -156,9 +124,9 @@ void SoftTimerService::DeleteAllTasks() noexcept
   }
 }
 
-uint32_t SoftTimerService::Dispatch() noexcept
+uint32_t SoftTimerService::Dispatch()
 {
-  // 非抢占式调度器不允许自身重入。
+  // 非抢占式调度器不允许自身重入，纯防呆
   if (running_dispatch_) {
     return 0U;
   }
@@ -173,24 +141,21 @@ uint32_t SoftTimerService::Dispatch() noexcept
     void *context = nullptr;
     TaskHandle handle = kInvalidTaskHandle;
 
-    {
-      IrqGuard irq_guard;
-      ready_index = FindReadyTaskIndex(tick_count_);
-      if (ready_index == kMaxTasks) {
-        break;
-      }
-
-      TaskSlot &slot = tasks_[ready_index];
-      // 标记为运行中，防止被立即删除或重复选中。
-      slot.running = true;
-      slot.delay_requested = false;
-      slot.requested_delay_ms = 0U;
-      callback = slot.callback;
-      context = slot.context;
-      handle = MakeTaskHandle(ready_index, slot.generation);
-      current_task_index_ = ready_index;
-      current_task_handle_ = handle;
+    ready_index = FindReadyTaskIndex(tick_count_);
+    if (ready_index == kMaxTasks) {
+      break;
     }
+
+    TaskSlot &slot = tasks_[ready_index];
+    // 标记为运行中，防止被立即删除或重复选中。
+    slot.running = true;
+    slot.delay_requested = false;
+    slot.requested_delay_ms = 0U;
+    callback = slot.callback;
+    context = slot.context;
+    handle = MakeTaskHandle(ready_index, slot.generation);
+    current_task_index_ = ready_index;
+    current_task_handle_ = handle;
 
     // 真正的用户回调始终在中断外执行。
     if (callback != nullptr) {
@@ -198,36 +163,32 @@ uint32_t SoftTimerService::Dispatch() noexcept
       ++executed_count;
     }
 
-    {
-      IrqGuard irq_guard;
-      TaskSlot &slot = tasks_[ready_index];
-      current_task_index_ = kMaxTasks;
-      current_task_handle_ = kInvalidTaskHandle;
-      if (!IsHandleMatch(slot, handle, ready_index)) {
-        continue;
-      }
-
-      slot.running = false;
-
-      // 单次任务或被请求删除的任务在这里统一回收。
-      if (slot.pending_delete || !slot.auto_reload) {
-        ClearTaskSlot(ready_index);
-        continue;
-      }
-
-      // 周期任务以下一次“当前时刻 + 周期”重新装载。
-      if (slot.interval_ms > 0U) {
-        slot.next_release_tick = tick_count_ + slot.interval_ms;
-        continue;
-      }
-
-      if (slot.delay_requested) {
-        slot.next_release_tick = tick_count_ + slot.requested_delay_ms;
-        continue;
-      }
-
-      ClearTaskSlot(ready_index);
+    current_task_index_ = kMaxTasks;
+    current_task_handle_ = kInvalidTaskHandle;
+    if (!IsHandleMatch(slot, handle, ready_index)) {
+      continue;
     }
+
+    slot.running = false;
+
+    // 单次任务或被请求删除的任务在这里统一回收。
+    if (slot.pending_delete || !slot.auto_reload) {
+      ClearTaskSlot(ready_index);
+      continue;
+    }
+
+    // 周期任务以下一次“当前时刻 + 周期”重新装载。
+    if (slot.interval_ms > 0U) {
+      slot.next_release_tick = tick_count_ + slot.interval_ms;
+      continue;
+    }
+
+    if (slot.delay_requested) {
+      slot.next_release_tick = tick_count_ + slot.requested_delay_ms;
+      continue;
+    }
+
+    ClearTaskSlot(ready_index);
   }
 
   running_dispatch_ = false;
@@ -236,38 +197,38 @@ uint32_t SoftTimerService::Dispatch() noexcept
   return executed_count;
 }
 
-uint32_t SoftTimerService::Now() const noexcept
+uint32_t SoftTimerService::Now() const
 {
   return tick_count_;
 }
 
-void SoftTimerService::OnSysTick() noexcept
+void SoftTimerService::OnSysTick()
 {
   // 1ms 软时基累加，保持 ISR 足够轻量。
   ++tick_count_;
 }
 
-bool SoftTimerService::IsValidTaskHandle(TaskHandle handle) noexcept
+bool SoftTimerService::IsValidTaskHandle(TaskHandle handle)
 {
   return handle != kInvalidTaskHandle;
 }
 
-SoftTimerService::TaskHandle SoftTimerService::MakeTaskHandle(uint8_t slot_index, uint32_t generation) noexcept
+SoftTimerService::TaskHandle SoftTimerService::MakeTaskHandle(uint8_t slot_index, uint32_t generation)
 {
   return (generation << 16U) | static_cast<uint32_t>(slot_index + 1U);
 }
 
-uint8_t SoftTimerService::ExtractTaskIndex(TaskHandle handle) noexcept
+uint8_t SoftTimerService::ExtractTaskIndex(TaskHandle handle)
 {
   return static_cast<uint8_t>((handle & 0xFFFFU) - 1U);
 }
 
-uint32_t SoftTimerService::ExtractTaskGeneration(TaskHandle handle) noexcept
+uint32_t SoftTimerService::ExtractTaskGeneration(TaskHandle handle)
 {
   return handle >> 16U;
 }
 
-uint8_t SoftTimerService::FindReadyTaskIndex(uint32_t now) const noexcept
+uint8_t SoftTimerService::FindReadyTaskIndex(uint32_t now) const
 {
   uint8_t best_index = kMaxTasks;
 
@@ -304,13 +265,13 @@ uint8_t SoftTimerService::FindReadyTaskIndex(uint32_t now) const noexcept
   return best_index;
 }
 
-bool SoftTimerService::IsHandleMatch(const TaskSlot &slot, TaskHandle handle, uint8_t slot_index) const noexcept
+bool SoftTimerService::IsHandleMatch(const TaskSlot &slot, TaskHandle handle, uint8_t slot_index) const
 {
   return slot.allocated && (slot.generation == ExtractTaskGeneration(handle)) &&
          (slot_index == ExtractTaskIndex(handle));
 }
 
-void SoftTimerService::ClearTaskSlot(uint8_t slot_index) noexcept
+void SoftTimerService::ClearTaskSlot(uint8_t slot_index)
 {
   // 保留 generation，不清零，这样旧句柄不会重新匹配到后续复用任务。
   TaskSlot &slot = tasks_[slot_index];

@@ -48,14 +48,17 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/app_main.cpp
-    iFly/app/ctrl/pidctrl/pid.cpp
+    iFly/app/cli/flight_ctrl_cli.cpp
+    iFly/app/ctrl/pid.cpp
     iFly/app/proto/crsf/crsf_protocol.cpp
     iFly/app/proto/sbus/sbus_protocol.cpp
     iFly/dev/can_dev/hardware_can.cpp
     iFly/dev/uart_dev/hardware_uart.cpp
     iFly/dev/usb_dev/usb_uart.cpp
     iFly/lib/freelock_queue/lock_free_queue.cpp
+    iFly/lib/shell/shell.cpp
     iFly/lib/soft_timer/soft_timer.cpp
+    iFly/lib/systick_ns_timer/systick_ns_timer.cpp
     iFly/lib/uart/uart_dma.cpp
     iFly/lib/usb_cdc/usb_cdc.cpp
     iFly/lib/can/can.cpp
@@ -64,15 +67,20 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     iFly
-    iFly/app/ctrl/pidctrl
+    iFly/app/cli
+    iFly/app/ctrl
+    iFly/app/observer
     iFly/app/proto/crsf
     iFly/app/proto/sbus
+    iFly/dev
     iFly/lib/double_buffer
     iFly/dev/can_dev
     iFly/dev/uart_dev
     iFly/dev/usb_dev
     iFly/lib/freelock_queue
+    iFly/lib/shell
     iFly/lib/soft_timer
+    iFly/lib/systick_ns_timer
     iFly/lib/uart
     iFly/lib/usb_cdc
     iFly/lib/can

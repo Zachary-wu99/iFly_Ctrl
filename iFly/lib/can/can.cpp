@@ -8,7 +8,7 @@
 namespace {
 
 // 把枚举端口号转成数组下标，便于访问 Storage().slots[]。
-constexpr uint8_t PortIndex(iFly::CanPortId port) noexcept {
+constexpr uint8_t PortIndex(iFly::CanPortId port) {
   return static_cast<uint8_t>(port);
 }
 
@@ -29,19 +29,19 @@ class CanTxDoubleBuffer final : public iFly::StaticObjectDoubleBuffer<iFly::CanF
 public:
   using iFly::StaticObjectDoubleBuffer<iFly::CanFramePacket>::StaticObjectDoubleBuffer;
 
-  iFly::CanFramePacket &ActivePacket() noexcept {
+  iFly::CanFramePacket &ActivePacket() {
     return ActiveObject();
   }
 
-  iFly::CanFramePacket &InactivePacket() noexcept {
+  iFly::CanFramePacket &InactivePacket() {
     return InactiveObject();
   }
 
-  const iFly::CanFramePacket &InactivePacket() const noexcept {
+  const iFly::CanFramePacket &InactivePacket() const {
     return InactiveObject();
   }
 
-  void SetInactivePacket(const iFly::CanFramePacket &packet) noexcept {
+  void SetInactivePacket(const iFly::CanFramePacket &packet) {
     SetInactiveObject(packet);
   }
 };
@@ -64,7 +64,7 @@ public:
 };
 
 // 全局静态存储，整个工程只保留一份 CAN 服务状态。
-CanServiceStorage &Storage() noexcept {
+CanServiceStorage &Storage() {
   static CanServiceStorage storage;
   return storage;
 }
@@ -72,7 +72,7 @@ CanServiceStorage &Storage() noexcept {
 // 如果上层没有主动 AttachHardware()，这里提供默认句柄映射。
 // 当前工程只明确支持 2 路软件端口，但底层硬件句柄是否真的存在，
 // 仍要看芯片、CubeMX 配置以及链接进来的全局 hcan 变量。
-CAN_HandleTypeDef *DefaultHandleForPort(iFly::CanPortId port) noexcept {
+CAN_HandleTypeDef *DefaultHandleForPort(iFly::CanPortId port) {
   switch (port) {
     case iFly::CanPortId::kCan1:
       return &hcan1;
@@ -84,7 +84,7 @@ CAN_HandleTypeDef *DefaultHandleForPort(iFly::CanPortId port) noexcept {
 }
 
 // 根据 HAL 回调给出的 hcan，反查它属于哪一个软件端口 slot。
-CanPortSlot *FindSlot(CAN_HandleTypeDef *hcan) noexcept {
+CanPortSlot *FindSlot(CAN_HandleTypeDef *hcan) {
   if (hcan == nullptr) {
     return nullptr;
   }
@@ -100,7 +100,7 @@ CanPortSlot *FindSlot(CAN_HandleTypeDef *hcan) noexcept {
 }
 
 // 反查 slot 对应的逻辑端口号，错误时返回 kCount。
-iFly::CanPortId FindPortId(const CanPortSlot *target) noexcept {
+iFly::CanPortId FindPortId(const CanPortSlot *target) {
   for (uint8_t index = 0U; index < iFly::CanService::kMaxPorts; ++index) {
     if (&Storage().slots[index] == target) {
       return static_cast<iFly::CanPortId>(index);
@@ -112,11 +112,11 @@ iFly::CanPortId FindPortId(const CanPortSlot *target) noexcept {
 
 // 双 CAN 控制器时，滤波器 bank 需要分配。
 // 这里给 CAN2 预留后半段 bank，避免和 CAN1 冲突。
-uint32_t FilterBankForPort(iFly::CanPortId port) noexcept {
+uint32_t FilterBankForPort(iFly::CanPortId port) {
   return (port == iFly::CanPortId::kCan2) ? 14U : 0U;
 }
 
-void ConfigureTransmitRequestOrder(CanPortSlot &slot) noexcept {
+void ConfigureTransmitRequestOrder(CanPortSlot &slot) {
   if (slot.hcan == nullptr) {
     return;
   }
@@ -138,7 +138,7 @@ void ConfigureTransmitRequestOrder(CanPortSlot &slot) noexcept {
 // 当前滤波器配置为“全接收”：
 // mask 全 0，表示不过滤 ID，所有报文都进 FIFO0。
 // 这对调试最友好；后续如果需要按 ID 分流，再在这里细化。
-bool StartPort(iFly::CanPortId port, CanPortSlot &slot) noexcept {
+bool StartPort(iFly::CanPortId port, CanPortSlot &slot) {
   if (slot.hcan == nullptr) {
     return false;
   }
@@ -193,7 +193,7 @@ bool StartPort(iFly::CanPortId port, CanPortSlot &slot) noexcept {
 // 1. IDE：标准帧 ID(11 位) 还是扩展帧 ID(29 位)
 // 2. RTR：数据帧还是远程帧
 // 3. DLC：本帧有效载荷长度，经典 CAN 最大 8 字节
-void FillTxHeader(const iFly::CanFramePacket &packet, CAN_TxHeaderTypeDef *header) noexcept {
+void FillTxHeader(const iFly::CanFramePacket &packet, CAN_TxHeaderTypeDef *header) {
   if (header == nullptr) {
     return;
   }
@@ -215,7 +215,7 @@ void FillTxHeader(const iFly::CanFramePacket &packet, CAN_TxHeaderTypeDef *heade
 // 3. 后续写日志、转发、缓存时都能复用同一种格式
 iFly::CanFramePacket BuildRxPacket(const CAN_RxHeaderTypeDef &header,
                                    const uint8_t *data,
-                                   uint32_t fifo) noexcept {
+                                   uint32_t fifo) {
   iFly::CanFramePacket packet {};
   packet.id = (header.IDE == CAN_ID_EXT) ? header.ExtId : header.StdId;
   packet.dlc = (header.DLC <= 8U) ? static_cast<uint8_t>(header.DLC) : 8U;
@@ -240,7 +240,7 @@ iFly::CanFramePacket BuildRxPacket(const CAN_RxHeaderTypeDef &header,
 // 从“上层发送无锁队列”取出 1 帧，装进双缓冲的 inactive 槽位。
 //
 // 只有 inactive 为空时才会继续装，避免覆盖还没送去硬件的候选帧。
-uint32_t LoadTxPacketToInactiveBuffer(CanPortSlot &slot) noexcept {
+uint32_t LoadTxPacketToInactiveBuffer(CanPortSlot &slot) {
   if (!slot.txQueue.IsCreated() || slot.txBuffers.HasInactiveData()) {
     return 0U;
   }
@@ -271,7 +271,7 @@ uint32_t LoadTxPacketToInactiveBuffer(CanPortSlot &slot) noexcept {
 // - 每次发送完成回调 OnTxComplete()
 // - 回调里再次调用 ServiceTxPath()
 // 一帧一帧往前推进。
-bool PromoteInactiveToActive(CanPortSlot &slot) noexcept {
+bool PromoteInactiveToActive(CanPortSlot &slot) {
   if (slot.txBuffers.HasActiveData()) {
     return true;
   }
@@ -288,7 +288,7 @@ bool PromoteInactiveToActive(CanPortSlot &slot) noexcept {
   return true;
 }
 
-bool TryQueueOneTxPacket(CanPortSlot &slot) noexcept {
+bool TryQueueOneTxPacket(CanPortSlot &slot) {
   if ((slot.hcan == nullptr) ||
       !slot.initialized.load(std::memory_order_acquire) ||
       (HAL_CAN_GetTxMailboxesFreeLevel(slot.hcan) == 0U)) {
@@ -318,7 +318,7 @@ bool TryQueueOneTxPacket(CanPortSlot &slot) noexcept {
 // 执行一轮发送服务：
 // 1. 先尝试把队列中的下一帧搬到 inactive
 // 2. 再尝试启动硬件发送
-void ServiceTxPathOnce(CanPortSlot &slot) noexcept {
+void ServiceTxPathOnce(CanPortSlot &slot) {
   (void)LoadTxPacketToInactiveBuffer(slot);
   while (TryQueueOneTxPacket(slot)) {
   }
@@ -338,7 +338,7 @@ void ServiceTxPathOnce(CanPortSlot &slot) noexcept {
 // 3. 当前线程负责把这几次 request 合并处理掉
 //
 // 这是一种轻量级的“合并唤醒”写法，避免重复进入复杂发送流程。
-void ServiceTxPath(CanPortSlot &slot) noexcept {
+void ServiceTxPath(CanPortSlot &slot) {
   (void)slot.txServiceRequests.fetch_add(1U, std::memory_order_acq_rel);
   if (slot.txServiceRunning.exchange(true, std::memory_order_acq_rel)) {
     return;
@@ -361,7 +361,7 @@ void ServiceTxPath(CanPortSlot &slot) noexcept {
 }
 
 // Push one received CAN frame directly into the upper RX queue.
-bool PushRxPacketToAppQueue(CanPortSlot &slot, const iFly::CanFramePacket &packet) noexcept {
+bool PushRxPacketToAppQueue(CanPortSlot &slot, const iFly::CanFramePacket &packet) {
   if ((slot.appRxQueue == nullptr) || !slot.appRxQueue->IsCreated()) {
     (void)slot.rxDropped.fetch_add(iFly::CanService::kCanFramePacketSize,
                                    std::memory_order_relaxed);
@@ -386,7 +386,7 @@ bool PushRxPacketToAppQueue(CanPortSlot &slot, const iFly::CanFramePacket &packe
 }
 
 // Drain the HAL RX FIFO and forward frames straight into the upper RX queue.
-void DrainHardwareRxFifoToAppQueue(CanPortSlot &slot, uint32_t fifo) noexcept {
+void DrainHardwareRxFifoToAppQueue(CanPortSlot &slot, uint32_t fifo) {
   while (HAL_CAN_GetRxFifoFillLevel(slot.hcan, fifo) > 0U) {
     CAN_RxHeaderTypeDef header {};
     uint8_t data[8] {};
@@ -401,7 +401,7 @@ void DrainHardwareRxFifoToAppQueue(CanPortSlot &slot, uint32_t fifo) noexcept {
 
 // 一个邮箱发送结束或发送被终止后，统一走这里收尾。
 // 清掉 busy 标志，释放 active 槽位，并继续推进下一帧。
-void HandleTxFinished(CanPortSlot &slot) noexcept {
+void HandleTxFinished(CanPortSlot &slot) {
   ServiceTxPath(slot);
 }
 
@@ -411,7 +411,7 @@ void HandleTxFinished(CanPortSlot &slot) noexcept {
 // 3. 如果恢复成功，再继续发送队列里的剩余帧
 //
 // 这是“尽量自恢复”的策略，适合嵌入式长期运行场景。
-void HandleError(iFly::CanPortId port, CanPortSlot &slot) noexcept {
+void HandleError(iFly::CanPortId port, CanPortSlot &slot) {
   slot.initialized.store(StartPort(port, slot), std::memory_order_release);
   if (slot.initialized.load(std::memory_order_acquire)) {
     ServiceTxPath(slot);
@@ -422,7 +422,7 @@ void HandleError(iFly::CanPortId port, CanPortSlot &slot) noexcept {
 
 namespace iFly {
 
-const char *ToString(CanPortId port) noexcept {
+const char *ToString(CanPortId port) {
   switch (port) {
     case CanPortId::kCan1:
       return "CAN1";
@@ -434,14 +434,14 @@ const char *ToString(CanPortId port) noexcept {
   }
 }
 
-CanService &CanService::Instance() noexcept {
+CanService &CanService::Instance() {
   static CanService instance;
   return instance;
 }
 
 // 允许外部把某个逻辑端口和具体 HAL 句柄绑定起来。
 // 如果不调用，InitPort() 会尝试使用 DefaultHandleForPort()。
-void CanService::AttachHardware(CanPortId port, CAN_HandleTypeDef *hcan) noexcept {
+void CanService::AttachHardware(CanPortId port, CAN_HandleTypeDef *hcan) {
   CanPortSlot &slot = Storage().slots[PortIndex(port)];
   slot.hcan = hcan;
   slot.initialized.store(false, std::memory_order_release);
@@ -453,7 +453,7 @@ void CanService::AttachHardware(CanPortId port, CAN_HandleTypeDef *hcan) noexcep
 //
 // RX is HAL FIFO -> upper RX queue.
 // TX stays txQueue -> double buffer -> HAL mailbox.
-bool CanService::InitPort(CanPortId port, LockFreeQueueBase *rxQueue) noexcept {
+bool CanService::InitPort(CanPortId port, LockFreeQueueBase *rxQueue) {
   CanPortSlot &slot = Storage().slots[PortIndex(port)];
   if (slot.hcan == nullptr) {
     slot.hcan = DefaultHandleForPort(port);
@@ -481,7 +481,7 @@ bool CanService::InitPort(CanPortId port, LockFreeQueueBase *rxQueue) noexcept {
 
 // 反初始化一路 CAN。
 // 注意这里只清理软件状态，不会销毁全局 HAL 句柄对象本身。
-void CanService::DeinitPort(CanPortId port) noexcept {
+void CanService::DeinitPort(CanPortId port) {
   CanPortSlot &slot = Storage().slots[PortIndex(port)];
   slot.initialized.store(false, std::memory_order_release);
   if (slot.hcan != nullptr) {
@@ -502,7 +502,7 @@ void CanService::DeinitPort(CanPortId port) noexcept {
 // 这里虽然接口长得像串口 Write(data, len)，
 // 但 CAN 不是字节流，所以 len 必须是 CanFramePacket 的整数倍。
 // 多出来的不完整字节不会发送。
-uint32_t CanService::Write(CanPortId port, const uint8_t *data, uint32_t len) noexcept {
+uint32_t CanService::Write(CanPortId port, const uint8_t *data, uint32_t len) {
   if ((data == nullptr) || (len < kCanFramePacketSize)) {
     return 0U;
   }
@@ -527,39 +527,39 @@ uint32_t CanService::Write(CanPortId port, const uint8_t *data, uint32_t len) no
 }
 
 // 写单帧的便捷接口，业务层更常用这个。
-bool CanService::WriteFrame(CanPortId port, const CanFramePacket &frame) noexcept {
+bool CanService::WriteFrame(CanPortId port, const CanFramePacket &frame) {
   return Write(port,
                reinterpret_cast<const uint8_t *>(&frame),
                sizeof(frame)) == sizeof(frame);
 }
 
 // 以下几个接口主要用于查询状态，便于上层做流控或调试。
-uint32_t CanService::TxFree(CanPortId port) const noexcept {
+uint32_t CanService::TxFree(CanPortId port) const {
   const CanPortSlot &slot = Storage().slots[PortIndex(port)];
   return slot.txQueue.IsCreated() ? slot.txQueue.FreeSize() : 0U;
 }
 
-uint32_t CanService::TxUsed(CanPortId port) const noexcept {
+uint32_t CanService::TxUsed(CanPortId port) const {
   const CanPortSlot &slot = Storage().slots[PortIndex(port)];
   return slot.txQueue.IsCreated() ? slot.txQueue.UsedSize() : 0U;
 }
 
-uint32_t CanService::RxDropped(CanPortId port) const noexcept {
+uint32_t CanService::RxDropped(CanPortId port) const {
   return Storage().slots[PortIndex(port)].rxDropped.load(std::memory_order_acquire);
 }
 
-bool CanService::IsReady(CanPortId port) const noexcept {
+bool CanService::IsReady(CanPortId port) const {
   const CanPortSlot &slot = Storage().slots[PortIndex(port)];
   return slot.initialized.load(std::memory_order_acquire) && (slot.hcan != nullptr);
 }
 
 // Kept for interface compatibility. RX frames are already queued in HAL callbacks.
-void CanService::ServiceRxPath(CanPortId port) noexcept {
+void CanService::ServiceRxPath(CanPortId port) {
   (void)port;
 }
 
 // Called from HAL when RX FIFO has pending frames.
-void CanService::OnRxFifoPending(CAN_HandleTypeDef *hcan, uint32_t fifo) noexcept {
+void CanService::OnRxFifoPending(CAN_HandleTypeDef *hcan, uint32_t fifo) {
   CanPortSlot *slot = FindSlot(hcan);
   if ((slot == nullptr) || !slot->initialized.load(std::memory_order_acquire) || (slot->hcan == nullptr)) {
     return;
@@ -569,12 +569,12 @@ void CanService::OnRxFifoPending(CAN_HandleTypeDef *hcan, uint32_t fifo) noexcep
 }
 
 // FIFO 满了时也一样先尽快取走。
-void CanService::OnRxFifoFull(CAN_HandleTypeDef *hcan, uint32_t fifo) noexcept {
+void CanService::OnRxFifoFull(CAN_HandleTypeDef *hcan, uint32_t fifo) {
   OnRxFifoPending(hcan, fifo);
 }
 
 // 任意发送邮箱完成时，统一推进下一帧。
-void CanService::OnTxComplete(CAN_HandleTypeDef *hcan) noexcept {
+void CanService::OnTxComplete(CAN_HandleTypeDef *hcan) {
   CanPortSlot *slot = FindSlot(hcan);
   if ((slot == nullptr) || !slot->initialized.load(std::memory_order_acquire)) {
     return;
@@ -585,7 +585,7 @@ void CanService::OnTxComplete(CAN_HandleTypeDef *hcan) noexcept {
 
 // 邮箱发送被终止时，处理方式和发送完成一致：
 // 释放当前 active，再看后续是否需要继续发。
-void CanService::OnTxAbort(CAN_HandleTypeDef *hcan) noexcept {
+void CanService::OnTxAbort(CAN_HandleTypeDef *hcan) {
   CanPortSlot *slot = FindSlot(hcan);
   if ((slot == nullptr) || !slot->initialized.load(std::memory_order_acquire)) {
     return;
@@ -595,7 +595,7 @@ void CanService::OnTxAbort(CAN_HandleTypeDef *hcan) noexcept {
 }
 
 // 统一错误入口，由 HAL 错误回调调用。
-void CanService::OnError(CAN_HandleTypeDef *hcan) noexcept {
+void CanService::OnError(CAN_HandleTypeDef *hcan) {
   CanPortSlot *slot = FindSlot(hcan);
   if ((slot == nullptr) || (slot->hcan == nullptr)) {
     return;

@@ -68,16 +68,16 @@ public:
   };
 
   /** @brief 获取单例对象。 */
-  static SoftTimerService &Instance() noexcept;
+  static SoftTimerService &Instance();
 
   /**
    * @brief 创建一个软件定时任务。
    * @param config 任务配置。
    * @return 创建成功返回有效句柄，失败返回 `kInvalidTaskHandle`。
    */
-  TaskHandle CreateTask(const TaskConfig &config) noexcept;
+  TaskHandle CreateTask(const TaskConfig &config);
   // Called inside the currently running callback to request the next wake-up delay.
-  bool DelayCurrentTask(uint32_t delay_ms) noexcept;
+  bool DelayCurrentTask(uint32_t delay_ms);
 
   /**
    * @brief 删除指定任务。
@@ -85,25 +85,25 @@ public:
    * - 若任务当前未在执行，则立即删除。
    * - 若任务正在回调中，则标记为“回调返回后删除”。
    */
-  bool DeleteTask(TaskHandle handle) noexcept;
+  bool DeleteTask(TaskHandle handle);
 
   /** @brief 删除全部任务。 */
-  void DeleteAllTasks() noexcept;
+  void DeleteAllTasks();
 
   /**
    * @brief 在主循环中派发所有已到期任务。
    * @return 本次调用实际执行的任务数量。
    */
-  uint32_t Dispatch() noexcept;
+  uint32_t Dispatch();
 
   /** @brief 获取当前软件 tick，单位 ms。 */
-  uint32_t Now() const noexcept;
+  uint32_t Now() const;
 
   /** @brief 由 SysTick 中断调用，递增软件 tick。 */
-  void OnSysTick() noexcept;
+  void OnSysTick();
 
   /** @brief 判断句柄是否为非零有效值。 */
-  static bool IsValidTaskHandle(TaskHandle handle) noexcept;
+  static bool IsValidTaskHandle(TaskHandle handle);
 
 private:
   /**
@@ -127,14 +127,14 @@ private:
     bool pending_delete = false;
   };
 
-  SoftTimerService() noexcept = default;
+  SoftTimerService() = default;
 
   /** @brief 根据槽位索引和代数编码出任务句柄。 */
-  static TaskHandle MakeTaskHandle(uint8_t slot_index, uint32_t generation) noexcept;
+  static TaskHandle MakeTaskHandle(uint8_t slot_index, uint32_t generation);
   /** @brief 从句柄中解析槽位索引。 */
-  static uint8_t ExtractTaskIndex(TaskHandle handle) noexcept;
+  static uint8_t ExtractTaskIndex(TaskHandle handle);
   /** @brief 从句柄中解析任务代数。 */
-  static uint32_t ExtractTaskGeneration(TaskHandle handle) noexcept;
+  static uint32_t ExtractTaskGeneration(TaskHandle handle);
 
   /**
    * @brief 在当前时刻选择最应该先执行的任务。
@@ -144,13 +144,13 @@ private:
    * 2. 优先级数值更小者优先；
    * 3. 若优先级相同，则按创建顺序更早者优先。
    */
-  uint8_t FindReadyTaskIndex(uint32_t now) const noexcept;
+  uint8_t FindReadyTaskIndex(uint32_t now) const;
 
   /** @brief 判断句柄是否仍然匹配当前槽位中的任务。 */
-  bool IsHandleMatch(const TaskSlot &slot, TaskHandle handle, uint8_t slot_index) const noexcept;
+  bool IsHandleMatch(const TaskSlot &slot, TaskHandle handle, uint8_t slot_index) const;
 
   /** @brief 清空一个槽位并释放它。 */
-  void ClearTaskSlot(uint8_t slot_index) noexcept;
+  void ClearTaskSlot(uint8_t slot_index);
 
 private:
   /** @brief 由 SysTick 驱动的 1ms 递增软件时间基准。 */

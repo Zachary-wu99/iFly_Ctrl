@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-namespace iFly::sbus {
+namespace iFly {
 
 struct SbusFrame final {
   static constexpr uint8_t kAnalogChannelCount = 16U;
@@ -38,39 +38,39 @@ public:
     uint32_t resyncCount = 0U;
   };
 
-  SbusProtocol() noexcept = default;
+  SbusProtocol() = default;
 
-  void Reset() noexcept;
+  void Reset();
 
   uint32_t Parse(const uint8_t *data,
                  uint32_t length,
                  SbusFrame *outFrames,
-                 uint32_t maxFrames) noexcept;
+                 uint32_t maxFrames);
 
   bool Encode(const SbusFrame &frame,
               uint8_t *outFrame,
-              uint32_t outLength = kFrameSize) const noexcept;
+              uint32_t outLength = kFrameSize) const;
 
-  const ParseStats &Stats() const noexcept {
+  const ParseStats &Stats() const {
     return stats_;
   }
 
   static bool TryDecodeFrame(const uint8_t *rawFrame,
                              uint32_t rawLength,
-                             SbusFrame *frame) noexcept;
+                             SbusFrame *frame);
 
-  static bool IsValidFrame(const uint8_t *rawFrame, uint32_t rawLength) noexcept;
-  static bool IsValidFooter(uint8_t footer) noexcept;
+  static bool IsValidFrame(const uint8_t *rawFrame, uint32_t rawLength);
+  static bool IsValidFooter(uint8_t footer);
 
 private:
   static constexpr uint8_t kPayloadOffset = 1U;
   static constexpr uint8_t kFlagsOffset = 23U;
   static constexpr uint8_t kFooterOffset = 24U;
 
-  static uint16_t ReadChannel(const uint8_t *payload, uint8_t channelIndex) noexcept;
-  static void WriteChannel(uint8_t *payload, uint8_t channelIndex, uint16_t value) noexcept;
+  static uint16_t ReadChannel(const uint8_t *payload, uint8_t channelIndex);
+  static void WriteChannel(uint8_t *payload, uint8_t channelIndex, uint16_t value);
 
-  void DropUntilNextCandidate() noexcept;
+  void DropUntilNextCandidate();
 
 private:
   uint8_t buffer_[kFrameSize] {};
@@ -78,6 +78,6 @@ private:
   ParseStats stats_ {};
 };
 
-} // namespace iFly::sbus
+} // namespace iFly::Sbus
 
 #endif /* IFLY_APP_PROTO_SBUS_PROTOCOL_HPP */

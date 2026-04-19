@@ -3,7 +3,7 @@
 namespace iFly {
 
 /* 构造时只记录 RX 队列配置，不在这里做底层 USB 初始化。 */
-UsbUart::UsbUart(uint32_t rxQueueStorageSize) noexcept : SerialIoBase(rxQueueStorageSize) {
+UsbUart::UsbUart(uint32_t rxQueueStorageSize) : SerialIoBase(rxQueueStorageSize) {
 }
 
 /*
@@ -47,7 +47,7 @@ bool UsbUart::IsConnected() const {
 }
 
 /* 统一封装底层单例获取逻辑。 */
-UsbCdcAcm &UsbUart::Device() noexcept {
+UsbCdcAcm &UsbUart::Device() {
   return UsbCdcAcm::Instance();
 }
 

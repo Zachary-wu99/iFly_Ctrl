@@ -9,7 +9,7 @@
 namespace {
 
 /* 把枚举端口号转换成数组下标，便于统一管理 8 路软件槽位。 */
-constexpr uint8_t PortIndex(iFly::UartPortId port) noexcept {
+constexpr uint8_t PortIndex(iFly::UartPortId port) {
   return static_cast<uint8_t>(port);
 }
 
@@ -29,17 +29,17 @@ constexpr uint8_t PortIndex(iFly::UartPortId port) noexcept {
  */
 class UartTxDoubleBuffer final : public iFly::StaticByteDoubleBuffer<iFly::UartDmaService::kFixedTxDmaBufferSize> {
 public:
-  UartTxDoubleBuffer() noexcept
+  UartTxDoubleBuffer()
       : iFly::StaticByteDoubleBuffer<iFly::UartDmaService::kFixedTxDmaBufferSize>(
             iFly::UartDmaService::kFixedTxDmaBufferSize) {
   }
 
-  void Recreate() noexcept {
+  void Recreate() {
     (void)iFly::StaticByteDoubleBuffer<iFly::UartDmaService::kFixedTxDmaBufferSize>::Recreate(
         iFly::UartDmaService::kFixedTxDmaBufferSize);
   }
 
-  bool IsCreated() const noexcept {
+  bool IsCreated() const {
     return iFly::StaticByteDoubleBuffer<iFly::UartDmaService::kFixedTxDmaBufferSize>::IsCreated();
   }
 };
@@ -78,7 +78,7 @@ public:
 };
 
 /* 返回全局唯一的端口状态表。 */
-UartDmaServiceStorage &Storage() noexcept {
+UartDmaServiceStorage &Storage() {
   static UartDmaServiceStorage storage;
   return storage;
 }
@@ -87,7 +87,7 @@ UartDmaServiceStorage &Storage() noexcept {
  * 默认端口映射。
  *
  */
-UART_HandleTypeDef *DefaultHandleForPort(iFly::UartPortId port) noexcept {
+UART_HandleTypeDef *DefaultHandleForPort(iFly::UartPortId port) {
   switch (port) {
     case iFly::UartPortId::kUsart1:
       return &huart1;
@@ -110,7 +110,7 @@ UART_HandleTypeDef *DefaultHandleForPort(iFly::UartPortId port) noexcept {
 }
 
 /* 通过 HAL 句柄反查它属于哪一个软件端口槽位。 */
-UartPortSlot *FindSlot(UART_HandleTypeDef *huart) noexcept {
+UartPortSlot *FindSlot(UART_HandleTypeDef *huart) {
   if (huart == nullptr) {
     return nullptr;
   }
@@ -139,7 +139,7 @@ UartPortSlot *FindSlot(UART_HandleTypeDef *huart) noexcept {
  * - 半满 / 全满 / 空闲帧间隔 时触发 RxEvent 回调
  * - 回调里再把“新增的那段数据”搬到上层 RX 队列
  */
-bool StartRx(UartPortSlot &slot) noexcept {
+bool StartRx(UartPortSlot &slot) {
   if ((slot.huart == nullptr) || (slot.huart->hdmarx == nullptr) || (slot.rxDmaBufferSize == 0U)) {
     return false;
   }
@@ -151,7 +151,7 @@ bool StartRx(UartPortSlot &slot) noexcept {
 }
 
 /* 把一段连续收到的数据尽力写入用户层 RX 队列，并统计丢字节数。 */
-void PushRxRange(UartPortSlot &slot, const uint8_t *data, uint16_t length) noexcept {
+void PushRxRange(UartPortSlot &slot, const uint8_t *data, uint16_t length) {
   if ((data == nullptr) || (length == 0U)) {
     return;
   }
@@ -176,7 +176,7 @@ void PushRxRange(UartPortSlot &slot, const uint8_t *data, uint16_t length) noexc
  *    说明 DMA 已经回卷，要拆成两段：
  *    `[previousPos, bufferEnd)` + `[0, currentPos)`。
  */
-void ProcessRxDelta(UartPortSlot &slot, uint16_t currentPos) noexcept {
+void ProcessRxDelta(UartPortSlot &slot, uint16_t currentPos) {
   const uint16_t bufferSize = slot.rxDmaBufferSize;
   if (bufferSize == 0U) {
     return;
@@ -208,7 +208,7 @@ void ProcessRxDelta(UartPortSlot &slot, uint16_t currentPos) noexcept {
  *
  * 如果 inactive 槽位里已经有包了，就不重复装。
  */
-uint32_t LoadTxPacketToInactiveBuffer(UartPortSlot &slot) noexcept {
+uint32_t LoadTxPacketToInactiveBuffer(UartPortSlot &slot) {
   if (!slot.txQueue.IsCreated() || !slot.txBuffers.IsCreated() || slot.txBuffers.HasInactiveData()) {
     return 0U;
   }
@@ -236,7 +236,7 @@ uint32_t LoadTxPacketToInactiveBuffer(UartPortSlot &slot) noexcept {
  * 这样，无论是上层刚写入新数据，还是上一个 DMA 包刚发完，
  * 都可以统一调用这个函数继续把链路往前推。
  */
-void ServiceTxPathOnce(UartPortSlot &slot) noexcept {
+void ServiceTxPathOnce(UartPortSlot &slot) {
   if ((slot.huart == nullptr) || (slot.huart->hdmatx == nullptr) ||
       !slot.initialized.load(std::memory_order_acquire) ||
       !slot.txQueue.IsCreated() || !slot.txBuffers.IsCreated()) {
@@ -270,7 +270,7 @@ void ServiceTxPathOnce(UartPortSlot &slot) noexcept {
   slot.txBusy.store(false, std::memory_order_release);
 }
 
-void ServiceTxPath(UartPortSlot &slot) noexcept {
+void ServiceTxPath(UartPortSlot &slot) {
   (void)slot.txServiceRequests.fetch_add(1U, std::memory_order_acq_rel);
   if (slot.txServiceRunning.exchange(true, std::memory_order_acq_rel)) {
     return;
@@ -297,7 +297,7 @@ void ServiceTxPath(UartPortSlot &slot) noexcept {
 namespace iFly {
 
 /* 端口名转换工具，主要给日志或调试用。 */
-const char *ToString(UartPortId port) noexcept {
+const char *ToString(UartPortId port) {
   switch (port) {
     case UartPortId::kUsart1:
       return "USART1";
@@ -322,7 +322,7 @@ const char *ToString(UartPortId port) noexcept {
 }
 
 /* 单例服务入口。 */
-UartDmaService &UartDmaService::Instance() noexcept {
+UartDmaService &UartDmaService::Instance() {
   static UartDmaService instance;
   return instance;
 }
@@ -332,7 +332,7 @@ UartDmaService &UartDmaService::Instance() noexcept {
  *
  * 正常情况下不一定需要显式调用，因为 `InitPort()` 会按默认映射自动填充。
  */
-void UartDmaService::AttachHardware(UartPortId port, UART_HandleTypeDef *huart) noexcept {
+void UartDmaService::AttachHardware(UartPortId port, UART_HandleTypeDef *huart) {
   UartPortSlot &slot = Storage().slots[PortIndex(port)];
   slot.huart = huart;
   slot.initialized.store(false, std::memory_order_release);
@@ -351,7 +351,7 @@ void UartDmaService::AttachHardware(UartPortId port, UART_HandleTypeDef *huart) 
  * 6. 启动 `ReceiveToIdle DMA` 接收；
  * 7. 尝试推进一次发送状态机。
  */
-bool UartDmaService::InitPort(UartPortId port, LockFreeQueueBase *rxQueue) noexcept {
+bool UartDmaService::InitPort(UartPortId port, LockFreeQueueBase *rxQueue) {
   UartPortSlot &slot = Storage().slots[PortIndex(port)];
   if (slot.huart == nullptr) {
     slot.huart = DefaultHandleForPort(port);
@@ -383,7 +383,7 @@ bool UartDmaService::InitPort(UartPortId port, LockFreeQueueBase *rxQueue) noexc
 }
 
 /* 停止某个端口并释放动态申请的 DMA/RX/TX 运行时资源。 */
-void UartDmaService::DeinitPort(UartPortId port) noexcept {
+void UartDmaService::DeinitPort(UartPortId port) {
   UartPortSlot &slot = Storage().slots[PortIndex(port)];
   slot.initialized.store(false, std::memory_order_release);
   if (slot.huart != nullptr) {
@@ -410,7 +410,7 @@ void UartDmaService::DeinitPort(UartPortId port) noexcept {
  * - 先把数据尽力写入 TX 无锁队列
  * - 然后立即调用 `ServiceTxPath()`，尝试把链路往前推进
  */
-uint32_t UartDmaService::Write(UartPortId port, const uint8_t *data, uint32_t len) noexcept {
+uint32_t UartDmaService::Write(UartPortId port, const uint8_t *data, uint32_t len) {
   if ((data == nullptr) || (len == 0U)) {
     return 0U;
   }
@@ -426,24 +426,24 @@ uint32_t UartDmaService::Write(UartPortId port, const uint8_t *data, uint32_t le
 }
 
 /* 查询发送队列剩余空间。 */
-uint32_t UartDmaService::TxFree(UartPortId port) const noexcept {
+uint32_t UartDmaService::TxFree(UartPortId port) const {
   const UartPortSlot &slot = Storage().slots[PortIndex(port)];
   return slot.txQueue.IsCreated() ? slot.txQueue.FreeSize() : 0U;
 }
 
 /* 查询发送队列已用空间。 */
-uint32_t UartDmaService::TxUsed(UartPortId port) const noexcept {
+uint32_t UartDmaService::TxUsed(UartPortId port) const {
   const UartPortSlot &slot = Storage().slots[PortIndex(port)];
   return slot.txQueue.IsCreated() ? slot.txQueue.UsedSize() : 0U;
 }
 
 /* 查询 RX 上抛过程累计丢弃的字节数。 */
-uint32_t UartDmaService::RxDropped(UartPortId port) const noexcept {
+uint32_t UartDmaService::RxDropped(UartPortId port) const {
   return Storage().slots[PortIndex(port)].rxDropped.load(std::memory_order_acquire);
 }
 
 /* 当前端口是否已具备 HAL UART 句柄和 DMA RX/TX 资源。 */
-bool UartDmaService::IsReady(UartPortId port) const noexcept {
+bool UartDmaService::IsReady(UartPortId port) const {
   const UartPortSlot &slot = Storage().slots[PortIndex(port)];
   return slot.initialized.load(std::memory_order_acquire) && (slot.huart != nullptr) &&
          (slot.huart->hdmarx != nullptr) &&
@@ -451,7 +451,7 @@ bool UartDmaService::IsReady(UartPortId port) const noexcept {
 }
 
 /* HAL 在“半满 / 满 / IDLE”等接收事件发生时回调到这里。 */
-void UartDmaService::OnRxEvent(UART_HandleTypeDef *huart, uint16_t size) noexcept {
+void UartDmaService::OnRxEvent(UART_HandleTypeDef *huart, uint16_t size) {
   UartPortSlot *slot = FindSlot(huart);
   if ((slot == nullptr) || !slot->initialized.load(std::memory_order_acquire)) {
     return;
@@ -461,7 +461,7 @@ void UartDmaService::OnRxEvent(UART_HandleTypeDef *huart, uint16_t size) noexcep
 }
 
 /* HAL 在一包 DMA 发送完成后回调到这里，继续推进下一包。 */
-void UartDmaService::OnTxComplete(UART_HandleTypeDef *huart) noexcept {
+void UartDmaService::OnTxComplete(UART_HandleTypeDef *huart) {
   UartPortSlot *slot = FindSlot(huart);
   if ((slot == nullptr) || !slot->initialized.load(std::memory_order_acquire)) {
     return;
@@ -473,7 +473,7 @@ void UartDmaService::OnTxComplete(UART_HandleTypeDef *huart) noexcept {
 }
 
 /* 出错后尽量重启接收，并继续尝试发送。 */
-void UartDmaService::OnError(UART_HandleTypeDef *huart) noexcept {
+void UartDmaService::OnError(UART_HandleTypeDef *huart) {
   UartPortSlot *slot = FindSlot(huart);
   if ((slot == nullptr) || (slot->huart == nullptr)) {
     return;

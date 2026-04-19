@@ -19,8 +19,8 @@ namespace iFly {
  */
 class UsbEndpointDoubleBuffer final : public StaticByteDoubleBuffer<200U> {
 public:
-  UsbEndpointDoubleBuffer() noexcept = default;
-  explicit UsbEndpointDoubleBuffer(uint16_t packetSize) noexcept
+  UsbEndpointDoubleBuffer() = default;
+  explicit UsbEndpointDoubleBuffer(uint16_t packetSize)
       : StaticByteDoubleBuffer<200U>(packetSize) {
   }
 
@@ -61,7 +61,7 @@ public:
   void OnResume();
 
 private:
-  UsbCdcAcm() noexcept;
+  UsbCdcAcm();
 
   struct SetupPacket {
     uint8_t bmRequestType;
@@ -108,7 +108,7 @@ private:
 
   void PushReceivedPacket(const uint8_t *data, uint32_t len);
   void ServiceTxPath();
-  uint32_t LoadTxPacketToInactiveBuffer() noexcept;
+  uint32_t LoadTxPacketToInactiveBuffer();
   uint32_t UpperRxUsed() const;
   uint32_t UpperRxFree() const;
 

@@ -44,7 +44,7 @@ public:
    * - 本函数不会分配内存，只会记录缓冲区地址并重置读写索引。
    * - 由于会保留 1 字节用于判空/判满，真实可用容量为 bufferSize - 1。
    */
-  bool Create(uint8_t *buffer, uint32_t bufferSize) noexcept;
+  bool Create(uint8_t *buffer, uint32_t bufferSize);
   /**
    * @brief 删除队列并解除与外部缓冲区的绑定关系。
    *
@@ -52,7 +52,7 @@ public:
    * - 该函数不会释放任何内存，因为缓冲区所有权始终属于调用方。
    * - 调用后对象回到“未创建”状态，后续需重新调用 Create 才能继续使用。
    */
-  void Delete() noexcept;
+  void Delete();
   /**
    * @brief 清空队列中的所有数据。
    *
@@ -60,7 +60,7 @@ public:
    * - 仅重置头尾索引，不擦除底层缓冲区原有内容。
    * - 清空后队列逻辑上为空，后续写入会从索引 0 重新开始。
    */
-  void Clear() noexcept;
+  void Clear();
 
   /**
    * @brief 向队列中写入数据。
@@ -73,7 +73,7 @@ public:
    * - 当剩余空间不足时，函数会执行“尽力写入”，只写入可容纳的部分。
    * - 若队列未创建、data 为 nullptr 或 length 为 0，则直接返回 0。
    */
-  uint32_t Enqueue(const uint8_t *data, uint32_t length) noexcept;
+  uint32_t Enqueue(const uint8_t *data, uint32_t length);
   /**
    * @brief 从队列中读出数据。
    *
@@ -86,23 +86,23 @@ public:
    * - 若队列未创建、data 为 nullptr 或 length 为 0，则直接返回 0。
    */
   // Safe for multiple concurrent consumers.
-  uint32_t Dequeue(uint8_t *data, uint32_t length) noexcept;
+  uint32_t Dequeue(uint8_t *data, uint32_t length);
 
   /** @brief 返回当前已使用的空间大小，单位为字节。 */
-  uint32_t UsedSize() const noexcept;
+  uint32_t UsedSize() const;
   /** @brief 返回当前剩余可写空间大小，单位为字节。 */
-  uint32_t FreeSize() const noexcept;
+  uint32_t FreeSize() const;
   /** @brief 返回队列可用容量，等于底层缓冲区大小减 1。 */
-  uint32_t Capacity() const noexcept;
+  uint32_t Capacity() const;
   /** @brief 返回底层缓冲区总大小，包含内部保留的 1 字节。 */
-  uint32_t StorageSize() const noexcept;
+  uint32_t StorageSize() const;
 
   /** @brief 判断队列当前是否已经创建成功。 */
-  bool IsCreated() const noexcept;
+  bool IsCreated() const;
   /** @brief 判断队列是否为空。 */
-  bool IsEmpty() const noexcept;
+  bool IsEmpty() const;
   /** @brief 判断队列是否已满。 */
-  bool IsFull() const noexcept;
+  bool IsFull() const;
   /**
    * @brief 判断当前平台上的索引原子操作是否为真正无锁实现。
    *
@@ -110,17 +110,17 @@ public:
    * - 返回 true 表示底层原子索引在当前工具链/架构上可无锁执行。
    * - 返回 false 不代表功能不可用，只表示编译器可能退化为内部辅助实现。
    */
-  bool IsLockFree() const noexcept;
+  bool IsLockFree() const;
 
 protected:
   /** @brief 获取底层缓冲区指针，供派生类按需访问。 */
-  uint8_t *Buffer() noexcept;
+  uint8_t *Buffer();
   /** @brief 获取只读底层缓冲区指针，供派生类按需访问。 */
-  const uint8_t *Buffer() const noexcept;
+  const uint8_t *Buffer() const;
 
 private:
   /** @brief 返回两个 32 位无符号整数中的较小值。 */
-  static uint32_t MinU32(uint32_t left, uint32_t right) noexcept;
+  static uint32_t MinU32(uint32_t left, uint32_t right);
   /**
    * @brief 计算环形缓冲区中 head 到 tail 之间的有效数据长度。
    *
@@ -129,7 +129,7 @@ private:
    * @param size 环形缓冲区总大小。
    * @return 当前已使用的数据量。
    */
-  static uint32_t Distance(uint32_t head, uint32_t tail, uint32_t size) noexcept;
+  static uint32_t Distance(uint32_t head, uint32_t tail, uint32_t size);
 
 private:
   /** @brief 调用方提供的底层缓冲区首地址。 */
@@ -157,12 +157,12 @@ public:
   static_assert(kStorageSize >= 2U, "kStorageSize must be at least 2 bytes.");
 
   /** @brief 构造时自动绑定内部静态缓冲区。 */
-  StaticLockFreeQueue() noexcept {
+  StaticLockFreeQueue() {
     (void)Create(storage_, kStorageSize);
   }
 
   /** @brief 重新初始化队列状态，并重新绑定内部缓冲区。 */
-  void Recreate() noexcept {
+  void Recreate() {
     (void)Create(storage_, kStorageSize);
   }
 
@@ -182,14 +182,14 @@ private:
 class DynamicLockFreeQueue : public LockFreeQueueBase {
 public:
   /** @brief 默认构造，此时尚未申请底层缓冲区。 */
-  DynamicLockFreeQueue() noexcept = default;
+  DynamicLockFreeQueue() = default;
 
   /**
    * @brief 构造时按指定大小申请底层缓冲区。
    *
    * @param storageSize 底层总存储大小，至少为 2。
    */
-  explicit DynamicLockFreeQueue(uint32_t storageSize) noexcept;
+  explicit DynamicLockFreeQueue(uint32_t storageSize);
 
   /** @brief 析构时释放对象持有的底层缓冲区。 */
   ~DynamicLockFreeQueue();
@@ -209,11 +209,11 @@ public:
    * - 若对象之前已经持有旧缓冲区，会先释放旧缓冲区再申请新缓冲区。
    * - 该函数设计用于初始化阶段调用，运行中不建议频繁重建。
    */
-  bool Recreate(uint32_t storageSize) noexcept;
+  bool Recreate(uint32_t storageSize);
 
 private:
   /** @brief 释放当前持有的动态缓冲区，并把对象恢复为未创建状态。 */
-  void ReleaseStorage() noexcept;
+  void ReleaseStorage();
 
 private:
   /** @brief 当前对象持有的动态缓冲区首地址。 */

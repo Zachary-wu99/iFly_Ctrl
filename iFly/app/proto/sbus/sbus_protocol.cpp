@@ -2,7 +2,7 @@
 
 #include <string.h>
 
-namespace iFly::sbus {
+namespace iFly {
 
 namespace {
 
@@ -10,7 +10,7 @@ constexpr uint16_t kAnalogChannelMask = 0x07FFU;
 
 } // namespace
 
-void SbusProtocol::Reset() noexcept
+void SbusProtocol::Reset()
 {
   (void)memset(buffer_, 0, sizeof(buffer_));
   bufferedBytes_ = 0U;
@@ -20,7 +20,7 @@ void SbusProtocol::Reset() noexcept
 uint32_t SbusProtocol::Parse(const uint8_t *data,
                              uint32_t length,
                              SbusFrame *outFrames,
-                             uint32_t maxFrames) noexcept
+                             uint32_t maxFrames)
 {
   if ((data == nullptr) || (length == 0U)) {
     return 0U;
@@ -67,7 +67,7 @@ uint32_t SbusProtocol::Parse(const uint8_t *data,
 
 bool SbusProtocol::Encode(const SbusFrame &frame,
                           uint8_t *outFrame,
-                          uint32_t outLength) const noexcept
+                          uint32_t outLength) const
 {
   if ((outFrame == nullptr) || (outLength < kFrameSize)) {
     return false;
@@ -102,7 +102,7 @@ bool SbusProtocol::Encode(const SbusFrame &frame,
 
 bool SbusProtocol::TryDecodeFrame(const uint8_t *rawFrame,
                                   uint32_t rawLength,
-                                  SbusFrame *frame) noexcept
+                                  SbusFrame *frame)
 {
   if ((frame == nullptr) || !IsValidFrame(rawFrame, rawLength)) {
     return false;
@@ -122,7 +122,7 @@ bool SbusProtocol::TryDecodeFrame(const uint8_t *rawFrame,
   return true;
 }
 
-bool SbusProtocol::IsValidFrame(const uint8_t *rawFrame, uint32_t rawLength) noexcept
+bool SbusProtocol::IsValidFrame(const uint8_t *rawFrame, uint32_t rawLength)
 {
   if ((rawFrame == nullptr) || (rawLength < kFrameSize)) {
     return false;
@@ -139,7 +139,7 @@ bool SbusProtocol::IsValidFrame(const uint8_t *rawFrame, uint32_t rawLength) noe
   return IsValidFooter(rawFrame[kFooterOffset]);
 }
 
-bool SbusProtocol::IsValidFooter(uint8_t footer) noexcept
+bool SbusProtocol::IsValidFooter(uint8_t footer)
 {
   switch (footer) {
     case 0x00U:
@@ -153,7 +153,7 @@ bool SbusProtocol::IsValidFooter(uint8_t footer) noexcept
   }
 }
 
-uint16_t SbusProtocol::ReadChannel(const uint8_t *payload, uint8_t channelIndex) noexcept
+uint16_t SbusProtocol::ReadChannel(const uint8_t *payload, uint8_t channelIndex)
 {
   if (payload == nullptr) {
     return 0U;
@@ -173,7 +173,7 @@ uint16_t SbusProtocol::ReadChannel(const uint8_t *payload, uint8_t channelIndex)
   return value;
 }
 
-void SbusProtocol::WriteChannel(uint8_t *payload, uint8_t channelIndex, uint16_t value) noexcept
+void SbusProtocol::WriteChannel(uint8_t *payload, uint8_t channelIndex, uint16_t value)
 {
   if (payload == nullptr) {
     return;
@@ -194,7 +194,7 @@ void SbusProtocol::WriteChannel(uint8_t *payload, uint8_t channelIndex, uint16_t
   }
 }
 
-void SbusProtocol::DropUntilNextCandidate() noexcept
+void SbusProtocol::DropUntilNextCandidate()
 {
   uint8_t shift = bufferedBytes_;
   for (uint8_t index = 1U; index < bufferedBytes_; ++index) {
@@ -218,4 +218,4 @@ void SbusProtocol::DropUntilNextCandidate() noexcept
   ++stats_.resyncCount;
 }
 
-} // namespace iFly::sbus
+} // namespace iFly::Sbus

@@ -9,7 +9,7 @@ namespace iFly {
  * 返回两个无符号整数中的较小值。
  * 这里单独封装一个小函数，避免在各处重复书写同样的比较逻辑。
  */
-uint32_t LockFreeQueueBase::MinU32(uint32_t left, uint32_t right) noexcept {
+uint32_t LockFreeQueueBase::MinU32(uint32_t left, uint32_t right) {
   return (left < right) ? left : right;
 }
 
@@ -20,7 +20,7 @@ uint32_t LockFreeQueueBase::MinU32(uint32_t left, uint32_t right) noexcept {
  * 当 head < tail 时，说明写指针已经回卷，数据分布在缓冲区尾部和头部两段，
  * 此时有效长度为 size - (tail - head)。
  */
-uint32_t LockFreeQueueBase::Distance(uint32_t head, uint32_t tail, uint32_t size) noexcept {
+uint32_t LockFreeQueueBase::Distance(uint32_t head, uint32_t tail, uint32_t size) {
   if (head >= tail) {
     return head - tail;
   }
@@ -35,7 +35,7 @@ uint32_t LockFreeQueueBase::Distance(uint32_t head, uint32_t tail, uint32_t size
  * - 1 字节用于实际存储数据；
  * - 1 字节作为环形队列判空/判满的保留空间。
  */
-bool LockFreeQueueBase::Create(uint8_t *buffer, uint32_t bufferSize) noexcept {
+bool LockFreeQueueBase::Create(uint8_t *buffer, uint32_t bufferSize) {
   if ((buffer == nullptr) || (bufferSize < 2U)) {
     Delete();
     return false;
@@ -54,7 +54,7 @@ bool LockFreeQueueBase::Create(uint8_t *buffer, uint32_t bufferSize) noexcept {
  * 这里的“删除”仅表示逻辑上解除队列与外部缓冲区的关联，
  * 并不会释放 buffer 指向的内存，因为该内存不归本类所有。
  */
-void LockFreeQueueBase::Delete() noexcept {
+void LockFreeQueueBase::Delete() {
   head_.store(0U, std::memory_order_relaxed);
   tail_.store(0U, std::memory_order_relaxed);
   storage_ = nullptr;
@@ -67,7 +67,7 @@ void LockFreeQueueBase::Delete() noexcept {
  * 只需要把读写索引都复位到 0，即可让队列重新变成“空”。
  * 缓冲区中的旧字节虽然还在物理内存里，但从逻辑上已经不可见。
  */
-void LockFreeQueueBase::Clear() noexcept {
+void LockFreeQueueBase::Clear() {
   if (!IsCreated()) {
     return;
   }
@@ -85,7 +85,7 @@ void LockFreeQueueBase::Clear() noexcept {
  *
  * 这样可保证消费者在观察到新的 head 之前，数据内容已经完整落入缓冲区。
  */
-uint32_t LockFreeQueueBase::Enqueue(const uint8_t *data, uint32_t length) noexcept {
+uint32_t LockFreeQueueBase::Enqueue(const uint8_t *data, uint32_t length) {
   if ((!IsCreated()) || (data == nullptr) || (length == 0U)) {
     return 0U;
   }
@@ -127,7 +127,7 @@ uint32_t LockFreeQueueBase::Enqueue(const uint8_t *data, uint32_t length) noexce
  * 3. 如遇缓冲区回卷，同样分两段 memcpy；
  * 4. 数据复制到用户缓冲区后，再以 release 语义推进 tail。
  */
-uint32_t LockFreeQueueBase::Dequeue(uint8_t *data, uint32_t length) noexcept {
+uint32_t LockFreeQueueBase::Dequeue(uint8_t *data, uint32_t length) {
   if ((!IsCreated()) || (data == nullptr) || (length == 0U)) {
     return 0U;
   }
@@ -167,7 +167,7 @@ uint32_t LockFreeQueueBase::Dequeue(uint8_t *data, uint32_t length) noexcept {
  * UsedSize 返回当前逻辑上可读的数据量。
  * 这里同时以 acquire 语义读取 head 和 tail，确保观察到一致的已发布状态。
  */
-uint32_t LockFreeQueueBase::UsedSize() const noexcept {
+uint32_t LockFreeQueueBase::UsedSize() const {
   if (!IsCreated()) {
     return 0U;
   }
@@ -182,7 +182,7 @@ uint32_t LockFreeQueueBase::UsedSize() const noexcept {
  * 可用容量不是 storageSize_，而是 storageSize_ - 1，
  * 因为内部始终保留一个哨兵字节用于判空/判满。
  */
-uint32_t LockFreeQueueBase::FreeSize() const noexcept {
+uint32_t LockFreeQueueBase::FreeSize() const {
   const uint32_t capacity = Capacity();
   const uint32_t used = UsedSize();
   return (used < capacity) ? (capacity - used) : 0U;
@@ -192,27 +192,27 @@ uint32_t LockFreeQueueBase::FreeSize() const noexcept {
  * 返回用户真正可以使用的容量。
  * 例如底层缓冲区大小为 256，则实际最多只能存放 255 字节。
  */
-uint32_t LockFreeQueueBase::Capacity() const noexcept {
+uint32_t LockFreeQueueBase::Capacity() const {
   return (storageSize_ > 0U) ? (storageSize_ - 1U) : 0U;
 }
 
 /* 返回底层原始缓冲区大小。 */
-uint32_t LockFreeQueueBase::StorageSize() const noexcept {
+uint32_t LockFreeQueueBase::StorageSize() const {
   return storageSize_;
 }
 
 /* 只要缓冲区存在且大小合法，就认为队列已创建。 */
-bool LockFreeQueueBase::IsCreated() const noexcept {
+bool LockFreeQueueBase::IsCreated() const {
   return (storage_ != nullptr) && (storageSize_ >= 2U);
 }
 
 /* 已用空间为 0 时，说明队列为空。 */
-bool LockFreeQueueBase::IsEmpty() const noexcept {
+bool LockFreeQueueBase::IsEmpty() const {
   return UsedSize() == 0U;
 }
 
 /* 剩余空间为 0 时，说明队列已满。 */
-bool LockFreeQueueBase::IsFull() const noexcept {
+bool LockFreeQueueBase::IsFull() const {
   return FreeSize() == 0U;
 }
 
@@ -220,21 +220,21 @@ bool LockFreeQueueBase::IsFull() const noexcept {
  * 查询当前平台上 std::atomic<uint32_t> 是否采用无锁实现。
  * 该函数更偏向平台能力探测，便于上层决定是否接受当前实现方式。
  */
-bool LockFreeQueueBase::IsLockFree() const noexcept {
+bool LockFreeQueueBase::IsLockFree() const {
   return head_.is_lock_free() && tail_.is_lock_free();
 }
 
 /* 返回可写底层缓冲区指针。 */
-uint8_t *LockFreeQueueBase::Buffer() noexcept {
+uint8_t *LockFreeQueueBase::Buffer() {
   return storage_;
 }
 
 /* 返回只读底层缓冲区指针。 */
-const uint8_t *LockFreeQueueBase::Buffer() const noexcept {
+const uint8_t *LockFreeQueueBase::Buffer() const {
   return storage_;
 }
 
-DynamicLockFreeQueue::DynamicLockFreeQueue(uint32_t storageSize) noexcept {
+DynamicLockFreeQueue::DynamicLockFreeQueue(uint32_t storageSize) {
   (void)Recreate(storageSize);
 }
 
@@ -242,7 +242,7 @@ DynamicLockFreeQueue::~DynamicLockFreeQueue() {
   ReleaseStorage();
 }
 
-bool DynamicLockFreeQueue::Recreate(uint32_t storageSize) noexcept {
+bool DynamicLockFreeQueue::Recreate(uint32_t storageSize) {
   if (storageSize < 2U) {
     ReleaseStorage();
     return false;
@@ -259,7 +259,7 @@ bool DynamicLockFreeQueue::Recreate(uint32_t storageSize) noexcept {
   return Create(ownedStorage_, storageSize);
 }
 
-void DynamicLockFreeQueue::ReleaseStorage() noexcept {
+void DynamicLockFreeQueue::ReleaseStorage() {
   Delete();
   delete[] ownedStorage_;
   ownedStorage_ = nullptr;

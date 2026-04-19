@@ -31,7 +31,7 @@ enum class UartPortId : uint8_t {
   kCount = 8U
 };
 
-const char *ToString(UartPortId port) noexcept;
+const char *ToString(UartPortId port);
 
 /**
  * @brief 硬件 UART DMA 传输服务。
@@ -58,14 +58,14 @@ public:
   /** @brief 软件最大支持的端口数。 */
   static constexpr uint8_t kMaxPorts = 8U;
   /** @brief 默认 TX 无锁队列总大小。 */
-  static constexpr uint32_t kFixedTxQueueStorageSize = 200U;
+  static constexpr uint32_t kFixedTxQueueStorageSize = 120U;
   /** @brief 默认单个 TX DMA 分包缓冲大小。 */
-  static constexpr uint16_t kFixedTxDmaBufferSize = 200U;
+  static constexpr uint16_t kFixedTxDmaBufferSize = 120U;
   /** @brief 默认 RX DMA 环形缓冲区大小。 */
-  static constexpr uint16_t kFixedRxDmaBufferSize = 200U;
+  static constexpr uint16_t kFixedRxDmaBufferSize = 120U;
 
   /** @brief 获取单例。 */
-  static UartDmaService &Instance() noexcept;
+  static UartDmaService &Instance();
 
   /**
    * @brief 手动把一个端口绑定到具体 `UART_HandleTypeDef`。
@@ -74,7 +74,7 @@ public:
    * 当前实现即使不显式调用，也会在 `InitPort()` 里按默认映射自动查找；
    * 这个接口主要是给后续扩展或特殊板级重绑定预留的。
    */
-  void AttachHardware(UartPortId port, UART_HandleTypeDef *huart) noexcept;
+  void AttachHardware(UartPortId port, UART_HandleTypeDef *huart);
   /**
    * @brief 初始化某个端口。
    *
@@ -86,30 +86,30 @@ public:
    *
    * @return 初始化成功返回 true。
    */
-  bool InitPort(UartPortId port, LockFreeQueueBase *rxQueue) noexcept;
+  bool InitPort(UartPortId port, LockFreeQueueBase *rxQueue);
   /** @brief 反初始化某个端口，释放动态缓冲并停止接收。 */
-  void DeinitPort(UartPortId port) noexcept;
+  void DeinitPort(UartPortId port);
 
   /** @brief 向某个端口的发送无锁队列写入数据。 */
-  uint32_t Write(UartPortId port, const uint8_t *data, uint32_t len) noexcept;
+  uint32_t Write(UartPortId port, const uint8_t *data, uint32_t len);
   /** @brief 查询某个端口 TX 队列剩余空间。 */
-  uint32_t TxFree(UartPortId port) const noexcept;
+  uint32_t TxFree(UartPortId port) const;
   /** @brief 查询某个端口 TX 队列已用空间。 */
-  uint32_t TxUsed(UartPortId port) const noexcept;
+  uint32_t TxUsed(UartPortId port) const;
   /** @brief 查询某个端口 RX 上抛过程中的累计丢字节数。 */
-  uint32_t RxDropped(UartPortId port) const noexcept;
+  uint32_t RxDropped(UartPortId port) const;
   /** @brief 查询某个端口是否已经初始化完毕且具备 DMA RX/TX 资源。 */
-  bool IsReady(UartPortId port) const noexcept;
+  bool IsReady(UartPortId port) const;
 
   /** @brief HAL UART 接收事件回调入口。 */
-  void OnRxEvent(UART_HandleTypeDef *huart, uint16_t size) noexcept;
+  void OnRxEvent(UART_HandleTypeDef *huart, uint16_t size);
   /** @brief HAL UART DMA 发送完成回调入口。 */
-  void OnTxComplete(UART_HandleTypeDef *huart) noexcept;
+  void OnTxComplete(UART_HandleTypeDef *huart);
   /** @brief HAL UART 错误回调入口。 */
-  void OnError(UART_HandleTypeDef *huart) noexcept;
+  void OnError(UART_HandleTypeDef *huart);
 
 private:
-  UartDmaService() noexcept = default;
+  UartDmaService() = default;
 };
 
 } // namespace iFly

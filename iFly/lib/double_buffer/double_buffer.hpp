@@ -8,60 +8,60 @@ namespace iFly {
 template <typename LengthType = uint16_t>
 class DoubleBufferLengthBase {
 public:
-  DoubleBufferLengthBase() noexcept = default;
+  DoubleBufferLengthBase() = default;
 
   DoubleBufferLengthBase(const DoubleBufferLengthBase &) = delete;
   /*禁用拷贝*/
   DoubleBufferLengthBase &operator=(const DoubleBufferLengthBase &) = delete;
 
-  void ResetLengths() noexcept {
+  void ResetLengths() {
     lengths_[0] = LengthType {};
     lengths_[1] = LengthType {};
     activeSlot_ = 0U;
   }
 
-  void SwapBuffers() noexcept {
+  void SwapBuffers() {
     activeSlot_ ^= 0x01U;
   }
 
-  void SetActiveLength(LengthType length) noexcept {
+  void SetActiveLength(LengthType length) {
     lengths_[activeSlot_] = length;
   }
 
-  LengthType ActiveLength() const noexcept {
+  LengthType ActiveLength() const {
     return lengths_[activeSlot_];
   }
 
-  void SetInactiveLength(LengthType length) noexcept {
+  void SetInactiveLength(LengthType length) {
     lengths_[InactiveSlotIndex()] = length;
   }
 
-  LengthType InactiveLength() const noexcept {
+  LengthType InactiveLength() const {
     return lengths_[InactiveSlotIndex()];
   }
 
-  void ClearActive() noexcept {
+  void ClearActive() {
     lengths_[activeSlot_] = LengthType {};
   }
 
-  void ClearInactive() noexcept {
+  void ClearInactive() {
     lengths_[InactiveSlotIndex()] = LengthType {};
   }
 
-  bool HasActiveData() const noexcept {
+  bool HasActiveData() const {
     return ActiveLength() != LengthType {};
   }
 
-  bool HasInactiveData() const noexcept {
+  bool HasInactiveData() const {
     return InactiveLength() != LengthType {};
   }
 
 protected:
-  uint8_t ActiveSlotIndex() const noexcept {
+  uint8_t ActiveSlotIndex() const {
     return activeSlot_;
   }
 
-  uint8_t InactiveSlotIndex() const noexcept {
+  uint8_t InactiveSlotIndex() const {
     return static_cast<uint8_t>(activeSlot_ ^ 0x01U);
   }
 
@@ -73,12 +73,12 @@ private:
 template <uint16_t kStorageSize, typename LengthType = uint16_t>
 class StaticByteDoubleBuffer : public DoubleBufferLengthBase<LengthType> {
 public:
-  StaticByteDoubleBuffer() noexcept = default;
-  explicit StaticByteDoubleBuffer(uint16_t packetSize) noexcept {
+  StaticByteDoubleBuffer() = default;
+  explicit StaticByteDoubleBuffer(uint16_t packetSize) {
     (void)Recreate(packetSize);
   }
 
-  bool Recreate(uint16_t packetSize) noexcept {
+  bool Recreate(uint16_t packetSize) {
     packetSize_ = 0U;
     this->ResetLengths();
 
@@ -90,40 +90,40 @@ public:
     return true;
   }
 
-  void Clear() noexcept {
+  void Clear() {
     this->ResetLengths();
   }
 
-  bool IsCreated() const noexcept {
+  bool IsCreated() const {
     return packetSize_ > 0U;
   }
 
-  uint16_t PacketSize() const noexcept {
+  uint16_t PacketSize() const {
     return packetSize_;
   }
 
-  uint8_t *ActiveBuffer() noexcept {
+  uint8_t *ActiveBuffer() {
     return SlotBuffer(this->ActiveSlotIndex());
   }
 
-  const uint8_t *ActiveBuffer() const noexcept {
+  const uint8_t *ActiveBuffer() const {
     return SlotBuffer(this->ActiveSlotIndex());
   }
 
-  uint8_t *InactiveBuffer() noexcept {
+  uint8_t *InactiveBuffer() {
     return SlotBuffer(this->InactiveSlotIndex());
   }
 
-  const uint8_t *InactiveBuffer() const noexcept {
+  const uint8_t *InactiveBuffer() const {
     return SlotBuffer(this->InactiveSlotIndex());
   }
 
 private:
-  uint8_t *SlotBuffer(uint8_t slotIndex) noexcept {
+  uint8_t *SlotBuffer(uint8_t slotIndex) {
     return IsCreated() ? storage_[slotIndex] : nullptr;
   }
 
-  const uint8_t *SlotBuffer(uint8_t slotIndex) const noexcept {
+  const uint8_t *SlotBuffer(uint8_t slotIndex) const {
     return IsCreated() ? storage_[slotIndex] : nullptr;
   }
 
@@ -135,16 +135,16 @@ private:
 template <typename T>
 class StaticObjectDoubleBuffer {
 public:
-  StaticObjectDoubleBuffer() noexcept = default;
+  StaticObjectDoubleBuffer() = default;
 
   StaticObjectDoubleBuffer(const StaticObjectDoubleBuffer &) = delete;
   StaticObjectDoubleBuffer &operator=(const StaticObjectDoubleBuffer &) = delete;
 
-  void Recreate() noexcept {
+  void Recreate() {
     Clear();
   }
 
-  void Clear() noexcept {
+  void Clear() {
     valid_[0] = false;
     valid_[1] = false;
     activeSlot_ = 0U;
@@ -152,55 +152,55 @@ public:
     slots_[1] = T {};
   }
 
-  bool HasActiveData() const noexcept {
+  bool HasActiveData() const {
     return valid_[activeSlot_];
   }
 
-  bool HasInactiveData() const noexcept {
+  bool HasInactiveData() const {
     return valid_[InactiveSlotIndex()];
   }
 
-  T &ActiveObject() noexcept {
+  T &ActiveObject() {
     return slots_[activeSlot_];
   }
 
-  const T &ActiveObject() const noexcept {
+  const T &ActiveObject() const {
     return slots_[activeSlot_];
   }
 
-  T &InactiveObject() noexcept {
+  T &InactiveObject() {
     return slots_[InactiveSlotIndex()];
   }
 
-  const T &InactiveObject() const noexcept {
+  const T &InactiveObject() const {
     return slots_[InactiveSlotIndex()];
   }
 
-  void SetInactiveObject(const T &object) noexcept {
+  void SetInactiveObject(const T &object) {
     slots_[InactiveSlotIndex()] = object;
     valid_[InactiveSlotIndex()] = true;
   }
 
-  void ClearActive() noexcept {
+  void ClearActive() {
     valid_[activeSlot_] = false;
     slots_[activeSlot_] = T {};
   }
 
-  void ClearInactive() noexcept {
+  void ClearInactive() {
     valid_[InactiveSlotIndex()] = false;
     slots_[InactiveSlotIndex()] = T {};
   }
 
-  void SwapBuffers() noexcept {
+  void SwapBuffers() {
     activeSlot_ ^= 0x01U;
   }
 
 protected:
-  uint8_t ActiveSlotIndex() const noexcept {
+  uint8_t ActiveSlotIndex() const {
     return activeSlot_;
   }
 
-  uint8_t InactiveSlotIndex() const noexcept {
+  uint8_t InactiveSlotIndex() const {
     return static_cast<uint8_t>(activeSlot_ ^ 0x01U);
   }
 

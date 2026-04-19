@@ -27,7 +27,7 @@ enum class CanPortId : uint8_t {
   kCount = 2U
 };
 
-const char *ToString(CanPortId port) noexcept;
+const char *ToString(CanPortId port);
 
 enum CanFrameFlags : uint8_t {
   /** 这一帧使用扩展帧 ID（29 位）而不是标准帧 ID（11 位）。 */
@@ -95,14 +95,14 @@ public:
   static constexpr uint32_t kFixedTxQueueStorageSize =
       (kFixedTxQueueFrameCount * kCanFramePacketSize) + 1U;
   /** 获取全局唯一的 CAN 服务单例。 */
-  static CanService &Instance() noexcept;
+  static CanService &Instance();
 
   /** 手动把某一路逻辑 CAN 端口绑定到具体的 HAL 句柄。 */
-  void AttachHardware(CanPortId port, CAN_HandleTypeDef *hcan) noexcept;
+  void AttachHardware(CanPortId port, CAN_HandleTypeDef *hcan);
   /** 初始化某一路 CAN 端口，并挂接上层接收队列。 */
-  bool InitPort(CanPortId port, LockFreeQueueBase *rxQueue) noexcept;
+  bool InitPort(CanPortId port, LockFreeQueueBase *rxQueue);
   /** 反初始化某一路端口，停止硬件并清空运行时状态。 */
-  void DeinitPort(CanPortId port) noexcept;
+  void DeinitPort(CanPortId port);
 
   /**
    * @brief 原始字节方式写入待发送数据。
@@ -111,34 +111,34 @@ public:
    * 这里不是“随便来几个字节就发出去”，而是必须按
    * `CanFramePacket` 整帧写入。
    */
-  uint32_t Write(CanPortId port, const uint8_t *data, uint32_t len) noexcept;
+  uint32_t Write(CanPortId port, const uint8_t *data, uint32_t len);
   /** 直接按一帧 CAN 报文写入，通常比原始 `Write()` 更直观。 */
-  bool WriteFrame(CanPortId port, const CanFramePacket &frame) noexcept;
+  bool WriteFrame(CanPortId port, const CanFramePacket &frame);
   /** 查询发送队列剩余空间，单位是字节。 */
-  uint32_t TxFree(CanPortId port) const noexcept;
+  uint32_t TxFree(CanPortId port) const;
   /** 查询发送队列已使用空间，单位是字节。 */
-  uint32_t TxUsed(CanPortId port) const noexcept;
+  uint32_t TxUsed(CanPortId port) const;
   /** 查询接收过程中累计丢弃的字节数。 */
-  uint32_t RxDropped(CanPortId port) const noexcept;
+  uint32_t RxDropped(CanPortId port) const;
   /** 查询这一端口当前是否已经完成初始化并可工作。 */
-  bool IsReady(CanPortId port) const noexcept;
+  bool IsReady(CanPortId port) const;
 
   /** Compatibility hook; RX now reaches the upper queue directly in HAL callbacks. */
-  void ServiceRxPath(CanPortId port) noexcept;
+  void ServiceRxPath(CanPortId port);
 
   /** HAL 告知某个 RX FIFO 有报文待取时的桥接入口。 */
-  void OnRxFifoPending(CAN_HandleTypeDef *hcan, uint32_t fifo) noexcept;
+  void OnRxFifoPending(CAN_HandleTypeDef *hcan, uint32_t fifo);
   /** HAL 告知某个 RX FIFO 已满时的桥接入口。 */
-  void OnRxFifoFull(CAN_HandleTypeDef *hcan, uint32_t fifo) noexcept;
+  void OnRxFifoFull(CAN_HandleTypeDef *hcan, uint32_t fifo);
   /** HAL 告知某个发送邮箱完成发送时的桥接入口。 */
-  void OnTxComplete(CAN_HandleTypeDef *hcan) noexcept;
+  void OnTxComplete(CAN_HandleTypeDef *hcan);
   /** HAL 告知某个发送邮箱发送中止时的桥接入口。 */
-  void OnTxAbort(CAN_HandleTypeDef *hcan) noexcept;
+  void OnTxAbort(CAN_HandleTypeDef *hcan);
   /** HAL 告知 CAN 外设出错时的桥接入口。 */
-  void OnError(CAN_HandleTypeDef *hcan) noexcept;
+  void OnError(CAN_HandleTypeDef *hcan);
 
 private:
-  CanService() noexcept = default;
+  CanService() = default;
 };
 
 } // namespace iFly

@@ -3,7 +3,7 @@
 namespace iFly {
 
 /* 构造时只记录端口号与 RX 队列配置，不在这里触碰硬件。 */
-HardwareUart::HardwareUart(UartPortId port, uint32_t rxQueueStorageSize) noexcept
+HardwareUart::HardwareUart(UartPortId port, uint32_t rxQueueStorageSize)
     : SerialIoBase(rxQueueStorageSize), port_(port) {
 }
 
@@ -47,12 +47,12 @@ bool HardwareUart::IsConnected() const {
 }
 
 /* 只是返回逻辑端口号，方便上层调试或日志打印。 */
-UartPortId HardwareUart::Port() const noexcept {
+UartPortId HardwareUart::Port() const {
   return port_;
 }
 
 /* 统一收口到底层单例，避免每个成员函数都重复写 `UartDmaService::Instance()`。 */
-UartDmaService &HardwareUart::Device() noexcept {
+UartDmaService &HardwareUart::Device() {
   return UartDmaService::Instance();
 }
 

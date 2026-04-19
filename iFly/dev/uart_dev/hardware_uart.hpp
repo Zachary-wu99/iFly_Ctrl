@@ -29,7 +29,7 @@ public:
    * @param rxQueueStorageSize 用户层 RX 队列大小。
    */
   explicit HardwareUart(UartPortId port,
-                        uint32_t rxQueueStorageSize = kDefaultRxQueueStorageSize) noexcept;
+                        uint32_t rxQueueStorageSize = kDefaultRxQueueStorageSize);
 
   /** @brief 初始化当前端口的 UART DMA 链路，并把本对象的 RX 队列挂接到底层。 */
   void Init() override;
@@ -45,11 +45,11 @@ public:
   bool IsConnected() const override;
 
   /** @brief 返回当前对象绑定的逻辑端口号。 */
-  UartPortId Port() const noexcept;
+  UartPortId Port() const;
 
 private:
   /** @brief 获取硬件 UART DMA 单例服务。 */
-  static UartDmaService &Device() noexcept;
+  static UartDmaService &Device();
 
 private:
   UartPortId port_;

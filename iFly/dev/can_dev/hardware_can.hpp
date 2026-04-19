@@ -28,7 +28,7 @@ public:
   // rxQueueStorageSize 是“上层统一接收队列”的容量，单位是字节。
   // 因为队列里存的是 CanFramePacket，所以建议按 16 字节整数倍配置。
   explicit HardwareCan(CanPortId port,
-                       uint32_t rxQueueStorageSize = kDefaultCanRxQueueStorageSize) noexcept;
+                       uint32_t rxQueueStorageSize = kDefaultCanRxQueueStorageSize);
 
   // 初始化本路 CAN，并把本对象持有的 RX 队列注册给 CanService。
   void Init() override;
@@ -51,7 +51,7 @@ public:
   bool IsConnected() const override;
 
   // 查询当前对象绑定的是哪一路逻辑 CAN 端口。
-  CanPortId Port() const noexcept;
+  CanPortId Port() const;
 
   // 直接写一帧 CAN，业务层推荐使用这个接口。
   bool WriteFrame(const CanFramePacket &frame);
@@ -67,7 +67,7 @@ public:
 
 private:
   // 统一拿到底层 CAN 单例服务。
-  static CanService &Device() noexcept;
+  static CanService &Device();
 
   // Kept only for interface compatibility. RX already lands in the upper queue.
   void BeforeRead() override;

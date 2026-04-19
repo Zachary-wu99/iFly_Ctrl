@@ -69,58 +69,58 @@ constexpr uint32_t MinU32(uint32_t left, uint32_t right) {
  */
 class Stm32FsPcdAdapter final {
 public:
-  PCD_HandleTypeDef *Handle() const noexcept {
+  PCD_HandleTypeDef *Handle() const {
     return &hpcd_USB_OTG_FS;
   }
 
-  bool Matches(PCD_HandleTypeDef *hpcd) const noexcept {
+  bool Matches(PCD_HandleTypeDef *hpcd) const {
     return hpcd == Handle();
   }
 
-  void ConfigureFifos() const noexcept {
+  void ConfigureFifos() const {
     (void)HAL_PCDEx_SetRxFiFo(Handle(), 128U);
     (void)HAL_PCDEx_SetTxFiFo(Handle(), 0U, 64U);
     (void)HAL_PCDEx_SetTxFiFo(Handle(), 1U, 64U);
     (void)HAL_PCDEx_SetTxFiFo(Handle(), 2U, 16U);
   }
 
-  HAL_StatusTypeDef Start() const noexcept {
+  HAL_StatusTypeDef Start() const {
     return HAL_PCD_Start(Handle());
   }
 
-  HAL_StatusTypeDef OpenEndpoint(uint8_t epAddr, uint16_t mps, uint8_t epType) const noexcept {
+  HAL_StatusTypeDef OpenEndpoint(uint8_t epAddr, uint16_t mps, uint8_t epType) const {
     return HAL_PCD_EP_Open(Handle(), epAddr, mps, epType);
   }
 
-  HAL_StatusTypeDef CloseEndpoint(uint8_t epAddr) const noexcept {
+  HAL_StatusTypeDef CloseEndpoint(uint8_t epAddr) const {
     return HAL_PCD_EP_Close(Handle(), epAddr);
   }
 
-  HAL_StatusTypeDef Receive(uint8_t epAddr, uint8_t *buffer, uint32_t length) const noexcept {
+  HAL_StatusTypeDef Receive(uint8_t epAddr, uint8_t *buffer, uint32_t length) const {
     return HAL_PCD_EP_Receive(Handle(), epAddr, buffer, length);
   }
 
-  HAL_StatusTypeDef Transmit(uint8_t epAddr, uint8_t *buffer, uint32_t length) const noexcept {
+  HAL_StatusTypeDef Transmit(uint8_t epAddr, uint8_t *buffer, uint32_t length) const {
     return HAL_PCD_EP_Transmit(Handle(), epAddr, buffer, length);
   }
 
-  uint32_t GetRxCount(uint8_t epAddr) const noexcept {
+  uint32_t GetRxCount(uint8_t epAddr) const {
     return HAL_PCD_EP_GetRxCount(Handle(), epAddr);
   }
 
-  void SetAddress(uint8_t address) const noexcept {
+  void SetAddress(uint8_t address) const {
     (void)HAL_PCD_SetAddress(Handle(), address);
   }
 
-  void SetStall(uint8_t epAddr) const noexcept {
+  void SetStall(uint8_t epAddr) const {
     (void)HAL_PCD_EP_SetStall(Handle(), epAddr);
   }
 
-  void ClearStall(uint8_t epAddr) const noexcept {
+  void ClearStall(uint8_t epAddr) const {
     (void)HAL_PCD_EP_ClrStall(Handle(), epAddr);
   }
 
-  const uint8_t *SetupBuffer() const noexcept {
+  const uint8_t *SetupBuffer() const {
     return reinterpret_cast<const uint8_t *>(Handle()->Setup);
   }
 };
@@ -196,7 +196,7 @@ UsbCdcAcm &UsbCdcAcm::Instance() {
   return instance;
 }
 
-UsbCdcAcm::UsbCdcAcm() noexcept
+UsbCdcAcm::UsbCdcAcm()
   : rxEndpointBuffer_(kEpDataMps),
     txQueue_(),
     txEndpointBuffer_(kEpDataMps) {
@@ -720,7 +720,7 @@ void UsbCdcAcm::ServiceTxPath() {
   }
 }
 
-uint32_t UsbCdcAcm::LoadTxPacketToInactiveBuffer() noexcept {
+uint32_t UsbCdcAcm::LoadTxPacketToInactiveBuffer() {
   if ((!txQueue_.IsCreated()) || (!txEndpointBuffer_.IsCreated()) || txEndpointBuffer_.HasInactiveData()) {
     return 0U;
   }

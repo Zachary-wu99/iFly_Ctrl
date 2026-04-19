@@ -2,7 +2,7 @@
 
 #include <math.h>
 
-namespace iFly::pidctrl {
+namespace iFly {
 
 namespace {
 
@@ -10,12 +10,12 @@ constexpr float kPi = 3.14159265358979323846f;
 
 } // namespace
 
-Pid::Pid(const Config &config) noexcept
+Pid::Pid(const Config &config)
 {
   Configure(config);
 }
 
-void Pid::Configure(const Config &config) noexcept
+void Pid::Configure(const Config &config)
 {
   config_ = config;
 
@@ -49,22 +49,22 @@ void Pid::Configure(const Config &config) noexcept
   state_.integral = ClampIntegral(state_.integral);
 }
 
-void Pid::Reset() noexcept
+void Pid::Reset()
 {
   state_ = State {};
 }
 
-void Pid::ResetIntegrator(float integral) noexcept
+void Pid::ResetIntegrator(float integral)
 {
   state_.integral = ClampIntegral(integral);
 }
 
-void Pid::SetIntegrator(float integral) noexcept
+void Pid::SetIntegrator(float integral)
 {
   state_.integral = ClampIntegral(integral);
 }
 
-Pid::UpdateResult Pid::Update(const UpdateInput &input) noexcept
+Pid::UpdateResult Pid::Update(const UpdateInput &input)
 {
   UpdateResult result {};
 
@@ -157,12 +157,12 @@ Pid::UpdateResult Pid::Update(const UpdateInput &input) noexcept
   return result;
 }
 
-bool Pid::IsFinite(float value) noexcept
+bool Pid::IsFinite(float value)
 {
   return isfinite(value) != 0;
 }
 
-float Pid::Clamp(float value, float lower, float upper) noexcept
+float Pid::Clamp(float value, float lower, float upper)
 {
   if (value < lower) {
     return lower;
@@ -175,12 +175,12 @@ float Pid::Clamp(float value, float lower, float upper) noexcept
   return value;
 }
 
-float Pid::SanitizeValue(float value, float fallback) noexcept
+float Pid::SanitizeValue(float value, float fallback)
 {
   return IsFinite(value) ? value : fallback;
 }
 
-void Pid::NormalizeRange(float *lower, float *upper) noexcept
+void Pid::NormalizeRange(float *lower, float *upper)
 {
   if ((lower == nullptr) || (upper == nullptr)) {
     return;
@@ -193,12 +193,12 @@ void Pid::NormalizeRange(float *lower, float *upper) noexcept
   }
 }
 
-bool Pid::HasValidRange(float lower, float upper) noexcept
+bool Pid::HasValidRange(float lower, float upper)
 {
   return IsFinite(lower) && IsFinite(upper) && (upper >= lower);
 }
 
-float Pid::SanitizeDt(float dt_s) const noexcept
+float Pid::SanitizeDt(float dt_s) const
 {
   if (!IsFinite(dt_s) || (dt_s <= 0.0f)) {
     dt_s = config_.dt_min_s;
@@ -215,7 +215,7 @@ float Pid::SanitizeDt(float dt_s) const noexcept
   return dt_s;
 }
 
-float Pid::ApplyDerivativeFilter(float derivative_raw, float dt_s, bool reset) noexcept
+float Pid::ApplyDerivativeFilter(float derivative_raw, float dt_s, bool reset)
 {
   if (reset || !IsFinite(state_.derivative_state)) {
     state_.derivative_state = derivative_raw;
@@ -232,7 +232,7 @@ float Pid::ApplyDerivativeFilter(float derivative_raw, float dt_s, bool reset) n
   return state_.derivative_state;
 }
 
-float Pid::ClampIntegral(float integral) const noexcept
+float Pid::ClampIntegral(float integral) const
 {
   if (!IsFinite(integral)) {
     return 0.0f;
@@ -245,7 +245,7 @@ float Pid::ClampIntegral(float integral) const noexcept
   return integral;
 }
 
-float Pid::ClampOutput(float output, bool *clamped_low, bool *clamped_high) const noexcept
+float Pid::ClampOutput(float output, bool *clamped_low, bool *clamped_high) const
 {
   if (clamped_low != nullptr) {
     *clamped_low = false;
@@ -279,4 +279,4 @@ float Pid::ClampOutput(float output, bool *clamped_low, bool *clamped_high) cons
   return output;
 }
 
-} // namespace iFly::pidctrl
+} // namespace iFly::PIDCtrl
