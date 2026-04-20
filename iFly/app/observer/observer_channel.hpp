@@ -1,3 +1,5 @@
+// 观察者通道模板。
+// 提供单发布者、多消费者的无锁消息快照分发能力。
 #ifndef IFLY_APP_OBSERVER_OBSERVER_CHANNEL_HPP
 #define IFLY_APP_OBSERVER_OBSERVER_CHANNEL_HPP
 
@@ -11,12 +13,23 @@
 
 namespace iFly {
 
+/** @brief 订阅者读取消息时的结果状态。 */
 enum class ConsumeStatus : uint8_t {
+  /** @brief 当前没有可读数据。 */
   kNoData = 0U,
+  /** @brief 成功读取到一条有效数据。 */
   kOk,
+  /** @brief 读取时发生历史覆盖，已跳到仍可保留的范围。 */
   kOverflowed,
 };
 
+/**
+ * @brief 面向单发布者、多消费者场景的无锁快照通道。
+ *
+ * @tparam T 消息类型。
+ * @tparam kHistoryDepth 通道保留的历史条数。
+ * @tparam kMaxConsumers 同时允许存在的消费者数量。
+ */
 template <typename T, uint32_t kHistoryDepth = 4U, uint32_t kMaxConsumers = 4U>
 class ObserverChannel {
 public:
@@ -24,6 +37,7 @@ public:
   static constexpr uint32_t HistoryDepth = kHistoryDepth;
   static constexpr uint32_t MaxConsumers = kMaxConsumers;
 
+  /** @brief 订阅者句柄，负责维护自己的读取游标。 */
   class Consumer {
   public:
     Consumer() = default;
@@ -47,6 +61,7 @@ public:
       Release();
     }
 
+    /** @brief 读取下一条按序消息。 */
     ConsumeStatus TryRead(T &out, uint32_t *sequence = nullptr) {
       if (channel_ == nullptr) {
         return ConsumeStatus::kNoData;
@@ -55,6 +70,7 @@ public:
       return channel_->TryReadImpl(nextSequence_, false, out, sequence);
     }
 
+    /** @brief 直接读取当前最新一条消息。 */
     ConsumeStatus TryReadLatest(T &out, uint32_t *sequence = nullptr) {
       if (channel_ == nullptr) {
         return ConsumeStatus::kNoData;
@@ -63,6 +79,7 @@ public:
       return channel_->TryReadImpl(nextSequence_, true, out, sequence);
     }
 
+    /** @brief 把读取位置重置到当前最新消息。 */
     void ResetToLatest() {
       if (channel_ == nullptr) {
         return;
@@ -73,6 +90,7 @@ public:
       nextSequence_ = (published == 0U) ? 1U : published;
     }
 
+    /** @brief 把读取位置重置到下一次发布。 */
     void ResetToNextPublication() {
       if (channel_ == nullptr) {
         return;
@@ -83,6 +101,7 @@ public:
       nextSequence_ = published + 1U;
     }
 
+    /** @brief 判断当前消费者是否仍附着在通道上。 */
     bool IsAttached() const {
       return channel_ != nullptr;
     }
@@ -129,6 +148,7 @@ public:
   ObserverChannel(const ObserverChannel &) = delete;
   ObserverChannel &operator=(const ObserverChannel &) = delete;
 
+  /** @brief 发布一条消息快照。 */
   template <typename Message>
   bool Publish(Message &&message) {
     static_assert(std::is_same_v<std::decay_t<Message>, T>,
@@ -146,20 +166,24 @@ public:
     return true;
   }
 
+  /** @brief 原地构造并发布一条消息。 */
   template <typename... Args>
   bool Emplace(Args &&...args) {
     T value(std::forward<Args>(args)...);
     return Publish(std::move(value));
   }
 
+  /** @brief 从当前最新消息开始订阅。 */
   Consumer SubscribeLatest() {
     return SubscribeImpl(false);
   }
 
+  /** @brief 从下一次新发布开始订阅。 */
   Consumer SubscribeFromNext() {
     return SubscribeImpl(true);
   }
 
+  /** @brief 返回当前已发布的最新序号。 */
   uint32_t PublishedSequence() const {
     return publishedSequence_.load(std::memory_order_acquire);
   }
@@ -326,9 +350,11 @@ class CallbackConsumer {
 public:
   using value_type = typename Channel::value_type;
 
+  /** @brief 组合一个消费者句柄和一个消息处理回调。 */
   CallbackConsumer(typename Channel::Consumer consumer, Callback callback)
       : consumer_(std::move(consumer)), callback_(std::move(callback)) {}
 
+  /** @brief 拉取一条按序消息并立即交给回调。 */
   ConsumeStatus PollOnce(uint32_t *sequence = nullptr) {
     value_type value {};
     const ConsumeStatus status = consumer_.TryRead(value, sequence);
@@ -340,6 +366,7 @@ public:
     return status;
   }
 
+  /** @brief 拉取当前最新消息并立即交给回调。 */
   ConsumeStatus PollLatest(uint32_t *sequence = nullptr) {
     value_type value {};
     const ConsumeStatus status = consumer_.TryReadLatest(value, sequence);
@@ -351,6 +378,7 @@ public:
     return status;
   }
 
+  /** @brief 一直消费到没有新数据为止，返回处理条数。 */
   uint32_t Drain() {
     uint32_t count = 0U;
     while (PollOnce() != ConsumeStatus::kNoData) {
@@ -359,6 +387,7 @@ public:
     return count;
   }
 
+  /** @brief 暴露底层消费者句柄，便于更细粒度控制。 */
   typename Channel::Consumer &Handle() {
     return consumer_;
   }
@@ -429,39 +458,46 @@ public:
   ObserverHub(const ObserverHub &) = delete;
   ObserverHub &operator=(const ObserverHub &) = delete;
 
+  /** @brief 按消息类型把数据发布到唯一匹配的通道。 */
   template <typename Message>
   bool Publish(Message &&message) {
     using ValueType = std::decay_t<Message>;
     return Channel<ValueType>().Publish(std::forward<Message>(message));
   }
 
+  /** @brief 在目标通道内原地构造并发布消息。 */
   template <typename Message, typename... Args>
   bool Emplace(Args &&...args) {
     return Channel<Message>().Emplace(std::forward<Args>(args)...);
   }
 
+  /** @brief 订阅某种消息类型的最新快照。 */
   template <typename Message>
   typename channel_type_t<Message>::Consumer SubscribeLatest() {
     return Channel<Message>().SubscribeLatest();
   }
 
+  /** @brief 订阅某种消息类型的下一次发布。 */
   template <typename Message>
   typename channel_type_t<Message>::Consumer SubscribeFromNext() {
     return Channel<Message>().SubscribeFromNext();
   }
 
+  /** @brief 直接访问某种消息类型对应的通道对象。 */
   template <typename Message>
   channel_type_t<Message> &Channel() {
     constexpr size_t index = ChannelIndexValue<Message>();
     return std::get<index>(channels_);
   }
 
+  /** @brief 只读访问某种消息类型对应的通道对象。 */
   template <typename Message>
   const channel_type_t<Message> &Channel() const {
     constexpr size_t index = ChannelIndexValue<Message>();
     return std::get<index>(channels_);
   }
 
+  /** @brief 把回调绑定到对应消息类型的“最新值”订阅器。 */
   template <typename Callback>
   callback_consumer_type_t<Callback> BindLatest(Callback &&callback) {
     using Message = callback_message_type_t<Callback>;
@@ -471,6 +507,7 @@ public:
                                              std::forward<Callback>(callback));
   }
 
+  /** @brief 把回调绑定到对应消息类型的“下一次发布”订阅器。 */
   template <typename Callback>
   callback_consumer_type_t<Callback> BindFromNext(Callback &&callback) {
     using Message = callback_message_type_t<Callback>;

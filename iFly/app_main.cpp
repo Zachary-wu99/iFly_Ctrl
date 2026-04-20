@@ -1,3 +1,5 @@
+// 应用层主循环实现。
+// 负责初始化 CLI 运行时，并周期轮询上层业务。
 #include "app_main.h"
 
 #include <stdint.h>
@@ -18,6 +20,7 @@ iFly::HardwareUart g_uart5(iFly::UartPortId::kUart5, kCliRxQueueSize);
 iFly::UsbUart g_usb_cli(kCliRxQueueSize);
 iFly::FlightCtrlCli g_flight_ctrl_cli;
 
+// 初始化 CLI 运行时依赖并绑定默认传输通道。
 void InitCliRuntime()
 {
   g_uart5.Init();
@@ -31,6 +34,7 @@ void InitCliRuntime()
 
 } // namespace
 
+// 作为应用主入口，初始化后持续轮询 CLI。
 extern "C" void app_main(void)
 {
   InitCliRuntime();

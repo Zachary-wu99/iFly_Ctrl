@@ -1,3 +1,5 @@
+// CAN 底层服务接口。
+// 定义端口编号、帧封装格式以及 HAL 桥接服务。
 #ifndef IFLY_CAN_HPP
 #define IFLY_CAN_HPP
 
@@ -78,7 +80,7 @@ struct CanFramePacket final {
 static_assert(sizeof(CanFramePacket) == 16U, "CanFramePacket size must stay fixed at 16 bytes.");
 
 /**
- * @brief CAN runtime service.
+ * @brief CAN 运行时服务。
  *
  * RX path: HAL FIFO -> upper RX lock-free queue.
  * TX path: TX lock-free queue -> double buffer -> HAL mailbox.
@@ -123,7 +125,7 @@ public:
   /** 查询这一端口当前是否已经完成初始化并可工作。 */
   bool IsReady(CanPortId port) const;
 
-  /** Compatibility hook; RX now reaches the upper queue directly in HAL callbacks. */
+  /** @brief 兼容性空钩子。当前 RX 已经在 HAL 回调中直接上抛到上层队列。 */
   void ServiceRxPath(CanPortId port);
 
   /** HAL 告知某个 RX FIFO 有报文待取时的桥接入口。 */

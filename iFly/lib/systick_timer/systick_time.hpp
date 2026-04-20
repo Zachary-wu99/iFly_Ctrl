@@ -1,3 +1,5 @@
+// 底层时间源接口。
+// 封装 HAL Tick 和 DWT 周期计数器的 ms/us/ns 读时能力。
 #ifndef IFLY_SYSTICK_TIME_HPP
 #define IFLY_SYSTICK_TIME_HPP
 

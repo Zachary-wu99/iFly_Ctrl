@@ -1,3 +1,5 @@
+// 双缓冲工具模板。
+// 为 USB、UART、CAN 等模块提供双槽切换和活跃槽管理能力。
 #ifndef IFLY_DOUBLE_BUFFER_HPP
 #define IFLY_DOUBLE_BUFFER_HPP
 

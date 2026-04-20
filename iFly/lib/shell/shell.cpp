@@ -1,3 +1,5 @@
+// 命令行 Shell 实现。
+// 包括会话状态机、命令解析、参数访问和输出格式控制。
 #include "shell.hpp"
 
 #include <stdarg.h>
@@ -17,34 +19,40 @@ constexpr uint32_t kMaxWriteAttempts = 16U;
 
 } // namespace
 
+// 构造Shell并初始化默认成员状态。
 Shell::Shell()
 {
   ClearPassword();
   ResetSession();
 }
 
+// 绑定当前 Shell 使用的底层 IO。
 void Shell::BindIo(SerialIoBase *io)
 {
   io_ = io;
   ResetSession();
 }
 
+// 设置 Shell 标题和副标题。
 void Shell::SetBanner(const char *title, const char *subtitle)
 {
   bannerTitle_ = title;
   bannerSubtitle_ = subtitle;
 }
 
+// 设置命令提示符文本。
 void Shell::SetPrompt(const char *prompt)
 {
   prompt_ = prompt;
 }
 
+// 设置登录密码。
 void Shell::SetPassword(const char *password)
 {
   CopyString(password, password_, sizeof(password_));
 }
 
+// 设置唤起终端会话的激活键。
 void Shell::SetActivationKey(uint8_t key, const char *promptText)
 {
   activation_key_ = key;
@@ -53,22 +61,26 @@ void Shell::SetActivationKey(uint8_t key, const char *promptText)
   }
 }
 
+// 禁用终端激活键。
 void Shell::DisableActivationKey()
 {
   activation_key_ = 0U;
 }
 
+// 设置会话开场动画回调。
 void Shell::SetSessionAnimation(SessionAnimation animation, void *context)
 {
   session_animation_ = animation;
   session_animation_context_ = context;
 }
 
+// 清空当前密码配置。
 void Shell::ClearPassword()
 {
   password_[0] = '\0';
 }
 
+// 注册内建命令。
 bool Shell::RegisterCommand(const Command &command)
 {
   if ((command.name == nullptr) || (command.handler == nullptr) ||
@@ -81,6 +93,7 @@ bool Shell::RegisterCommand(const Command &command)
   return true;
 }
 
+// 注册函数式命令。
 bool Shell::RegisterFunction(const Function &function)
 {
   if ((function.name == nullptr) || (function.handler == nullptr) ||
@@ -93,6 +106,7 @@ bool Shell::RegisterFunction(const Function &function)
   return true;
 }
 
+// 注册参数项。
 bool Shell::RegisterParameter(const Parameter &parameter)
 {
   if ((parameter.name == nullptr) || (parameter.getter == nullptr) ||
@@ -105,6 +119,7 @@ bool Shell::RegisterParameter(const Parameter &parameter)
   return true;
 }
 
+// 清空所有已注册命令和参数。
 void Shell::ClearRegistrations()
 {
   commandCount_ = 0U;
@@ -112,6 +127,7 @@ void Shell::ClearRegistrations()
   parameterCount_ = 0U;
 }
 
+// 轮询并处理当前输入输出状态。
 void Shell::Poll()
 {
   if (io_ == nullptr) {
@@ -150,6 +166,7 @@ void Shell::Poll()
   }
 }
 
+// 重置当前会话状态。
 void Shell::ResetSession()
 {
   connectionActive_ = false;
@@ -158,21 +175,25 @@ void Shell::ResetSession()
   ResetInputLine();
 }
 
+// 返回当前是否已经登录。
 bool Shell::IsLoggedIn() const
 {
   return sessionState_ == SessionState::kReady;
 }
 
+// 返回当前是否配置了密码。
 bool Shell::HasPassword() const
 {
   return password_[0] != '\0';
 }
 
+// 返回当前是否已经连接可用。
 bool Shell::IsConnected() const
 {
   return (io_ != nullptr) && io_->IsConnected();
 }
 
+// 向发送路径写入数据。
 void Shell::Write(const char *text)
 {
   if (text == nullptr) {
@@ -183,6 +204,7 @@ void Shell::Write(const char *text)
                    static_cast<uint32_t>(strlen(text)));
 }
 
+// 输出一行文本并追加换行。
 void Shell::WriteLine(const char *text)
 {
   if (text != nullptr) {
@@ -191,6 +213,7 @@ void Shell::WriteLine(const char *text)
   Write("\r\n");
 }
 
+// 按格式化方式输出文本。
 void Shell::Printf(const char *format, ...)
 {
   if (format == nullptr) {
@@ -211,6 +234,7 @@ void Shell::Printf(const char *format, ...)
   Write(buffer);
 }
 
+// 启动一个已连接的交互会话。
 void Shell::StartConnectedSession()
 {
   connectionActive_ = true;
@@ -232,12 +256,14 @@ void Shell::StartConnectedSession()
   }
 }
 
+// 清空当前输入行缓冲。
 void Shell::ResetInputLine()
 {
   inputLength_ = 0U;
   inputLine_[0] = '\0';
 }
 
+// 处理单个输入字节。
 void Shell::ProcessByte(uint8_t byteValue)
 {
   if (sessionState_ == SessionState::kActivationPrompt) {
@@ -291,6 +317,7 @@ void Shell::ProcessByte(uint8_t byteValue)
   }
 }
 
+// 处理终端激活按键。
 void Shell::HandleActivationTrigger()
 {
   Write("\r\n");
@@ -307,6 +334,7 @@ void Shell::HandleActivationTrigger()
   AdvanceAfterAnimation();
 }
 
+// 在动画结束后推进会话状态。
 void Shell::AdvanceAfterAnimation()
 {
   if (!connectionActive_) {
@@ -323,6 +351,7 @@ void Shell::AdvanceAfterAnimation()
   PrintPrompt();
 }
 
+// 处理一整行已完成输入的文本。
 void Shell::HandleCompletedLine()
 {
   Write("\r\n");
@@ -346,6 +375,7 @@ void Shell::HandleCompletedLine()
   }
 }
 
+// 处理密码输入行。
 void Shell::HandlePasswordLine()
 {
   if (strcmp(inputLine_, password_) == 0) {
@@ -356,6 +386,7 @@ void Shell::HandlePasswordLine()
   }
 }
 
+// 处理普通命令输入行。
 void Shell::HandleCommandLine()
 {
   const char *argv[kMaxArgumentCount] {};
@@ -376,6 +407,7 @@ void Shell::HandleCommandLine()
   Printf("Unknown command: %s\r\n", argv[0]);
 }
 
+// 把输入行拆分为参数数组。
 uint8_t Shell::Tokenize(char *line, const char *argv[]) const
 {
   if ((line == nullptr) || (argv == nullptr)) {
@@ -425,6 +457,7 @@ uint8_t Shell::Tokenize(char *line, const char *argv[]) const
   return argc;
 }
 
+// 尝试执行内建命令。
 bool Shell::ExecuteBuiltin(uint8_t argc, const char *const *argv)
 {
   if ((argc == 0U) || (argv == nullptr) || (argv[0] == nullptr)) {
@@ -474,6 +507,7 @@ bool Shell::ExecuteBuiltin(uint8_t argc, const char *const *argv)
   return false;
 }
 
+// 执行注册的命令或函数。
 bool Shell::ExecuteCommand(uint8_t argc, const char *const *argv)
 {
   const Command *command = FindCommand(argv[0]);
@@ -487,6 +521,7 @@ bool Shell::ExecuteCommand(uint8_t argc, const char *const *argv)
   return true;
 }
 
+// 处理 `help` 命令。
 bool Shell::HandleHelpCommand(uint8_t argc, const char *const *argv)
 {
   if (argc <= 1U) {
@@ -513,6 +548,7 @@ bool Shell::HandleHelpCommand(uint8_t argc, const char *const *argv)
   return true;
 }
 
+// 处理 `logout` 命令。
 bool Shell::HandleLogoutCommand(uint8_t argc, const char *const *argv)
 {
   (void)argc;
@@ -528,6 +564,7 @@ bool Shell::HandleLogoutCommand(uint8_t argc, const char *const *argv)
   return true;
 }
 
+// 处理 `password` 命令。
 bool Shell::HandlePasswordCommand(uint8_t argc, const char *const *argv)
 {
   if (!HasPassword()) {
@@ -550,6 +587,7 @@ bool Shell::HandlePasswordCommand(uint8_t argc, const char *const *argv)
   return true;
 }
 
+// 处理 `clear` 命令。
 bool Shell::HandleClearCommand(uint8_t argc, const char *const *argv)
 {
   (void)argc;
@@ -568,6 +606,7 @@ bool Shell::HandleClearCommand(uint8_t argc, const char *const *argv)
   return true;
 }
 
+// 处理 `function` 子命令。
 bool Shell::HandleFunctionCommand(uint8_t argc, const char *const *argv)
 {
   if ((argc == 1U) || (strcmp(argv[1], "list") == 0)) {
@@ -594,6 +633,7 @@ bool Shell::HandleFunctionCommand(uint8_t argc, const char *const *argv)
   return true;
 }
 
+// 处理函数调用别名。
 bool Shell::HandleFunctionCallAlias(uint8_t argc, const char *const *argv)
 {
   if (argc < 2U) {
@@ -614,6 +654,7 @@ bool Shell::HandleFunctionCallAlias(uint8_t argc, const char *const *argv)
   return true;
 }
 
+// 处理 `parameter` 子命令。
 bool Shell::HandleParameterCommand(uint8_t argc, const char *const *argv)
 {
   if ((argc == 1U) || (strcmp(argv[1], "list") == 0) ||
@@ -660,6 +701,7 @@ bool Shell::HandleParameterCommand(uint8_t argc, const char *const *argv)
   return true;
 }
 
+// 处理参数读取别名。
 bool Shell::HandleParameterGetAlias(uint8_t argc, const char *const *argv)
 {
   if (argc != 2U) {
@@ -677,6 +719,7 @@ bool Shell::HandleParameterGetAlias(uint8_t argc, const char *const *argv)
   return true;
 }
 
+// 处理参数写入别名。
 bool Shell::HandleParameterSetAlias(uint8_t argc, const char *const *argv)
 {
   if (argc != 3U) {
@@ -704,6 +747,7 @@ bool Shell::HandleParameterSetAlias(uint8_t argc, const char *const *argv)
   return true;
 }
 
+// 处理参数列表别名。
 bool Shell::HandleParameterListAlias(uint8_t argc, const char *const *argv)
 {
   (void)argc;
@@ -713,6 +757,7 @@ bool Shell::HandleParameterListAlias(uint8_t argc, const char *const *argv)
   return true;
 }
 
+// 按名称查找已注册命令。
 const Shell::Command *Shell::FindCommand(const char *name) const
 {
   if (name == nullptr) {
@@ -730,6 +775,7 @@ const Shell::Command *Shell::FindCommand(const char *name) const
   return nullptr;
 }
 
+// 按名称查找已注册函数。
 const Shell::Function *Shell::FindFunction(const char *name) const
 {
   if (name == nullptr) {
@@ -747,6 +793,7 @@ const Shell::Function *Shell::FindFunction(const char *name) const
   return nullptr;
 }
 
+// 按名称查找已注册参数。
 const Shell::Parameter *Shell::FindParameter(const char *name) const
 {
   if (name == nullptr) {
@@ -764,6 +811,7 @@ const Shell::Parameter *Shell::FindParameter(const char *name) const
   return nullptr;
 }
 
+// 输出欢迎横幅。
 void Shell::PrintBanner()
 {
   WriteLine("");
@@ -783,6 +831,7 @@ void Shell::PrintBanner()
   WriteLine("========================================");
 }
 
+// 输出命令提示符。
 void Shell::PrintPrompt()
 {
   if ((prompt_ != nullptr) && (prompt_[0] != '\0')) {
@@ -790,11 +839,13 @@ void Shell::PrintPrompt()
   }
 }
 
+// 输出密码提示符。
 void Shell::PrintPasswordPrompt()
 {
   Write("Password: ");
 }
 
+// 输出帮助摘要。
 void Shell::PrintHelpSummary() const
 {
   Shell *shell = const_cast<Shell *>(this);
@@ -818,6 +869,7 @@ void Shell::PrintHelpSummary() const
   shell->Printf("Registered parameters: %u\r\n", static_cast<unsigned>(parameterCount_));
 }
 
+// 输出命令列表。
 void Shell::PrintCommandList() const
 {
   Shell *shell = const_cast<Shell *>(this);
@@ -838,6 +890,7 @@ void Shell::PrintCommandList() const
   }
 }
 
+// 输出函数列表。
 void Shell::PrintFunctionList() const
 {
   Shell *shell = const_cast<Shell *>(this);
@@ -858,6 +911,7 @@ void Shell::PrintFunctionList() const
   }
 }
 
+// 输出参数列表。
 void Shell::PrintParameterList() const
 {
   Shell *shell = const_cast<Shell *>(this);
@@ -874,6 +928,7 @@ void Shell::PrintParameterList() const
   }
 }
 
+// 输出指定参数的当前值。
 void Shell::PrintParameterValue(const Parameter &parameter) const
 {
   if ((parameter.name == nullptr) || (parameter.getter == nullptr)) {
@@ -897,6 +952,7 @@ void Shell::PrintParameterValue(const Parameter &parameter) const
   shell->Write("\r\n");
 }
 
+// 把字节流写到底层 IO。
 uint32_t Shell::WriteBytes(const uint8_t *data, uint32_t length)
 {
   if ((io_ == nullptr) || (data == nullptr) || (length == 0U)) {
@@ -919,6 +975,7 @@ uint32_t Shell::WriteBytes(const uint8_t *data, uint32_t length)
   return offset;
 }
 
+// 安全拷贝字符串到目标缓冲区。
 void Shell::CopyString(const char *source, char *destination,
                        uint32_t destinationSize)
 {
@@ -942,6 +999,7 @@ void Shell::CopyString(const char *source, char *destination,
   destination[destinationSize - 1U] = '\0';
 }
 
+// 判断字符是否为空白符。
 bool Shell::IsWhitespace(char character)
 {
   return (character == ' ') || (character == '\t');

@@ -1,3 +1,5 @@
+// 硬件 UART 设备封装实现。
+// 负责与 UartDmaService 建立端口绑定。
 #include "hardware_uart.hpp"
 
 namespace iFly {

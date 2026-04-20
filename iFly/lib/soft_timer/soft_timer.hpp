@@ -1,3 +1,5 @@
+// 软定时器服务接口。
+// 提供基于 SysTick 的非抢占式定时任务调度能力。
 #ifndef IFLY_SOFT_TIMER_HPP
 #define IFLY_SOFT_TIMER_HPP
 
@@ -60,7 +62,7 @@ public:
   struct TaskConfig final {
     TaskCallback callback = nullptr;
     void *context = nullptr;
-    // interval_ms == 0 means the task has no fixed period and must reschedule itself.
+    // `interval_ms == 0` 表示该任务没有固定周期，需要在回调里自行申请下一次唤醒。
     uint32_t interval_ms = 0U;
     uint32_t start_delay_ms = kUseIntervalAsStartDelay;
     uint8_t priority = kLowestPriority;
@@ -76,7 +78,7 @@ public:
    * @return 创建成功返回有效句柄，失败返回 `kInvalidTaskHandle`。
    */
   TaskHandle CreateTask(const TaskConfig &config);
-  // Called inside the currently running callback to request the next wake-up delay.
+  // 供当前正在执行的回调内部调用，用来申请下一次唤醒延时。
   bool DelayCurrentTask(uint32_t delay_ms);
 
   /**

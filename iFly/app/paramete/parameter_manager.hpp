@@ -1,3 +1,5 @@
+// 参数管理模块接口。
+// 在固定容量表上维护参数描述，并统一注册到 Shell。
 #ifndef IFLY_APP_PARAMETE_PARAMETER_MANAGER_HPP
 #define IFLY_APP_PARAMETE_PARAMETER_MANAGER_HPP
 
@@ -15,6 +17,7 @@ class ParameterManager final {
 public:
   static constexpr uint8_t kMaxParameterCount = Shell::kMaxParameterCount;
 
+  /** @brief 参数变化后的回调签名。 */
   using ChangeHandler = void (*)(void *context);
 
   // 可读写 float 参数描述。
@@ -62,16 +65,23 @@ public:
     void *on_updated_context = nullptr;
   };
 
+  /** @brief 清空全部参数注册信息。 */
   void Clear();
+  /** @brief 返回当前已经注册的参数数量。 */
   uint8_t Count() const {
     return count_;
   }
 
+  /** @brief 注册一个 float 参数。 */
   bool AddFloat(const FloatSpec &spec);
+  /** @brief 注册一个 uint32 参数。 */
   bool AddU32(const U32Spec &spec);
+  /** @brief 注册一个 bool 参数。 */
   bool AddBool(const BoolSpec &spec);
+  /** @brief 注册一个自定义 getter/setter 参数。 */
   bool AddCallback(const CallbackSpec &spec);
 
+  /** @brief 把当前参数表批量注册到指定 Shell。 */
   bool RegisterToShell(Shell *shell);
 
 private:

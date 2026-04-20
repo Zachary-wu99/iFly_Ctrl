@@ -1,3 +1,5 @@
+// USB CDC 串口封装实现。
+// 负责与底层 UsbCdcAcm 单例的对接。
 #include "usb_uart.hpp"
 
 namespace iFly {

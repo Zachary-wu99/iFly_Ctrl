@@ -1,3 +1,5 @@
+// USB CDC 串口封装接口。
+// 向上提供与硬件 UART 一致的串口抽象。
 #ifndef IFLY_USB_UART_HPP
 #define IFLY_USB_UART_HPP
 

@@ -1,3 +1,5 @@
+// 无锁队列接口与模板封装。
+// 提供静态/动态字节队列，作为串口和协议模块的基础缓冲组件。
 #ifndef IFLY_FREELOCK_QUEUE_LOCK_FREE_QUEUE_HPP
 #define IFLY_FREELOCK_QUEUE_LOCK_FREE_QUEUE_HPP
 
@@ -8,10 +10,10 @@
 
 namespace iFly {
 
-// Concurrency contract:
-// - Enqueue is safe for exactly one producer.
-// - Dequeue is safe for multiple competing consumers.
-// - Each successful dequeue claims a unique byte range.
+// 并发约束：
+// - `Enqueue()` 仅保证单生产者安全。
+// - `Dequeue()` 允许多个消费者并发竞争。
+// - 每次成功出队都会独占一段不重复的字节区间。
 /**
  * @brief 单生产者/单消费者无锁字节队列基类。
  *
@@ -85,7 +87,7 @@ public:
    * - 当队列内数据不足时，函数会执行“尽力读取”，只返回当前已有的数据。
    * - 若队列未创建、data 为 nullptr 或 length 为 0，则直接返回 0。
    */
-  // Safe for multiple concurrent consumers.
+  // 允许多个消费者并发读取，内部通过 CAS 竞争推进 tail。
   uint32_t Dequeue(uint8_t *data, uint32_t length);
 
   /** @brief 返回当前已使用的空间大小，单位为字节。 */

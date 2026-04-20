@@ -1,3 +1,5 @@
+// 无锁队列实现。
+// 负责环形缓冲区上的字节入队、出队和容量统计。
 #include "lock_free_queue.hpp"
 
 #include <new>
@@ -134,8 +136,8 @@ uint32_t LockFreeQueueBase::Dequeue(uint8_t *data, uint32_t length) {
 
   const uint32_t size = storageSize_;
   while (true) {
-    // Multiple consumers may race on tail_. Copy first, then claim the range
-    // with CAS. If CAS fails, another consumer committed first, so retry.
+    // 多个消费者可能同时竞争 tail_。
+    // 先把数据复制出来，再用 CAS 认领本次读取区间；如果失败，说明别的消费者先提交了，继续重试即可。
     const uint32_t tail = tail_.load(std::memory_order_acquire);
     const uint32_t head = head_.load(std::memory_order_acquire);
     const uint32_t used = Distance(head, tail, size);
@@ -234,14 +236,17 @@ const uint8_t *LockFreeQueueBase::Buffer() const {
   return storage_;
 }
 
+// 构造动态无锁队列并初始化默认成员状态。
 DynamicLockFreeQueue::DynamicLockFreeQueue(uint32_t storageSize) {
   (void)Recreate(storageSize);
 }
 
+// 释放动态无锁队列持有的资源。
 DynamicLockFreeQueue::~DynamicLockFreeQueue() {
   ReleaseStorage();
 }
 
+// 重新分配并初始化动态存储。
 bool DynamicLockFreeQueue::Recreate(uint32_t storageSize) {
   if (storageSize < 2U) {
     ReleaseStorage();
@@ -259,6 +264,7 @@ bool DynamicLockFreeQueue::Recreate(uint32_t storageSize) {
   return Create(ownedStorage_, storageSize);
 }
 
+// 释放动态分配的存储区。
 void DynamicLockFreeQueue::ReleaseStorage() {
   Delete();
   delete[] ownedStorage_;

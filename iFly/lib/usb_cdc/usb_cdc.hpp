@@ -1,3 +1,5 @@
+// USB CDC ACM 协议层接口。
+// 提供设备枚举、端点缓冲和字节流收发能力。
 #ifndef IFLY_USB_CDC_HPP
 #define IFLY_USB_CDC_HPP
 

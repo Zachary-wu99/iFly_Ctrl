@@ -1,3 +1,5 @@
+// PID 控制器实现。
+// 包括输入清洗、积分限幅、微分滤波和输出钳位逻辑。
 #include "pid.hpp"
 
 #include <math.h>
@@ -10,13 +12,16 @@ constexpr float kPi = 3.14159265358979323846f;
 
 } // namespace
 
+// 构造PID 控制器并初始化默认成员状态。
 Pid::Pid(const Config &config)
 {
   Configure(config);
 }
 
+// 应用新的配置参数。
 void Pid::Configure(const Config &config)
 {
+  // 对外部配置做一次统一清洗，避免 NaN、范围反转或超界参数进入控制环。
   config_ = config;
 
   config_.kp = SanitizeValue(config_.kp, 0.0f);
@@ -49,21 +54,25 @@ void Pid::Configure(const Config &config)
   state_.integral = ClampIntegral(state_.integral);
 }
 
+// 重置内部运行状态。
 void Pid::Reset()
 {
   state_ = State {};
 }
 
+// 重置积分项为指定值。
 void Pid::ResetIntegrator(float integral)
 {
   state_.integral = ClampIntegral(integral);
 }
 
+// 设置积分项当前值。
 void Pid::SetIntegrator(float integral)
 {
   state_.integral = ClampIntegral(integral);
 }
 
+// 执行一次更新计算。
 Pid::UpdateResult Pid::Update(const UpdateInput &input)
 {
   UpdateResult result {};
@@ -82,6 +91,7 @@ Pid::UpdateResult Pid::Update(const UpdateInput &input)
   const float error = input.setpoint - input.measurement;
   const bool reset_derivative = input.reset_derivative || !state_.initialized;
 
+  // 先根据配置选择微分信号来源，再统一进入微分滤波与增益计算。
   float derivative_raw = 0.0f;
   if (reset_derivative) {
     state_.previous_error = error;
@@ -128,6 +138,7 @@ Pid::UpdateResult Pid::Update(const UpdateInput &input)
 
   if (input.update_integral && IsFinite(error) && IsFinite(dt_s) && (dt_s > 0.0f) &&
       (config_.ki != 0.0f)) {
+    // 在输出已经朝同方向饱和时暂停继续积分，减少积分饱和带来的恢复迟滞。
     const float candidate_integral = ClampIntegral(state_.integral + (config_.ki * error * dt_s));
     const float candidate_output = proportional + candidate_integral + derivative + feedforward;
 
@@ -157,11 +168,13 @@ Pid::UpdateResult Pid::Update(const UpdateInput &input)
   return result;
 }
 
+// 判断输入值是否为有限数。
 bool Pid::IsFinite(float value)
 {
   return isfinite(value) != 0;
 }
 
+// 把数值限制到给定范围。
 float Pid::Clamp(float value, float lower, float upper)
 {
   if (value < lower) {
@@ -175,11 +188,13 @@ float Pid::Clamp(float value, float lower, float upper)
   return value;
 }
 
+// 清洗非法输入值并提供回退值。
 float Pid::SanitizeValue(float value, float fallback)
 {
   return IsFinite(value) ? value : fallback;
 }
 
+// 确保上下界顺序合法。
 void Pid::NormalizeRange(float *lower, float *upper)
 {
   if ((lower == nullptr) || (upper == nullptr)) {
@@ -193,11 +208,13 @@ void Pid::NormalizeRange(float *lower, float *upper)
   }
 }
 
+// 检查上下界是否构成有效范围。
 bool Pid::HasValidRange(float lower, float upper)
 {
   return IsFinite(lower) && IsFinite(upper) && (upper >= lower);
 }
 
+// 清洗并限制控制周期。
 float Pid::SanitizeDt(float dt_s) const
 {
   if (!IsFinite(dt_s) || (dt_s <= 0.0f)) {
@@ -215,6 +232,7 @@ float Pid::SanitizeDt(float dt_s) const
   return dt_s;
 }
 
+// 对微分项应用低通滤波。
 float Pid::ApplyDerivativeFilter(float derivative_raw, float dt_s, bool reset)
 {
   if (reset || !IsFinite(state_.derivative_state)) {
@@ -232,6 +250,7 @@ float Pid::ApplyDerivativeFilter(float derivative_raw, float dt_s, bool reset)
   return state_.derivative_state;
 }
 
+// 对积分项执行限幅。
 float Pid::ClampIntegral(float integral) const
 {
   if (!IsFinite(integral)) {
@@ -245,6 +264,7 @@ float Pid::ClampIntegral(float integral) const
   return integral;
 }
 
+// 对最终输出执行限幅。
 float Pid::ClampOutput(float output, bool *clamped_low, bool *clamped_high) const
 {
   if (clamped_low != nullptr) {

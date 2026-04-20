@@ -1,3 +1,5 @@
+// 应用层主入口声明。
+// 该接口由 main.c 调用，用于进入 C++ 应用逻辑。
 #ifndef IFLY_APP_MAIN_H
 #define IFLY_APP_MAIN_H
 

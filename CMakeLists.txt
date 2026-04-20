@@ -1,3 +1,5 @@
+# 项目顶层构建脚本。
+# 负责汇总自写源码、包含路径和 STM32CubeMX 生成工程。
 cmake_minimum_required(VERSION 3.22)
 
 #

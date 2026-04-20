@@ -1,3 +1,5 @@
+// UART DMA 底层服务实现。
+// 负责 DMA 接收、发送队列装载和 HAL 回调处理。
 #include "uart_dma.hpp"
 
 #include <string.h>
@@ -270,6 +272,7 @@ void ServiceTxPathOnce(UartPortSlot &slot) {
   slot.txBusy.store(false, std::memory_order_release);
 }
 
+// 推进发送路径继续出队。
 void ServiceTxPath(UartPortSlot &slot) {
   (void)slot.txServiceRequests.fetch_add(1U, std::memory_order_acq_rel);
   if (slot.txServiceRunning.exchange(true, std::memory_order_acq_rel)) {

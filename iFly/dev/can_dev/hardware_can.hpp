@@ -1,3 +1,5 @@
+// 硬件 CAN 设备封装接口。
+// 将 CAN 端口包装成与其他串行 IO 一致的上层访问形式。
 #ifndef IFLY_HARDWARE_CAN_HPP
 #define IFLY_HARDWARE_CAN_HPP
 
@@ -11,7 +13,7 @@ namespace iFly {
 // 面向业务层的一路 CAN 设备封装。
 //
 // 这个类的目标不是把 HAL 完整暴露出来，而是把 CAN 也包装成和
-// UART / USB CDC 类似的统一 IO 接口，便于上层代码复用 SerialIoBase。
+// UART / USB CDC 风格的统一 IO 接口，便于上层代码复用 SerialIoBase。
 //
 // 但要注意：
 // 1. UART/USB 本质上是字节流
@@ -44,7 +46,7 @@ public:
   uint32_t TxFree() const override;
   uint32_t TxUsed() const override;
 
-  // Returns dropped RX bytes when the upper queue has no space.
+  // 返回上层 RX 队列空间不足时累计丢弃的字节数。
   uint32_t RxDropped() const override;
 
   // 当前端口是否已经初始化成功且底层句柄有效。
@@ -60,7 +62,7 @@ public:
   // 成功返回 true，并把完整帧写入 *frame。
   bool ReadFrame(CanFramePacket *frame);
 
-  // These helpers keep the shared read hook for API compatibility.
+  // 这些辅助接口保留统一的读钩子风格，便于兼容 `SerialIoBase` 生态。
   uint32_t Available();
   uint32_t RxFree();
   uint32_t RxUsed();
@@ -69,7 +71,7 @@ private:
   // 统一拿到底层 CAN 单例服务。
   static CanService &Device();
 
-  // Kept only for interface compatibility. RX already lands in the upper queue.
+  // 仅用于接口兼容。当前 RX 已经直接落到上层队列。
   void BeforeRead() override;
 
 private:

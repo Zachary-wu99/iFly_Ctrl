@@ -1,3 +1,5 @@
+# GCC ARM None EABI 工具链配置脚本。
+# 定义裸机交叉编译器、目标 CPU 和常用编译选项。
 set(CMAKE_SYSTEM_NAME               Generic)
 set(CMAKE_SYSTEM_PROCESSOR          arm)
 

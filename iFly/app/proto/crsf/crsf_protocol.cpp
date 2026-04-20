@@ -1,3 +1,5 @@
+// CRSF 协议实现。
+// 负责字节流同步、CRC 校验、帧拆包和 RC 通道编解码。
 #include "crsf_protocol.hpp"
 
 #include <string.h>
@@ -10,6 +12,7 @@ constexpr uint16_t k11BitMask = 0x07FFU;
 
 } // namespace
 
+// 重置内部运行状态。
 void CrsfProtocol::Reset()
 {
   (void)memset(buffer_, 0, sizeof(buffer_));
@@ -18,6 +21,7 @@ void CrsfProtocol::Reset()
   stats_ = ParseStats {};
 }
 
+// 解析输入字节流并输出已完成的帧。
 uint32_t CrsfProtocol::Parse(const uint8_t *data,
                              uint32_t length,
                              CrsfFrame *outFrames,
@@ -62,6 +66,7 @@ uint32_t CrsfProtocol::Parse(const uint8_t *data,
   return delivered;
 }
 
+// 把结构化数据编码为协议帧。
 bool CrsfProtocol::Encode(const CrsfFrame &frame,
                           uint8_t *outFrame,
                           uint32_t outCapacity,
@@ -106,6 +111,7 @@ bool CrsfProtocol::Encode(const CrsfFrame &frame,
   return true;
 }
 
+// 尝试解析一帧完整报文。
 bool CrsfProtocol::TryDecodeFrame(const uint8_t *rawFrame,
                                   uint32_t rawLength,
                                   CrsfFrame *frame)
@@ -141,6 +147,7 @@ bool CrsfProtocol::TryDecodeFrame(const uint8_t *rawFrame,
   return true;
 }
 
+// 校验当前报文格式是否合法。
 bool CrsfProtocol::IsValidFrame(const uint8_t *rawFrame, uint32_t rawLength)
 {
   if ((rawFrame == nullptr) || (rawLength < kMinPacketSize) || (rawLength > kMaxPacketSize)) {
@@ -166,11 +173,13 @@ bool CrsfProtocol::IsValidFrame(const uint8_t *rawFrame, uint32_t rawLength)
   return actualCrc == expectedCrc;
 }
 
+// 判断当前类型是否为扩展帧。
 bool CrsfProtocol::IsExtendedType(uint8_t type)
 {
   return type >= kExtendedTypeMin;
 }
 
+// 计算报文校验值。
 uint8_t CrsfProtocol::ComputeCrc(const uint8_t *data, uint32_t length)
 {
   if ((data == nullptr) || (length == 0U)) {
@@ -192,6 +201,7 @@ uint8_t CrsfProtocol::ComputeCrc(const uint8_t *data, uint32_t length)
   return crc;
 }
 
+// 解码打包的 RC 通道数据。
 bool CrsfProtocol::DecodeRcChannelsPacked(const CrsfFrame &frame,
                                           CrsfRcChannelsPacked *channels)
 {
@@ -207,6 +217,7 @@ bool CrsfProtocol::DecodeRcChannelsPacked(const CrsfFrame &frame,
   return true;
 }
 
+// 编码打包的 RC 通道数据。
 bool CrsfProtocol::EncodeRcChannelsPacked(uint8_t deviceAddress,
                                           const CrsfRcChannelsPacked &channels,
                                           uint8_t *outFrame,
@@ -227,6 +238,7 @@ bool CrsfProtocol::EncodeRcChannelsPacked(uint8_t deviceAddress,
   return CrsfProtocol {}.Encode(frame, outFrame, outCapacity, writtenLength);
 }
 
+// 根据长度字段推算期望报文长度。
 uint8_t CrsfProtocol::ComputeExpectedPacketSize(uint8_t frameLength)
 {
   if ((frameLength < kMinFrameLength) || (frameLength > kMaxFrameLength)) {
@@ -236,6 +248,7 @@ uint8_t CrsfProtocol::ComputeExpectedPacketSize(uint8_t frameLength)
   return static_cast<uint8_t>(frameLength + 2U);
 }
 
+// 从打包负载中读取一个 11 位通道值。
 uint16_t CrsfProtocol::ReadChannel11(const uint8_t *payload, uint8_t channelIndex)
 {
   if (payload == nullptr) {
@@ -256,6 +269,7 @@ uint16_t CrsfProtocol::ReadChannel11(const uint8_t *payload, uint8_t channelInde
   return value;
 }
 
+// 把一个 11 位通道值写入打包负载。
 void CrsfProtocol::WriteChannel11(uint8_t *payload, uint8_t channelIndex, uint16_t value)
 {
   if (payload == nullptr) {
@@ -277,6 +291,7 @@ void CrsfProtocol::WriteChannel11(uint8_t *payload, uint8_t channelIndex, uint16
   }
 }
 
+// 根据缓存头部刷新期望报文长度。
 void CrsfProtocol::RefreshExpectedPacketSize()
 {
   expectedPacketSize_ = 0U;
@@ -290,6 +305,7 @@ void CrsfProtocol::RefreshExpectedPacketSize()
   }
 }
 
+// 丢弃缓存头部若干字节。
 void CrsfProtocol::DropLeadingBytes(uint8_t count)
 {
   if ((count == 0U) || (bufferedBytes_ == 0U)) {
@@ -308,6 +324,7 @@ void CrsfProtocol::DropLeadingBytes(uint8_t count)
   ++stats_.resyncCount;
 }
 
+// 消费缓存头部若干字节。
 void CrsfProtocol::ConsumeLeadingBytes(uint8_t count)
 {
   if ((count == 0U) || (bufferedBytes_ == 0U)) {

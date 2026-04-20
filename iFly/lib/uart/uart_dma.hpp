@@ -1,3 +1,5 @@
+// UART DMA 底层服务接口。
+// 提供端口初始化、DMA 收发、回调桥接和队列统计能力。
 #ifndef IFLY_UART_DMA_HPP
 #define IFLY_UART_DMA_HPP
 

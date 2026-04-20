@@ -1,3 +1,5 @@
+// 参数管理模块实现。
+// 提供参数注册、文本读写解析以及变更通知逻辑。
 #include "parameter_manager.hpp"
 
 #include <math.h>
@@ -7,6 +9,7 @@
 
 namespace iFly {
 
+// 清空当前状态和已分配槽位。
 void ParameterManager::Clear()
 {
   // 直接整体复位内部表项，初始化成本可控且实现简单。
@@ -17,6 +20,7 @@ void ParameterManager::Clear()
   count_ = 0U;
 }
 
+// 注册一个浮点参数。
 bool ParameterManager::AddFloat(const FloatSpec &spec)
 {
   if ((spec.name == nullptr) || (spec.value == nullptr)) {
@@ -50,6 +54,7 @@ bool ParameterManager::AddFloat(const FloatSpec &spec)
   return true;
 }
 
+// 注册一个无符号整型参数。
 bool ParameterManager::AddU32(const U32Spec &spec)
 {
   if ((spec.name == nullptr) || (spec.value == nullptr)) {
@@ -81,6 +86,7 @@ bool ParameterManager::AddU32(const U32Spec &spec)
   return true;
 }
 
+// 注册一个布尔参数。
 bool ParameterManager::AddBool(const BoolSpec &spec)
 {
   if ((spec.name == nullptr) || (spec.value == nullptr)) {
@@ -104,6 +110,7 @@ bool ParameterManager::AddBool(const BoolSpec &spec)
   return true;
 }
 
+// 注册一个自定义回调参数。
 bool ParameterManager::AddCallback(const CallbackSpec &spec)
 {
   if ((spec.name == nullptr) || (spec.getter == nullptr)) {
@@ -130,6 +137,7 @@ bool ParameterManager::AddCallback(const CallbackSpec &spec)
   return true;
 }
 
+// 把当前参数表注册到 Shell。
 bool ParameterManager::RegisterToShell(Shell *shell)
 {
   if (shell == nullptr) {
@@ -148,6 +156,7 @@ bool ParameterManager::RegisterToShell(Shell *shell)
   return success;
 }
 
+// 分配一个参数表项。
 ParameterManager::Entry *ParameterManager::AllocateEntry()
 {
   if (count_ >= kMaxParameterCount) {
@@ -161,11 +170,13 @@ ParameterManager::Entry *ParameterManager::AllocateEntry()
   return entry;
 }
 
+// 把通用上下文转换为参数表项指针。
 ParameterManager::Entry *ParameterManager::AsEntry(void *context)
 {
   return reinterpret_cast<Entry *>(context);
 }
 
+// 读取参数当前值并格式化为文本。
 bool ParameterManager::GetValue(void *context, char *buffer, uint32_t bufferSize)
 {
   Entry *entry = AsEntry(context);
@@ -197,6 +208,7 @@ bool ParameterManager::GetValue(void *context, char *buffer, uint32_t bufferSize
   }
 }
 
+// 解析并写入参数新值。
 bool ParameterManager::SetValue(void *context, const char *value)
 {
   Entry *entry = AsEntry(context);
@@ -269,6 +281,7 @@ bool ParameterManager::SetValue(void *context, const char *value)
   }
 }
 
+// 解析浮点数字符串。
 bool ParameterManager::ParseFloat(const char *text, float *value)
 {
   if ((text == nullptr) || (value == nullptr)) {
@@ -294,6 +307,7 @@ bool ParameterManager::ParseFloat(const char *text, float *value)
   return true;
 }
 
+// 解析无符号整数参数。
 bool ParameterManager::ParseU32(const char *text, uint32_t *value)
 {
   if ((text == nullptr) || (value == nullptr) || (text[0] == '-')) {
@@ -318,6 +332,7 @@ bool ParameterManager::ParseU32(const char *text, uint32_t *value)
   return true;
 }
 
+// 解析布尔参数。
 bool ParameterManager::ParseBool(const char *text, bool *value)
 {
   if ((text == nullptr) || (value == nullptr)) {
@@ -342,6 +357,7 @@ bool ParameterManager::ParseBool(const char *text, bool *value)
   return false;
 }
 
+// 把浮点数格式化为文本。
 bool ParameterManager::FormatFloat(char *buffer, uint32_t bufferSize, float value)
 {
   if ((buffer == nullptr) || (bufferSize == 0U)) {
@@ -353,6 +369,7 @@ bool ParameterManager::FormatFloat(char *buffer, uint32_t bufferSize, float valu
   return (written > 0) && (static_cast<uint32_t>(written) < bufferSize);
 }
 
+// 把无符号整数格式化为文本。
 bool ParameterManager::FormatU32(char *buffer, uint32_t bufferSize,
                                  uint32_t value)
 {
@@ -365,6 +382,7 @@ bool ParameterManager::FormatU32(char *buffer, uint32_t bufferSize,
   return (written > 0) && (static_cast<uint32_t>(written) < bufferSize);
 }
 
+// 把布尔值格式化为文本。
 bool ParameterManager::FormatBool(char *buffer, uint32_t bufferSize, bool value)
 {
   if ((buffer == nullptr) || (bufferSize == 0U)) {
@@ -376,6 +394,7 @@ bool ParameterManager::FormatBool(char *buffer, uint32_t bufferSize, bool value)
   return (written > 0) && (static_cast<uint32_t>(written) < bufferSize);
 }
 
+// 在参数更新后触发回调通知。
 void ParameterManager::NotifyUpdated(Entry *entry)
 {
   if ((entry == nullptr) || (entry->on_updated == nullptr)) {

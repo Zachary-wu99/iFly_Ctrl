@@ -1,3 +1,5 @@
+// CAN 底层服务实现。
+// 负责硬件端口初始化、收发队列维护以及 HAL 回调桥接。
 #include "can.hpp"
 
 #include <atomic>
@@ -46,7 +48,7 @@ public:
   }
 };
 
-// Runtime state for one CAN port.
+// 单个 CAN 端口的运行时状态。
 struct CanPortSlot final {
   CAN_HandleTypeDef *hcan = nullptr;
   iFly::LockFreeQueueBase *appRxQueue = nullptr;
@@ -116,6 +118,7 @@ uint32_t FilterBankForPort(iFly::CanPortId port) {
   return (port == iFly::CanPortId::kCan2) ? 14U : 0U;
 }
 
+// 初始化发送请求顺序。
 void ConfigureTransmitRequestOrder(CanPortSlot &slot) {
   if (slot.hcan == nullptr) {
     return;
@@ -288,6 +291,7 @@ bool PromoteInactiveToActive(CanPortSlot &slot) {
   return true;
 }
 
+// 尝试把一帧数据装入硬件发送路径。
 bool TryQueueOneTxPacket(CanPortSlot &slot) {
   if ((slot.hcan == nullptr) ||
       !slot.initialized.load(std::memory_order_acquire) ||
@@ -360,7 +364,7 @@ void ServiceTxPath(CanPortSlot &slot) {
   }
 }
 
-// Push one received CAN frame directly into the upper RX queue.
+// 把一帧接收到的 CAN 报文直接推入上层 RX 队列。
 bool PushRxPacketToAppQueue(CanPortSlot &slot, const iFly::CanFramePacket &packet) {
   if ((slot.appRxQueue == nullptr) || !slot.appRxQueue->IsCreated()) {
     (void)slot.rxDropped.fetch_add(iFly::CanService::kCanFramePacketSize,
@@ -385,7 +389,7 @@ bool PushRxPacketToAppQueue(CanPortSlot &slot, const iFly::CanFramePacket &packe
   return false;
 }
 
-// Drain the HAL RX FIFO and forward frames straight into the upper RX queue.
+// 把 HAL RX FIFO 中待处理的报文全部取出，并直接转发到上层 RX 队列。
 void DrainHardwareRxFifoToAppQueue(CanPortSlot &slot, uint32_t fifo) {
   while (HAL_CAN_GetRxFifoFillLevel(slot.hcan, fifo) > 0U) {
     CAN_RxHeaderTypeDef header {};
@@ -422,6 +426,7 @@ void HandleError(iFly::CanPortId port, CanPortSlot &slot) {
 
 namespace iFly {
 
+// 返回枚举值对应的文本描述。
 const char *ToString(CanPortId port) {
   switch (port) {
     case CanPortId::kCan1:
@@ -434,6 +439,7 @@ const char *ToString(CanPortId port) {
   }
 }
 
+// 返回单例实例。
 CanService &CanService::Instance() {
   static CanService instance;
   return instance;
@@ -449,10 +455,10 @@ void CanService::AttachHardware(CanPortId port, CAN_HandleTypeDef *hcan) {
   slot.txServiceRunning.store(false, std::memory_order_release);
 }
 
-// Initialize one CAN port.
+// 初始化一路 CAN 端口。
 //
-// RX is HAL FIFO -> upper RX queue.
-// TX stays txQueue -> double buffer -> HAL mailbox.
+// RX 路径：HAL FIFO -> 上层 RX 队列。
+// TX 路径：txQueue -> 双缓冲 -> HAL 邮箱。
 bool CanService::InitPort(CanPortId port, LockFreeQueueBase *rxQueue) {
   CanPortSlot &slot = Storage().slots[PortIndex(port)];
   if (slot.hcan == nullptr) {
@@ -539,26 +545,29 @@ uint32_t CanService::TxFree(CanPortId port) const {
   return slot.txQueue.IsCreated() ? slot.txQueue.FreeSize() : 0U;
 }
 
+// 返回发送缓冲已用空间。
 uint32_t CanService::TxUsed(CanPortId port) const {
   const CanPortSlot &slot = Storage().slots[PortIndex(port)];
   return slot.txQueue.IsCreated() ? slot.txQueue.UsedSize() : 0U;
 }
 
+// 返回接收链路累计丢弃的数据量。
 uint32_t CanService::RxDropped(CanPortId port) const {
   return Storage().slots[PortIndex(port)].rxDropped.load(std::memory_order_acquire);
 }
 
+// 返回当前是否已经就绪。
 bool CanService::IsReady(CanPortId port) const {
   const CanPortSlot &slot = Storage().slots[PortIndex(port)];
   return slot.initialized.load(std::memory_order_acquire) && (slot.hcan != nullptr);
 }
 
-// Kept for interface compatibility. RX frames are already queued in HAL callbacks.
+// 仅用于接口兼容。当前 RX 报文已经在 HAL 回调里完成入队。
 void CanService::ServiceRxPath(CanPortId port) {
   (void)port;
 }
 
-// Called from HAL when RX FIFO has pending frames.
+// 当 HAL 通知 RX FIFO 中有待处理报文时进入这里。
 void CanService::OnRxFifoPending(CAN_HandleTypeDef *hcan, uint32_t fifo) {
   CanPortSlot *slot = FindSlot(hcan);
   if ((slot == nullptr) || !slot->initialized.load(std::memory_order_acquire) || (slot->hcan == nullptr)) {
@@ -613,42 +622,52 @@ extern "C" void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) {
   iFly::CanService::Instance().OnRxFifoPending(hcan, CAN_RX_FIFO0);
 }
 
+// 把 HAL CAN FIFO0 满事件转发给 CAN 服务。
 extern "C" void HAL_CAN_RxFifo0FullCallback(CAN_HandleTypeDef *hcan) {
   iFly::CanService::Instance().OnRxFifoFull(hcan, CAN_RX_FIFO0);
 }
 
+// 把 HAL CAN FIFO1 待处理事件转发给 CAN 服务。
 extern "C" void HAL_CAN_RxFifo1MsgPendingCallback(CAN_HandleTypeDef *hcan) {
   iFly::CanService::Instance().OnRxFifoPending(hcan, CAN_RX_FIFO1);
 }
 
+// 把 HAL CAN FIFO1 满事件转发给 CAN 服务。
 extern "C" void HAL_CAN_RxFifo1FullCallback(CAN_HandleTypeDef *hcan) {
   iFly::CanService::Instance().OnRxFifoFull(hcan, CAN_RX_FIFO1);
 }
 
+// 把 HAL CAN 邮箱 0 发送完成事件转发给 CAN 服务。
 extern "C" void HAL_CAN_TxMailbox0CompleteCallback(CAN_HandleTypeDef *hcan) {
   iFly::CanService::Instance().OnTxComplete(hcan);
 }
 
+// 把 HAL CAN 邮箱 1 发送完成事件转发给 CAN 服务。
 extern "C" void HAL_CAN_TxMailbox1CompleteCallback(CAN_HandleTypeDef *hcan) {
   iFly::CanService::Instance().OnTxComplete(hcan);
 }
 
+// 把 HAL CAN 邮箱 2 发送完成事件转发给 CAN 服务。
 extern "C" void HAL_CAN_TxMailbox2CompleteCallback(CAN_HandleTypeDef *hcan) {
   iFly::CanService::Instance().OnTxComplete(hcan);
 }
 
+// 把 HAL CAN 邮箱 0 中止事件转发给 CAN 服务。
 extern "C" void HAL_CAN_TxMailbox0AbortCallback(CAN_HandleTypeDef *hcan) {
   iFly::CanService::Instance().OnTxAbort(hcan);
 }
 
+// 把 HAL CAN 邮箱 1 中止事件转发给 CAN 服务。
 extern "C" void HAL_CAN_TxMailbox1AbortCallback(CAN_HandleTypeDef *hcan) {
   iFly::CanService::Instance().OnTxAbort(hcan);
 }
 
+// 把 HAL CAN 邮箱 2 中止事件转发给 CAN 服务。
 extern "C" void HAL_CAN_TxMailbox2AbortCallback(CAN_HandleTypeDef *hcan) {
   iFly::CanService::Instance().OnTxAbort(hcan);
 }
 
+// 把 HAL CAN 错误事件转发给 CAN 服务。
 extern "C" void HAL_CAN_ErrorCallback(CAN_HandleTypeDef *hcan) {
   iFly::CanService::Instance().OnError(hcan);
 }

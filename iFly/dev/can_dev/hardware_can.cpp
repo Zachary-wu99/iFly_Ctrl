@@ -1,3 +1,5 @@
+// 硬件 CAN 设备封装实现。
+// 负责端口初始化以及与底层 CanService 的对接。
 #include "hardware_can.hpp"
 
 namespace iFly {
@@ -30,10 +32,12 @@ uint32_t HardwareCan::TxFree() const {
   return Device().TxFree(port_);
 }
 
+// 返回发送缓冲已用空间。
 uint32_t HardwareCan::TxUsed() const {
   return Device().TxUsed(port_);
 }
 
+// 返回接收链路累计丢弃的数据量。
 uint32_t HardwareCan::RxDropped() const {
   return Device().RxDropped(port_);
 }
@@ -43,6 +47,7 @@ bool HardwareCan::IsConnected() const {
   return Device().IsReady(port_);
 }
 
+// 返回当前绑定的逻辑端口。
 CanPortId HardwareCan::Port() const {
   return port_;
 }
@@ -52,7 +57,7 @@ bool HardwareCan::WriteFrame(const CanFramePacket &frame) {
   return Device().WriteFrame(port_, frame);
 }
 
-// Read one full CAN frame from the upper RX queue.
+// 从上层 RX 队列中读取一整帧 CAN 报文。
 bool HardwareCan::ReadFrame(CanFramePacket *frame) {
   if (frame == nullptr) {
     return false;
@@ -90,7 +95,7 @@ CanService &HardwareCan::Device() {
   return CanService::Instance();
 }
 
-// Kept for interface compatibility with other SerialIoBase devices.
+// 仅为了与其他 `SerialIoBase` 设备保持接口一致。
 void HardwareCan::BeforeRead() {
   (void)port_;
 }

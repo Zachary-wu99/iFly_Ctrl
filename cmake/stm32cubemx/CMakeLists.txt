@@ -1,3 +1,5 @@
+# STM32CubeMX 生成部分的 CMake 接入脚本。
+# 负责把自动生成的 HAL、启动文件和中间件纳入主工程。
 cmake_minimum_required(VERSION 3.22)
 # Enable CMake support for ASM and C languages
 enable_language(C ASM)

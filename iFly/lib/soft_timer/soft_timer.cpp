@@ -1,9 +1,12 @@
+// 软定时器服务实现。
+// 负责任务槽位管理、到期选择和主循环派发。
 #include "soft_timer.hpp"
 
 #include "stm32f4xx_hal.h"
 
 namespace iFly {
 
+// 返回单例实例。
 SoftTimerService &SoftTimerService::Instance()
 {
   // 使用函数内静态对象实现单例，避免全局初始化顺序问题。
@@ -11,6 +14,7 @@ SoftTimerService &SoftTimerService::Instance()
   return instance;
 }
 
+// 创建一个任务槽位并启动定时触发。
 SoftTimerService::TaskHandle SoftTimerService::CreateTask(const TaskConfig &config)
 {
   // 回调为空或周期为 0 都属于非法配置，直接拒绝创建。
@@ -61,6 +65,7 @@ SoftTimerService::TaskHandle SoftTimerService::CreateTask(const TaskConfig &conf
   return kInvalidTaskHandle;
 }
 
+// 请求延后当前正在执行的任务。
 bool SoftTimerService::DelayCurrentTask(uint32_t delay_ms)
 {
   if (__get_IPSR() != 0U) {
@@ -82,6 +87,7 @@ bool SoftTimerService::DelayCurrentTask(uint32_t delay_ms)
   return true;
 }
 
+// 删除指定任务。
 bool SoftTimerService::DeleteTask(TaskHandle handle)
 {
   if (!IsValidTaskHandle(handle)) {
@@ -105,6 +111,7 @@ bool SoftTimerService::DeleteTask(TaskHandle handle)
   return true;
 }
 
+// 删除所有任务。
 void SoftTimerService::DeleteAllTasks()
 {
   for (uint8_t slot_index = 0U; slot_index < kMaxTasks; ++slot_index) {
@@ -124,6 +131,7 @@ void SoftTimerService::DeleteAllTasks()
   }
 }
 
+// 派发当前已到期的任务。
 uint32_t SoftTimerService::Dispatch()
 {
   // 非抢占式调度器不允许自身重入，纯防呆
@@ -197,37 +205,44 @@ uint32_t SoftTimerService::Dispatch()
   return executed_count;
 }
 
+// 返回当前时基计数值。
 uint32_t SoftTimerService::Now() const
 {
   return tick_count_;
 }
 
+// 处理 SysTick 节拍更新。
 void SoftTimerService::OnSysTick()
 {
   // 1ms 软时基累加，保持 ISR 足够轻量。
   ++tick_count_;
 }
 
+// 检查任务句柄是否有效。
 bool SoftTimerService::IsValidTaskHandle(TaskHandle handle)
 {
   return handle != kInvalidTaskHandle;
 }
 
+// 构造带代数信息的任务句柄。
 SoftTimerService::TaskHandle SoftTimerService::MakeTaskHandle(uint8_t slot_index, uint32_t generation)
 {
   return (generation << 16U) | static_cast<uint32_t>(slot_index + 1U);
 }
 
+// 从句柄中提取槽位索引。
 uint8_t SoftTimerService::ExtractTaskIndex(TaskHandle handle)
 {
   return static_cast<uint8_t>((handle & 0xFFFFU) - 1U);
 }
 
+// 从句柄中提取代数计数。
 uint32_t SoftTimerService::ExtractTaskGeneration(TaskHandle handle)
 {
   return handle >> 16U;
 }
 
+// 查找当前最适合执行的就绪任务。
 uint8_t SoftTimerService::FindReadyTaskIndex(uint32_t now) const
 {
   uint8_t best_index = kMaxTasks;
@@ -265,12 +280,14 @@ uint8_t SoftTimerService::FindReadyTaskIndex(uint32_t now) const
   return best_index;
 }
 
+// 校验槽位与句柄是否匹配。
 bool SoftTimerService::IsHandleMatch(const TaskSlot &slot, TaskHandle handle, uint8_t slot_index) const
 {
   return slot.allocated && (slot.generation == ExtractTaskGeneration(handle)) &&
          (slot_index == ExtractTaskIndex(handle));
 }
 
+// 清空指定槽位。
 void SoftTimerService::ClearTaskSlot(uint8_t slot_index)
 {
   // 保留 generation，不清零，这样旧句柄不会重新匹配到后续复用任务。
@@ -291,6 +308,7 @@ void SoftTimerService::ClearTaskSlot(uint8_t slot_index)
 
 } // namespace iFly
 
+// 导出软定时器的 SysTick 钩子。
 extern "C" void ifly_soft_timer_systick_tick(void)
 {
   // C 中断入口只转发到 C++ 单例，不在中断里跑任务。

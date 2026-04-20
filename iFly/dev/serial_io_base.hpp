@@ -1,3 +1,5 @@
+// 串行 IO 抽象基类。
+// 统一 USB、UART、CAN 等上层读写接口与接收队列访问方式。
 #ifndef IFLY_SERIAL_IO_BASE_HPP
 #define IFLY_SERIAL_IO_BASE_HPP
 

@@ -1,3 +1,5 @@
+// 飞控 CLI 模块实现。
+// 包含控制台初始化、参数绑定、命令处理和开场动画状态机。
 #include "flight_ctrl_cli.hpp"
 
 #include <math.h>
@@ -18,6 +20,7 @@ constexpr char kActivationPrompt[] =
 constexpr uint64_t kNanosecondsPerMillisecond = 1000000ULL;
 constexpr char kSpinnerFrames[4] = {'|', '/', '-', '\\'};
 
+// 解析 CLI 输入中的浮点数字符串。
 bool ParseFloat(const char *text, float *value)
 {
   if ((text == nullptr) || (value == nullptr)) {
@@ -42,6 +45,7 @@ bool ParseFloat(const char *text, float *value)
   return true;
 }
 
+// 把毫秒数转换为纳秒数。
 uint64_t MsToNs(uint32_t value_ms)
 {
   return static_cast<uint64_t>(value_ms) * kNanosecondsPerMillisecond;
@@ -49,12 +53,14 @@ uint64_t MsToNs(uint32_t value_ms)
 
 } // namespace
 
+// 构造飞控 CLI 并准备默认运行时状态。
 FlightCtrlCli::FlightCtrlCli()
     : rate_pid_(runtime_.rate_pid)
 {
   ResetIntroAnimation();
 }
 
+// 初始化 Shell、参数表、命令表和 PID 运行时。
 void FlightCtrlCli::Init()
 {
   ResetIntroAnimation();
@@ -69,6 +75,7 @@ void FlightCtrlCli::Init()
   ApplyPidConfiguration();
 }
 
+// 注册一个可切换的 CLI 传输通道。
 bool FlightCtrlCli::RegisterTransport(const char *name, SerialIoBase *io)
 {
   if ((name == nullptr) || (io == nullptr) ||
@@ -86,6 +93,7 @@ bool FlightCtrlCli::RegisterTransport(const char *name, SerialIoBase *io)
   return true;
 }
 
+// 切换当前正在使用的 CLI 传输通道。
 bool FlightCtrlCli::UseTransport(const char *name)
 {
   const TransportBinding *binding = FindTransport(name);
@@ -99,15 +107,18 @@ bool FlightCtrlCli::UseTransport(const char *name)
   return true;
 }
 
+// 轮询 Shell，推动输入输出和状态机运行。
 void FlightCtrlCli::Poll()
 {
   shell_.Poll();
 }
 
+// 向 Shell 注册可读写参数和只读状态项。
 void FlightCtrlCli::RegisterParameters()
 {
   parameter_manager_.Clear();
 
+  // 允许通过 CLI 直接查看和调整速率环 PID 参数，便于在线调参。
   const ParameterManager::FloatSpec pid_parameters[] = {
       {"pid.kp", "rate PID proportional gain", &runtime_.rate_pid.kp, 0.0f,
        1000.0f, true, &FlightCtrlCli::OnPidParameterUpdated, this},
@@ -162,6 +173,7 @@ void FlightCtrlCli::RegisterParameters()
     (void)parameter_manager_.AddBool(system_bool_parameters[index]);
   }
 
+  // 只读项用于暴露运行时状态，不允许通过参数写接口修改。
   const ParameterManager::CallbackSpec readonly_parameters[] = {
       {"sys.transport", "active CLI transport",
        &FlightCtrlCli::GetTransportParameter, nullptr, this, nullptr, nullptr},
@@ -177,6 +189,7 @@ void FlightCtrlCli::RegisterParameters()
   (void)parameter_manager_.RegisterToShell(&shell_);
 }
 
+// 向 Shell 注册飞控相关命令。
 void FlightCtrlCli::RegisterFunctions()
 {
   (void)shell_.RegisterFunction(
@@ -199,6 +212,7 @@ void FlightCtrlCli::RegisterFunctions()
        &FlightCtrlCli::TransportUseFunction, this});
 }
 
+// 刷新 Shell 标题，反映当前传输通道。
 void FlightCtrlCli::UpdateShellBanner()
 {
   const int written = snprintf(
@@ -213,12 +227,14 @@ void FlightCtrlCli::UpdateShellBanner()
   shell_.SetBanner("iFly Flight Controller", banner_subtitle_);
 }
 
+// 把运行时 PID 参数同步到控制器实例。
 void FlightCtrlCli::ApplyPidConfiguration()
 {
   rate_pid_.Configure(runtime_.rate_pid);
   runtime_.rate_pid = rate_pid_.GetConfig();
 }
 
+// 重置开场动画状态机。
 void FlightCtrlCli::ResetIntroAnimation()
 {
   intro_animation_.phase = IntroAnimationPhase::kIdle;
@@ -227,6 +243,7 @@ void FlightCtrlCli::ResetIntroAnimation()
   intro_animation_.phase_started = false;
 }
 
+// 推进开场动画到下一阶段。
 void FlightCtrlCli::AdvanceIntroAnimation(IntroAnimationPhase next_phase)
 {
   intro_animation_.phase = next_phase;
@@ -235,6 +252,7 @@ void FlightCtrlCli::AdvanceIntroAnimation(IntroAnimationPhase next_phase)
   intro_animation_.phase_started = false;
 }
 
+// 按打字机效果逐步输出一行文本。
 bool FlightCtrlCli::StepTypewriterLine(Shell *shell, uint64_t now_ns,
                                        const char *text, uint32_t delay_ms)
 {
@@ -277,6 +295,7 @@ bool FlightCtrlCli::StepTypewriterLine(Shell *shell, uint64_t now_ns,
   return false;
 }
 
+// 按旋转指示器效果逐步输出一行文本。
 bool FlightCtrlCli::StepSpinnerLine(Shell *shell, uint64_t now_ns,
                                     const char *label, uint8_t rounds,
                                     uint32_t frame_delay_ms)
@@ -324,6 +343,7 @@ bool FlightCtrlCli::StepSpinnerLine(Shell *shell, uint64_t now_ns,
   return false;
 }
 
+// 按进度条效果逐步输出一行文本。
 bool FlightCtrlCli::StepProgressLine(Shell *shell, uint64_t now_ns,
                                      const char *label, uint8_t steps,
                                      uint32_t step_delay_ms)
@@ -364,6 +384,7 @@ bool FlightCtrlCli::StepProgressLine(Shell *shell, uint64_t now_ns,
   return false;
 }
 
+// 根据当前阶段推进开场动画并决定是否结束。
 bool FlightCtrlCli::UpdateIntroAnimation(Shell *shell, bool start)
 {
   if (shell == nullptr) {
@@ -384,6 +405,7 @@ bool FlightCtrlCli::UpdateIntroAnimation(Shell *shell, bool start)
   }
 
   const uint64_t now_ns = tick::NowNs();
+  // 每个阶段都以“是否完成当前表现”作为推进条件，保证动画在主循环中非阻塞执行。
   switch (intro_animation_.phase) {
     case IntroAnimationPhase::kIdle:
       return false;
@@ -440,6 +462,7 @@ bool FlightCtrlCli::UpdateIntroAnimation(Shell *shell, bool start)
   }
 }
 
+// 按名称查找已注册的传输通道。
 const FlightCtrlCli::TransportBinding *FlightCtrlCli::FindTransport(
     const char *name) const
 {
@@ -458,6 +481,7 @@ const FlightCtrlCli::TransportBinding *FlightCtrlCli::FindTransport(
   return nullptr;
 }
 
+// 读取当前 CLI 传输通道名称。
 bool FlightCtrlCli::GetTransportParameter(void *context, char *buffer,
                                           uint32_t bufferSize)
 {
@@ -474,6 +498,7 @@ bool FlightCtrlCli::GetTransportParameter(void *context, char *buffer,
          (static_cast<uint32_t>(written) < bufferSize);
 }
 
+// 读取系统运行时间参数。
 bool FlightCtrlCli::GetUptimeParameter(void *context, char *buffer,
                                        uint32_t bufferSize)
 {
@@ -488,6 +513,7 @@ bool FlightCtrlCli::GetUptimeParameter(void *context, char *buffer,
   return (written > 0) && (static_cast<uint32_t>(written) < bufferSize);
 }
 
+// 处理 `status` 命令。
 bool FlightCtrlCli::StatusFunction(Shell *shell, void *context, uint8_t argc,
                                    const char *const *argv)
 {
@@ -527,6 +553,7 @@ bool FlightCtrlCli::StatusFunction(Shell *shell, void *context, uint8_t argc,
   return true;
 }
 
+// 处理 `sys.reboot` 命令。
 bool FlightCtrlCli::RebootFunction(Shell *shell, void *context, uint8_t argc,
                                    const char *const *argv)
 {
@@ -545,6 +572,7 @@ bool FlightCtrlCli::RebootFunction(Shell *shell, void *context, uint8_t argc,
   return true;
 }
 
+// 处理 `pid.reset` 命令。
 bool FlightCtrlCli::PidResetFunction(Shell *shell, void *context, uint8_t argc,
                                      const char *const *argv)
 {
@@ -563,6 +591,7 @@ bool FlightCtrlCli::PidResetFunction(Shell *shell, void *context, uint8_t argc,
   return true;
 }
 
+// 处理 `pid.sample` 命令。
 bool FlightCtrlCli::PidSampleFunction(Shell *shell, void *context, uint8_t argc,
                                       const char *const *argv)
 {
@@ -601,6 +630,7 @@ bool FlightCtrlCli::PidSampleFunction(Shell *shell, void *context, uint8_t argc,
   return true;
 }
 
+// 处理 `transport.list` 命令。
 bool FlightCtrlCli::TransportListFunction(Shell *shell, void *context,
                                           uint8_t argc,
                                           const char *const *argv)
@@ -632,6 +662,7 @@ bool FlightCtrlCli::TransportListFunction(Shell *shell, void *context,
   return true;
 }
 
+// 处理 `transport.use` 命令。
 bool FlightCtrlCli::TransportUseFunction(Shell *shell, void *context,
                                          uint8_t argc,
                                          const char *const *argv)
@@ -654,6 +685,7 @@ bool FlightCtrlCli::TransportUseFunction(Shell *shell, void *context,
   return cli->UseTransport(argv[0]);
 }
 
+// 作为 Shell 回调驱动开场动画。
 bool FlightCtrlCli::IntroAnimation(Shell *shell, void *context, bool start)
 {
   FlightCtrlCli *owner = reinterpret_cast<FlightCtrlCli *>(context);
@@ -664,6 +696,7 @@ bool FlightCtrlCli::IntroAnimation(Shell *shell, void *context, bool start)
   return owner->UpdateIntroAnimation(shell, start);
 }
 
+// 在 PID 参数变化后重新应用配置。
 void FlightCtrlCli::OnPidParameterUpdated(void *context)
 {
   FlightCtrlCli *owner = reinterpret_cast<FlightCtrlCli *>(context);

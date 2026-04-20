@@ -1,3 +1,5 @@
+// 硬件 UART 设备封装接口。
+// 将具体 UART 端口包装成统一的串口字节流对象。
 #ifndef IFLY_HARDWARE_UART_HPP
 #define IFLY_HARDWARE_UART_HPP
 

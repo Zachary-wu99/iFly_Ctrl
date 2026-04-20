@@ -1,3 +1,5 @@
+# ARM Clang 工具链配置脚本。
+# 定义交叉编译器、目标架构和链接参数。
 set(CMAKE_SYSTEM_NAME               Generic)
 set(CMAKE_SYSTEM_PROCESSOR          arm)
 
