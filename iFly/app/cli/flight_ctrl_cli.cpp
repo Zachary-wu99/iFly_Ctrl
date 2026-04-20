@@ -391,75 +391,24 @@ bool FlightCtrlCli::UpdateIntroAnimation(Shell *shell, bool start)
     return true;
   }
 
-  if (start) {
-    ResetIntroAnimation();
-    shell->Write("\x1B[2J\x1B[H");
-    shell->WriteLine("");
-    shell->WriteLine("        ___  ________           ");
-    shell->WriteLine("       / _ \\/ __/ / /_ _____    ");
-    shell->WriteLine("      / , _/ _// / / // / -_)   ");
-    shell->WriteLine("     /_/|_/___/_/_/\\_, /\\__/    ");
-    shell->WriteLine("                   /___/        ");
-    shell->WriteLine("");
-    AdvanceIntroAnimation(IntroAnimationPhase::kBootMessage);
+  if (!start) {
+    return true;
   }
 
-  const uint64_t now_ns = tick::NowNs();
-  // 每个阶段都以“是否完成当前表现”作为推进条件，保证动画在主循环中非阻塞执行。
-  switch (intro_animation_.phase) {
-    case IntroAnimationPhase::kIdle:
-      return false;
-
-    case IntroAnimationPhase::kBootMessage:
-      if (StepTypewriterLine(shell, now_ns, "Booting iFly secure terminal...",
-                             14U)) {
-        AdvanceIntroAnimation(IntroAnimationPhase::kTransportSpinner);
-      }
-      return false;
-
-    case IntroAnimationPhase::kTransportSpinner:
-      if (StepSpinnerLine(shell, now_ns, "Checking transport link", 10U, 45U)) {
-        AdvanceIntroAnimation(IntroAnimationPhase::kRegistrySpinner);
-      }
-      return false;
-
-    case IntroAnimationPhase::kRegistrySpinner:
-      if (StepSpinnerLine(shell, now_ns, "Synchronizing command registry", 10U,
-                          45U)) {
-        AdvanceIntroAnimation(IntroAnimationPhase::kProgressBar);
-      }
-      return false;
-
-    case IntroAnimationPhase::kProgressBar:
-      if (StepProgressLine(shell, now_ns, "Preparing English CLI", 18U, 22U)) {
-        shell->WriteLine("");
-        AdvanceIntroAnimation(IntroAnimationPhase::kWelcomeMessage);
-      }
-      return false;
-
-    case IntroAnimationPhase::kWelcomeMessage:
-      if (StepTypewriterLine(shell, now_ns,
-                             "Welcome to the iFly Flight Controller.", 12U)) {
-        AdvanceIntroAnimation(IntroAnimationPhase::kOnlineMessage);
-      }
-      return false;
-
-    case IntroAnimationPhase::kOnlineMessage:
-      if (StepTypewriterLine(shell, now_ns,
-                             "English terminal mode is now online.", 12U)) {
-        shell->WriteLine("");
-        AdvanceIntroAnimation(IntroAnimationPhase::kCompleted);
-      }
-      return false;
-
-    case IntroAnimationPhase::kCompleted:
-      ResetIntroAnimation();
-      return true;
-
-    default:
-      ResetIntroAnimation();
-      return true;
-  }
+  ResetIntroAnimation();
+  shell->Write("\x1B[2J\x1B[H");
+  shell->WriteLine("");
+  shell->WriteLine("        ___  ________           ");
+  shell->WriteLine("       / _ \\/ __/ / /_ _____    ");
+  shell->WriteLine("      / , _/ _// / / // / -_)   ");
+  shell->WriteLine("     /_/|_/___/_/_/\\_, /\\__/    ");
+  shell->WriteLine("                   /___/        ");
+  shell->WriteLine("");
+  shell->WriteLine("Booting iFly secure terminal...");
+  shell->WriteLine("Welcome to the iFly Flight Controller.");
+  shell->WriteLine("English terminal mode is now online.");
+  shell->WriteLine("");
+  return true;
 }
 
 // 按名称查找已注册的传输通道。

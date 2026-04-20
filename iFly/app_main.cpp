@@ -14,6 +14,7 @@ namespace {
 
 constexpr uint32_t kCliRxQueueSize = 1024U;
 constexpr uint32_t kMainLoopDelayMs = 1U;
+constexpr uint32_t kCliPollPeriodMs = 50U;
 constexpr char kDefaultCliTransport[] = "usb";
 
 iFly::HardwareUart g_uart5(iFly::UartPortId::kUart5, kCliRxQueueSize);
@@ -40,8 +41,16 @@ extern "C" void app_main(void)
   InitCliRuntime();
   iFly::tick::DelayMs(20U);
 
+  iFly::tick::NonBlockingDelayMs cli_poll_delay {};
+  g_flight_ctrl_cli.Poll();
+  cli_poll_delay.Start(kCliPollPeriodMs);
+
   while (1) {
-    g_flight_ctrl_cli.Poll();
+    if (cli_poll_delay.ConsumeIfExpired()) {
+      g_flight_ctrl_cli.Poll();
+      cli_poll_delay.Start(kCliPollPeriodMs);
+    }
+
     iFly::tick::DelayMs(kMainLoopDelayMs);
   }
 }
