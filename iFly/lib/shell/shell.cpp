@@ -141,6 +141,13 @@ void Shell::Poll()
 
     readLength = io_->Read(rxBuffer, sizeof(rxBuffer));
   }
+
+  if (sessionState_ == SessionState::kSessionAnimation) {
+    if ((session_animation_ == nullptr) ||
+        session_animation_(this, session_animation_context_, false)) {
+      AdvanceAfterAnimation();
+    }
+  }
 }
 
 void Shell::ResetSession()
@@ -240,6 +247,10 @@ void Shell::ProcessByte(uint8_t byteValue)
     return;
   }
 
+  if (sessionState_ == SessionState::kSessionAnimation) {
+    return;
+  }
+
   if (suppressNextLf_ && (byteValue == kLineFeed)) {
     suppressNextLf_ = false;
     return;
@@ -286,9 +297,18 @@ void Shell::HandleActivationTrigger()
   ResetInputLine();
 
   if (session_animation_ != nullptr) {
-    session_animation_(this, session_animation_context_);
+    sessionState_ = SessionState::kSessionAnimation;
+    if (session_animation_(this, session_animation_context_, true)) {
+      AdvanceAfterAnimation();
+    }
+    return;
   }
 
+  AdvanceAfterAnimation();
+}
+
+void Shell::AdvanceAfterAnimation()
+{
   if (!connectionActive_) {
     return;
   }
@@ -296,10 +316,11 @@ void Shell::HandleActivationTrigger()
   if (HasPassword()) {
     sessionState_ = SessionState::kPasswordPrompt;
     PrintPasswordPrompt();
-  } else {
-    sessionState_ = SessionState::kReady;
-    PrintPrompt();
+    return;
   }
+
+  sessionState_ = SessionState::kReady;
+  PrintPrompt();
 }
 
 void Shell::HandleCompletedLine()

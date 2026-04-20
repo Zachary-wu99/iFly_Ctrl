@@ -3,8 +3,10 @@
 
 #include <stdint.h>
 
+#include "parameter_manager.hpp"
 #include "pid.hpp"
 #include "shell.hpp"
+#include "tick.hpp"
 
 namespace iFly {
 
@@ -53,46 +55,44 @@ private:
     SerialIoBase *io = nullptr;
   };
 
-  struct FloatParameterBinding final {
-    FlightCtrlCli *owner = nullptr;
-    float *value = nullptr;
-    float min_value = 0.0f;
-    float max_value = 0.0f;
-    bool has_range = false;
-    void (*on_updated)(FlightCtrlCli *owner) = nullptr;
+  enum class IntroAnimationPhase : uint8_t {
+    kIdle = 0U,
+    kBootMessage,
+    kTransportSpinner,
+    kRegistrySpinner,
+    kProgressBar,
+    kWelcomeMessage,
+    kOnlineMessage,
+    kCompleted,
   };
 
-  struct U32ParameterBinding final {
-    FlightCtrlCli *owner = nullptr;
-    uint32_t *value = nullptr;
-    uint32_t min_value = 0U;
-    uint32_t max_value = 0U;
-    bool has_range = false;
-    void (*on_updated)(FlightCtrlCli *owner) = nullptr;
-  };
-
-  struct BoolParameterBinding final {
-    FlightCtrlCli *owner = nullptr;
-    bool *value = nullptr;
-    void (*on_updated)(FlightCtrlCli *owner) = nullptr;
+  struct IntroAnimationState final {
+    IntroAnimationPhase phase = IntroAnimationPhase::kIdle;
+    tick::NonBlockingDelayNs delay {};
+    uint32_t element_index = 0U;
+    bool phase_started = false;
   };
 
   void RegisterParameters();
   void RegisterFunctions();
-  void RegisterReadonlyParameters();
   void UpdateShellBanner();
   void ApplyPidConfiguration();
+  void ResetIntroAnimation();
+  void AdvanceIntroAnimation(IntroAnimationPhase next_phase);
+  bool UpdateIntroAnimation(Shell *shell, bool start);
+  bool StepTypewriterLine(Shell *shell, uint64_t now_ns, const char *text,
+                          uint32_t delay_ms);
+  bool StepSpinnerLine(Shell *shell, uint64_t now_ns, const char *label,
+                       uint8_t rounds, uint32_t frame_delay_ms);
+  bool StepProgressLine(Shell *shell, uint64_t now_ns, const char *label,
+                        uint8_t steps, uint32_t step_delay_ms);
 
   const TransportBinding *FindTransport(const char *name) const;
 
-  static bool GetFloatParameter(void *context, char *buffer, uint32_t bufferSize);
-  static bool SetFloatParameter(void *context, const char *value);
-  static bool GetU32Parameter(void *context, char *buffer, uint32_t bufferSize);
-  static bool SetU32Parameter(void *context, const char *value);
-  static bool GetBoolParameter(void *context, char *buffer, uint32_t bufferSize);
-  static bool SetBoolParameter(void *context, const char *value);
-  static bool GetTransportParameter(void *context, char *buffer, uint32_t bufferSize);
-  static bool GetUptimeParameter(void *context, char *buffer, uint32_t bufferSize);
+  static bool GetTransportParameter(void *context, char *buffer,
+                                    uint32_t bufferSize);
+  static bool GetUptimeParameter(void *context, char *buffer,
+                                 uint32_t bufferSize);
 
   static bool StatusFunction(Shell *shell, void *context, uint8_t argc,
                              const char *const *argv);
@@ -106,13 +106,14 @@ private:
                                     const char *const *argv);
   static bool TransportUseFunction(Shell *shell, void *context, uint8_t argc,
                                    const char *const *argv);
-  static void IntroAnimation(Shell *shell, void *context);
+  static bool IntroAnimation(Shell *shell, void *context, bool start);
 
-  static void OnPidParameterUpdated(FlightCtrlCli *owner);
+  static void OnPidParameterUpdated(void *context);
 
 private:
   RuntimeConfig runtime_ {};
   Pid rate_pid_;
+  ParameterManager parameter_manager_ {};
   Shell shell_ {};
 
   TransportBinding transports_[kMaxTransportCount] {};
@@ -120,18 +121,7 @@ private:
   const char *active_transport_name_ = "unbound";
 
   char banner_subtitle_[64] {};
-
-  FloatParameterBinding pid_kp_ {};
-  FloatParameterBinding pid_ki_ {};
-  FloatParameterBinding pid_kd_ {};
-  FloatParameterBinding pid_kff_ {};
-  FloatParameterBinding pid_integral_min_ {};
-  FloatParameterBinding pid_integral_max_ {};
-  FloatParameterBinding pid_output_min_ {};
-  FloatParameterBinding pid_output_max_ {};
-  FloatParameterBinding pid_cutoff_hz_ {};
-  U32ParameterBinding control_loop_hz_ {};
-  BoolParameterBinding arm_locked_ {};
+  IntroAnimationState intro_animation_ {};
 };
 
 } // namespace iFly

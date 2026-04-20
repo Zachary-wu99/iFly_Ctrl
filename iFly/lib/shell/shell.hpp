@@ -23,7 +23,7 @@ public:
       bool (*)(Shell *shell, void *context, uint8_t argc, const char *const *argv);
   using ParameterGetter = bool (*)(void *context, char *buffer, uint32_t bufferSize);
   using ParameterSetter = bool (*)(void *context, const char *value);
-  using SessionAnimation = void (*)(Shell *shell, void *context);
+  using SessionAnimation = bool (*)(Shell *shell, void *context, bool start);
 
   struct Command final {
     const char *name = nullptr;
@@ -82,6 +82,7 @@ private:
   enum class SessionState : uint8_t {
     kDisconnected = 0U,
     kActivationPrompt,
+    kSessionAnimation,
     kPasswordPrompt,
     kReady,
   };
@@ -90,6 +91,7 @@ private:
   void ResetInputLine();
   void ProcessByte(uint8_t byteValue);
   void HandleActivationTrigger();
+  void AdvanceAfterAnimation();
   void HandleCompletedLine();
   void HandlePasswordLine();
   void HandleCommandLine();

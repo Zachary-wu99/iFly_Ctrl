@@ -22,7 +22,7 @@
 #include "stm32f4xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "systick_ns_timer.hpp"
+#include "systick_time.hpp"
 #include "soft_timer.hpp"
 /* USER CODE END Includes */
 

@@ -50,6 +50,9 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/app_main.cpp
     iFly/app/cli/flight_ctrl_cli.cpp
     iFly/app/ctrl/pid.cpp
+    iFly/app/paramete/parameter_manager.cpp
+    iFly/app/task_mage/task.cpp
+    iFly/app/tick/tick.cpp
     iFly/app/proto/crsf/crsf_protocol.cpp
     iFly/app/proto/sbus/sbus_protocol.cpp
     iFly/dev/can_dev/hardware_can.cpp
@@ -58,7 +61,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/lib/freelock_queue/lock_free_queue.cpp
     iFly/lib/shell/shell.cpp
     iFly/lib/soft_timer/soft_timer.cpp
-    iFly/lib/systick_ns_timer/systick_ns_timer.cpp
+    iFly/lib/systick_timer/systick_time.cpp
     iFly/lib/uart/uart_dma.cpp
     iFly/lib/usb_cdc/usb_cdc.cpp
     iFly/lib/can/can.cpp
@@ -70,6 +73,9 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/app/cli
     iFly/app/ctrl
     iFly/app/observer
+    iFly/app/paramete
+    iFly/app/task_mage
+    iFly/app/tick
     iFly/app/proto/crsf
     iFly/app/proto/sbus
     iFly/dev
@@ -80,7 +86,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/lib/freelock_queue
     iFly/lib/shell
     iFly/lib/soft_timer
-    iFly/lib/systick_ns_timer
+    iFly/lib/systick_timer
     iFly/lib/uart
     iFly/lib/usb_cdc
     iFly/lib/can

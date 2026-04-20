@@ -11,65 +11,12 @@ namespace iFly {
 
 namespace {
 
-constexpr char kCliPrompt[] = "fc> ";
+constexpr char kCliPrompt[] = "iFly> ";
 constexpr char kCliPassword[] = "ifly";
 constexpr char kActivationPrompt[] =
     "Press SPACE to enter the iFly secure terminal.";
-
-void WriteDelay(Shell *shell, const char *text, uint32_t charDelayMs)
-{
-  if ((shell == nullptr) || (text == nullptr)) {
-    return;
-  }
-
-  uint32_t index = 0U;
-  while (text[index] != '\0') {
-    char chunk[2] = {text[index], '\0'};
-    shell->Write(chunk);
-    ++index;
-    if (charDelayMs > 0U) {
-      HAL_Delay(charDelayMs);
-    }
-  }
-}
-
-void WriteSpinner(Shell *shell, const char *label, uint8_t rounds,
-                  uint32_t frameDelayMs)
-{
-  static const char frames[4] = {'|', '/', '-', '\\'};
-
-  if ((shell == nullptr) || (label == nullptr) || (rounds == 0U)) {
-    return;
-  }
-
-  shell->Printf("%s ", label);
-
-  uint8_t round = 0U;
-  for (round = 0U; round < rounds; ++round) {
-    const char frame[2] = {frames[round & 0x03U], '\0'};
-    shell->Write(frame);
-    HAL_Delay(frameDelayMs);
-    shell->Write("\b");
-  }
-
-  shell->WriteLine("OK");
-}
-
-void WriteProgressBar(Shell *shell, const char *label, uint8_t steps,
-                      uint32_t stepDelayMs)
-{
-  if ((shell == nullptr) || (label == nullptr) || (steps == 0U)) {
-    return;
-  }
-
-  shell->Printf("%s [", label);
-  uint8_t step = 0U;
-  for (step = 0U; step < steps; ++step) {
-    shell->Write("#");
-    HAL_Delay(stepDelayMs);
-  }
-  shell->WriteLine("]");
-}
+constexpr uint64_t kNanosecondsPerMillisecond = 1000000ULL;
+constexpr char kSpinnerFrames[4] = {'|', '/', '-', '\\'};
 
 bool ParseFloat(const char *text, float *value)
 {
@@ -95,86 +42,9 @@ bool ParseFloat(const char *text, float *value)
   return true;
 }
 
-bool ParseU32(const char *text, uint32_t *value)
+uint64_t MsToNs(uint32_t value_ms)
 {
-  if ((text == nullptr) || (value == nullptr)) {
-    return false;
-  }
-
-  char *end = nullptr;
-  const unsigned long parsed = strtoul(text, &end, 10);
-  if ((end == text) || (end == nullptr)) {
-    return false;
-  }
-
-  while ((*end == ' ') || (*end == '\t')) {
-    ++end;
-  }
-
-  if ((*end != '\0') || (parsed > 0xFFFFFFFFUL)) {
-    return false;
-  }
-
-  *value = static_cast<uint32_t>(parsed);
-  return true;
-}
-
-bool ParseBool(const char *text, bool *value)
-{
-  if ((text == nullptr) || (value == nullptr)) {
-    return false;
-  }
-
-  if ((strcmp(text, "1") == 0) || (strcmp(text, "true") == 0) ||
-      (strcmp(text, "on") == 0) || (strcmp(text, "yes") == 0) ||
-      (strcmp(text, "lock") == 0)) {
-    *value = true;
-    return true;
-  }
-
-  if ((strcmp(text, "0") == 0) || (strcmp(text, "false") == 0) ||
-      (strcmp(text, "off") == 0) || (strcmp(text, "no") == 0) ||
-      (strcmp(text, "unlock") == 0)) {
-    *value = false;
-    return true;
-  }
-
-  return false;
-}
-
-bool FormatFloat(char *buffer, uint32_t bufferSize, float value)
-{
-  if ((buffer == nullptr) || (bufferSize == 0U)) {
-    return false;
-  }
-
-  const int written = snprintf(buffer, bufferSize, "%.6g",
-                               static_cast<double>(value));
-  return (written > 0) &&
-         (static_cast<uint32_t>(written) < bufferSize);
-}
-
-bool FormatU32(char *buffer, uint32_t bufferSize, uint32_t value)
-{
-  if ((buffer == nullptr) || (bufferSize == 0U)) {
-    return false;
-  }
-
-  const int written = snprintf(buffer, bufferSize, "%lu",
-                               static_cast<unsigned long>(value));
-  return (written > 0) &&
-         (static_cast<uint32_t>(written) < bufferSize);
-}
-
-bool FormatBool(char *buffer, uint32_t bufferSize, bool value)
-{
-  if ((buffer == nullptr) || (bufferSize == 0U)) {
-    return false;
-  }
-
-  const int written = snprintf(buffer, bufferSize, "%s", value ? "true" : "false");
-  return (written > 0) &&
-         (static_cast<uint32_t>(written) < bufferSize);
+  return static_cast<uint64_t>(value_ms) * kNanosecondsPerMillisecond;
 }
 
 } // namespace
@@ -182,83 +52,12 @@ bool FormatBool(char *buffer, uint32_t bufferSize, bool value)
 FlightCtrlCli::FlightCtrlCli()
     : rate_pid_(runtime_.rate_pid)
 {
-  pid_kp_.owner = this;
-  pid_kp_.value = &runtime_.rate_pid.kp;
-  pid_kp_.min_value = 0.0f;
-  pid_kp_.max_value = 1000.0f;
-  pid_kp_.has_range = true;
-  pid_kp_.on_updated = &FlightCtrlCli::OnPidParameterUpdated;
-
-  pid_ki_.owner = this;
-  pid_ki_.value = &runtime_.rate_pid.ki;
-  pid_ki_.min_value = 0.0f;
-  pid_ki_.max_value = 1000.0f;
-  pid_ki_.has_range = true;
-  pid_ki_.on_updated = &FlightCtrlCli::OnPidParameterUpdated;
-
-  pid_kd_.owner = this;
-  pid_kd_.value = &runtime_.rate_pid.kd;
-  pid_kd_.min_value = 0.0f;
-  pid_kd_.max_value = 1000.0f;
-  pid_kd_.has_range = true;
-  pid_kd_.on_updated = &FlightCtrlCli::OnPidParameterUpdated;
-
-  pid_kff_.owner = this;
-  pid_kff_.value = &runtime_.rate_pid.kff;
-  pid_kff_.min_value = 0.0f;
-  pid_kff_.max_value = 1000.0f;
-  pid_kff_.has_range = true;
-  pid_kff_.on_updated = &FlightCtrlCli::OnPidParameterUpdated;
-
-  pid_integral_min_.owner = this;
-  pid_integral_min_.value = &runtime_.rate_pid.integral_min;
-  pid_integral_min_.min_value = -1000000.0f;
-  pid_integral_min_.max_value = 1000000.0f;
-  pid_integral_min_.has_range = true;
-  pid_integral_min_.on_updated = &FlightCtrlCli::OnPidParameterUpdated;
-
-  pid_integral_max_.owner = this;
-  pid_integral_max_.value = &runtime_.rate_pid.integral_max;
-  pid_integral_max_.min_value = -1000000.0f;
-  pid_integral_max_.max_value = 1000000.0f;
-  pid_integral_max_.has_range = true;
-  pid_integral_max_.on_updated = &FlightCtrlCli::OnPidParameterUpdated;
-
-  pid_output_min_.owner = this;
-  pid_output_min_.value = &runtime_.rate_pid.output_min;
-  pid_output_min_.min_value = -1000000.0f;
-  pid_output_min_.max_value = 1000000.0f;
-  pid_output_min_.has_range = true;
-  pid_output_min_.on_updated = &FlightCtrlCli::OnPidParameterUpdated;
-
-  pid_output_max_.owner = this;
-  pid_output_max_.value = &runtime_.rate_pid.output_max;
-  pid_output_max_.min_value = -1000000.0f;
-  pid_output_max_.max_value = 1000000.0f;
-  pid_output_max_.has_range = true;
-  pid_output_max_.on_updated = &FlightCtrlCli::OnPidParameterUpdated;
-
-  pid_cutoff_hz_.owner = this;
-  pid_cutoff_hz_.value = &runtime_.rate_pid.derivative_cutoff_hz;
-  pid_cutoff_hz_.min_value = 0.0f;
-  pid_cutoff_hz_.max_value = 1000.0f;
-  pid_cutoff_hz_.has_range = true;
-  pid_cutoff_hz_.on_updated = &FlightCtrlCli::OnPidParameterUpdated;
-
-  control_loop_hz_.owner = this;
-  control_loop_hz_.value = &runtime_.control_loop_hz;
-  control_loop_hz_.min_value = 50U;
-  control_loop_hz_.max_value = 4000U;
-  control_loop_hz_.has_range = true;
-  control_loop_hz_.on_updated = nullptr;
-
-  arm_locked_.owner = this;
-  arm_locked_.value = &runtime_.arm_locked;
-  arm_locked_.on_updated = nullptr;
+  ResetIntroAnimation();
 }
 
 void FlightCtrlCli::Init()
 {
+  ResetIntroAnimation();
   shell_.ClearRegistrations();
   shell_.SetPrompt(kCliPrompt);
   shell_.SetPassword(kCliPassword);
@@ -266,7 +65,6 @@ void FlightCtrlCli::Init()
   shell_.SetSessionAnimation(&FlightCtrlCli::IntroAnimation, this);
   UpdateShellBanner();
   RegisterParameters();
-  RegisterReadonlyParameters();
   RegisterFunctions();
   ApplyPidConfiguration();
 }
@@ -308,59 +106,88 @@ void FlightCtrlCli::Poll()
 
 void FlightCtrlCli::RegisterParameters()
 {
-  (void)shell_.RegisterParameter(
-      {"pid.kp", "rate PID proportional gain", &FlightCtrlCli::GetFloatParameter,
-       &FlightCtrlCli::SetFloatParameter, &pid_kp_});
-  (void)shell_.RegisterParameter(
-      {"pid.ki", "rate PID integral gain", &FlightCtrlCli::GetFloatParameter,
-       &FlightCtrlCli::SetFloatParameter, &pid_ki_});
-  (void)shell_.RegisterParameter(
-      {"pid.kd", "rate PID derivative gain", &FlightCtrlCli::GetFloatParameter,
-       &FlightCtrlCli::SetFloatParameter, &pid_kd_});
-  (void)shell_.RegisterParameter(
-      {"pid.kff", "rate PID feedforward gain", &FlightCtrlCli::GetFloatParameter,
-       &FlightCtrlCli::SetFloatParameter, &pid_kff_});
-  (void)shell_.RegisterParameter(
-      {"pid.i_min", "rate PID integral lower limit", &FlightCtrlCli::GetFloatParameter,
-       &FlightCtrlCli::SetFloatParameter, &pid_integral_min_});
-  (void)shell_.RegisterParameter(
-      {"pid.i_max", "rate PID integral upper limit", &FlightCtrlCli::GetFloatParameter,
-       &FlightCtrlCli::SetFloatParameter, &pid_integral_max_});
-  (void)shell_.RegisterParameter(
-      {"pid.out_min", "rate PID output lower limit", &FlightCtrlCli::GetFloatParameter,
-       &FlightCtrlCli::SetFloatParameter, &pid_output_min_});
-  (void)shell_.RegisterParameter(
-      {"pid.out_max", "rate PID output upper limit", &FlightCtrlCli::GetFloatParameter,
-       &FlightCtrlCli::SetFloatParameter, &pid_output_max_});
-  (void)shell_.RegisterParameter(
-      {"pid.d_cutoff_hz", "rate PID derivative LPF cutoff", &FlightCtrlCli::GetFloatParameter,
-       &FlightCtrlCli::SetFloatParameter, &pid_cutoff_hz_});
-  (void)shell_.RegisterParameter(
-      {"sys.loop_hz", "control loop frequency", &FlightCtrlCli::GetU32Parameter,
-       &FlightCtrlCli::SetU32Parameter, &control_loop_hz_});
-  (void)shell_.RegisterParameter(
-      {"sys.arm_locked", "arming lock switch", &FlightCtrlCli::GetBoolParameter,
-       &FlightCtrlCli::SetBoolParameter, &arm_locked_});
-}
+  parameter_manager_.Clear();
 
-void FlightCtrlCli::RegisterReadonlyParameters()
-{
-  (void)shell_.RegisterParameter(
-      {"sys.transport", "active CLI transport", &FlightCtrlCli::GetTransportParameter,
-       nullptr, this});
-  (void)shell_.RegisterParameter(
-      {"sys.uptime_ms", "system uptime in milliseconds", &FlightCtrlCli::GetUptimeParameter,
-       nullptr, this});
+  const ParameterManager::FloatSpec pid_parameters[] = {
+      {"pid.kp", "rate PID proportional gain", &runtime_.rate_pid.kp, 0.0f,
+       1000.0f, true, &FlightCtrlCli::OnPidParameterUpdated, this},
+      {"pid.ki", "rate PID integral gain", &runtime_.rate_pid.ki, 0.0f,
+       1000.0f, true, &FlightCtrlCli::OnPidParameterUpdated, this},
+      {"pid.kd", "rate PID derivative gain", &runtime_.rate_pid.kd, 0.0f,
+       1000.0f, true, &FlightCtrlCli::OnPidParameterUpdated, this},
+      {"pid.kff", "rate PID feedforward gain", &runtime_.rate_pid.kff, 0.0f,
+       1000.0f, true, &FlightCtrlCli::OnPidParameterUpdated, this},
+      {"pid.i_min", "rate PID integral lower limit",
+       &runtime_.rate_pid.integral_min, -1000000.0f, 1000000.0f, true,
+       &FlightCtrlCli::OnPidParameterUpdated, this},
+      {"pid.i_max", "rate PID integral upper limit",
+       &runtime_.rate_pid.integral_max, -1000000.0f, 1000000.0f, true,
+       &FlightCtrlCli::OnPidParameterUpdated, this},
+      {"pid.out_min", "rate PID output lower limit",
+       &runtime_.rate_pid.output_min, -1000000.0f, 1000000.0f, true,
+       &FlightCtrlCli::OnPidParameterUpdated, this},
+      {"pid.out_max", "rate PID output upper limit",
+       &runtime_.rate_pid.output_max, -1000000.0f, 1000000.0f, true,
+       &FlightCtrlCli::OnPidParameterUpdated, this},
+      {"pid.d_cutoff_hz", "rate PID derivative LPF cutoff",
+       &runtime_.rate_pid.derivative_cutoff_hz, 0.0f, 1000.0f, true,
+       &FlightCtrlCli::OnPidParameterUpdated, this},
+  };
+
+  uint32_t index = 0U;
+  for (index = 0U; index < (sizeof(pid_parameters) / sizeof(pid_parameters[0]));
+       ++index) {
+    (void)parameter_manager_.AddFloat(pid_parameters[index]);
+  }
+
+  const ParameterManager::U32Spec system_u32_parameters[] = {
+      {"sys.loop_hz", "control loop frequency", &runtime_.control_loop_hz, 50U,
+       4000U, true, nullptr, nullptr},
+  };
+  for (index = 0U;
+       index <
+       (sizeof(system_u32_parameters) / sizeof(system_u32_parameters[0]));
+       ++index) {
+    (void)parameter_manager_.AddU32(system_u32_parameters[index]);
+  }
+
+  const ParameterManager::BoolSpec system_bool_parameters[] = {
+      {"sys.arm_locked", "arming lock switch", &runtime_.arm_locked, nullptr,
+       nullptr},
+  };
+  for (index = 0U;
+       index <
+       (sizeof(system_bool_parameters) / sizeof(system_bool_parameters[0]));
+       ++index) {
+    (void)parameter_manager_.AddBool(system_bool_parameters[index]);
+  }
+
+  const ParameterManager::CallbackSpec readonly_parameters[] = {
+      {"sys.transport", "active CLI transport",
+       &FlightCtrlCli::GetTransportParameter, nullptr, this, nullptr, nullptr},
+      {"sys.uptime_ms", "system uptime in milliseconds",
+       &FlightCtrlCli::GetUptimeParameter, nullptr, nullptr, nullptr, nullptr},
+  };
+  for (index = 0U;
+       index < (sizeof(readonly_parameters) / sizeof(readonly_parameters[0]));
+       ++index) {
+    (void)parameter_manager_.AddCallback(readonly_parameters[index]);
+  }
+
+  (void)parameter_manager_.RegisterToShell(&shell_);
 }
 
 void FlightCtrlCli::RegisterFunctions()
 {
   (void)shell_.RegisterFunction(
-      {"status", "print flight-controller status", &FlightCtrlCli::StatusFunction, this});
+      {"status", "print flight-controller status", &FlightCtrlCli::StatusFunction,
+       this});
   (void)shell_.RegisterFunction(
-      {"sys.reboot", "trigger MCU software reset", &FlightCtrlCli::RebootFunction, this});
+      {"sys.reboot", "trigger MCU software reset",
+       &FlightCtrlCli::RebootFunction, this});
   (void)shell_.RegisterFunction(
-      {"pid.reset", "reset PID runtime state", &FlightCtrlCli::PidResetFunction, this});
+      {"pid.reset", "reset PID runtime state", &FlightCtrlCli::PidResetFunction,
+       this});
   (void)shell_.RegisterFunction(
       {"pid.sample", "run one PID update: <sp> <meas> <dt_ms>",
        &FlightCtrlCli::PidSampleFunction, this});
@@ -392,6 +219,227 @@ void FlightCtrlCli::ApplyPidConfiguration()
   runtime_.rate_pid = rate_pid_.GetConfig();
 }
 
+void FlightCtrlCli::ResetIntroAnimation()
+{
+  intro_animation_.phase = IntroAnimationPhase::kIdle;
+  intro_animation_.delay.Reset();
+  intro_animation_.element_index = 0U;
+  intro_animation_.phase_started = false;
+}
+
+void FlightCtrlCli::AdvanceIntroAnimation(IntroAnimationPhase next_phase)
+{
+  intro_animation_.phase = next_phase;
+  intro_animation_.delay.Reset();
+  intro_animation_.element_index = 0U;
+  intro_animation_.phase_started = false;
+}
+
+bool FlightCtrlCli::StepTypewriterLine(Shell *shell, uint64_t now_ns,
+                                       const char *text, uint32_t delay_ms)
+{
+  if ((shell == nullptr) || (text == nullptr)) {
+    return true;
+  }
+
+  const uint64_t delay_ns = MsToNs(delay_ms);
+  const uint32_t text_length = static_cast<uint32_t>(strlen(text));
+
+  if (!intro_animation_.phase_started) {
+    intro_animation_.phase_started = true;
+    intro_animation_.element_index = 0U;
+    intro_animation_.delay.Reset();
+  }
+
+  if (intro_animation_.element_index >= text_length) {
+    if (!intro_animation_.delay.IsActive()) {
+      intro_animation_.delay.StartFrom(now_ns, delay_ns);
+      return false;
+    }
+
+    if (!intro_animation_.delay.ConsumeIfExpiredAt(now_ns)) {
+      return false;
+    }
+
+    shell->WriteLine("");
+    return true;
+  }
+
+  if (intro_animation_.delay.IsActive() &&
+      !intro_animation_.delay.ConsumeIfExpiredAt(now_ns)) {
+    return false;
+  }
+
+  char chunk[2] = {text[intro_animation_.element_index], '\0'};
+  shell->Write(chunk);
+  ++intro_animation_.element_index;
+  intro_animation_.delay.StartFrom(now_ns, delay_ns);
+  return false;
+}
+
+bool FlightCtrlCli::StepSpinnerLine(Shell *shell, uint64_t now_ns,
+                                    const char *label, uint8_t rounds,
+                                    uint32_t frame_delay_ms)
+{
+  if ((shell == nullptr) || (label == nullptr) || (rounds == 0U)) {
+    return true;
+  }
+
+  const uint64_t frame_delay_ns = MsToNs(frame_delay_ms);
+  if (!intro_animation_.phase_started) {
+    intro_animation_.phase_started = true;
+    intro_animation_.element_index = 0U;
+    shell->Printf("%s ", label);
+  }
+
+  if (intro_animation_.element_index >= rounds) {
+    if (!intro_animation_.delay.IsActive()) {
+      intro_animation_.delay.StartFrom(now_ns, frame_delay_ns);
+      return false;
+    }
+
+    if (!intro_animation_.delay.ConsumeIfExpiredAt(now_ns)) {
+      return false;
+    }
+
+    shell->Write("\b");
+    shell->WriteLine("OK");
+    return true;
+  }
+
+  if (intro_animation_.delay.IsActive() &&
+      !intro_animation_.delay.ConsumeIfExpiredAt(now_ns)) {
+    return false;
+  }
+
+  if (intro_animation_.element_index > 0U) {
+    shell->Write("\b");
+  }
+
+  const char frame[2] = {kSpinnerFrames[intro_animation_.element_index & 0x03U],
+                         '\0'};
+  shell->Write(frame);
+  ++intro_animation_.element_index;
+  intro_animation_.delay.StartFrom(now_ns, frame_delay_ns);
+  return false;
+}
+
+bool FlightCtrlCli::StepProgressLine(Shell *shell, uint64_t now_ns,
+                                     const char *label, uint8_t steps,
+                                     uint32_t step_delay_ms)
+{
+  if ((shell == nullptr) || (label == nullptr) || (steps == 0U)) {
+    return true;
+  }
+
+  const uint64_t step_delay_ns = MsToNs(step_delay_ms);
+  if (!intro_animation_.phase_started) {
+    intro_animation_.phase_started = true;
+    intro_animation_.element_index = 0U;
+    shell->Printf("%s [", label);
+  }
+
+  if (intro_animation_.element_index >= steps) {
+    if (!intro_animation_.delay.IsActive()) {
+      intro_animation_.delay.StartFrom(now_ns, step_delay_ns);
+      return false;
+    }
+
+    if (!intro_animation_.delay.ConsumeIfExpiredAt(now_ns)) {
+      return false;
+    }
+
+    shell->WriteLine("]");
+    return true;
+  }
+
+  if (intro_animation_.delay.IsActive() &&
+      !intro_animation_.delay.ConsumeIfExpiredAt(now_ns)) {
+    return false;
+  }
+
+  shell->Write("#");
+  ++intro_animation_.element_index;
+  intro_animation_.delay.StartFrom(now_ns, step_delay_ns);
+  return false;
+}
+
+bool FlightCtrlCli::UpdateIntroAnimation(Shell *shell, bool start)
+{
+  if (shell == nullptr) {
+    return true;
+  }
+
+  if (start) {
+    ResetIntroAnimation();
+    shell->Write("\x1B[2J\x1B[H");
+    shell->WriteLine("");
+    shell->WriteLine("        ___  ________           ");
+    shell->WriteLine("       / _ \\/ __/ / /_ _____    ");
+    shell->WriteLine("      / , _/ _// / / // / -_)   ");
+    shell->WriteLine("     /_/|_/___/_/_/\\_, /\\__/    ");
+    shell->WriteLine("                   /___/        ");
+    shell->WriteLine("");
+    AdvanceIntroAnimation(IntroAnimationPhase::kBootMessage);
+  }
+
+  const uint64_t now_ns = tick::NowNs();
+  switch (intro_animation_.phase) {
+    case IntroAnimationPhase::kIdle:
+      return false;
+
+    case IntroAnimationPhase::kBootMessage:
+      if (StepTypewriterLine(shell, now_ns, "Booting iFly secure terminal...",
+                             14U)) {
+        AdvanceIntroAnimation(IntroAnimationPhase::kTransportSpinner);
+      }
+      return false;
+
+    case IntroAnimationPhase::kTransportSpinner:
+      if (StepSpinnerLine(shell, now_ns, "Checking transport link", 10U, 45U)) {
+        AdvanceIntroAnimation(IntroAnimationPhase::kRegistrySpinner);
+      }
+      return false;
+
+    case IntroAnimationPhase::kRegistrySpinner:
+      if (StepSpinnerLine(shell, now_ns, "Synchronizing command registry", 10U,
+                          45U)) {
+        AdvanceIntroAnimation(IntroAnimationPhase::kProgressBar);
+      }
+      return false;
+
+    case IntroAnimationPhase::kProgressBar:
+      if (StepProgressLine(shell, now_ns, "Preparing English CLI", 18U, 22U)) {
+        shell->WriteLine("");
+        AdvanceIntroAnimation(IntroAnimationPhase::kWelcomeMessage);
+      }
+      return false;
+
+    case IntroAnimationPhase::kWelcomeMessage:
+      if (StepTypewriterLine(shell, now_ns,
+                             "Welcome to the iFly Flight Controller.", 12U)) {
+        AdvanceIntroAnimation(IntroAnimationPhase::kOnlineMessage);
+      }
+      return false;
+
+    case IntroAnimationPhase::kOnlineMessage:
+      if (StepTypewriterLine(shell, now_ns,
+                             "English terminal mode is now online.", 12U)) {
+        shell->WriteLine("");
+        AdvanceIntroAnimation(IntroAnimationPhase::kCompleted);
+      }
+      return false;
+
+    case IntroAnimationPhase::kCompleted:
+      ResetIntroAnimation();
+      return true;
+
+    default:
+      ResetIntroAnimation();
+      return true;
+  }
+}
+
 const FlightCtrlCli::TransportBinding *FlightCtrlCli::FindTransport(
     const char *name) const
 {
@@ -408,110 +456,6 @@ const FlightCtrlCli::TransportBinding *FlightCtrlCli::FindTransport(
   }
 
   return nullptr;
-}
-
-bool FlightCtrlCli::GetFloatParameter(void *context, char *buffer,
-                                      uint32_t bufferSize)
-{
-  FloatParameterBinding *binding =
-      reinterpret_cast<FloatParameterBinding *>(context);
-  if ((binding == nullptr) || (binding->value == nullptr)) {
-    return false;
-  }
-
-  return FormatFloat(buffer, bufferSize, *binding->value);
-}
-
-bool FlightCtrlCli::SetFloatParameter(void *context, const char *value)
-{
-  FloatParameterBinding *binding =
-      reinterpret_cast<FloatParameterBinding *>(context);
-  if ((binding == nullptr) || (binding->value == nullptr)) {
-    return false;
-  }
-
-  float parsed = 0.0f;
-  if (!ParseFloat(value, &parsed)) {
-    return false;
-  }
-
-  if (binding->has_range &&
-      ((parsed < binding->min_value) || (parsed > binding->max_value))) {
-    return false;
-  }
-
-  *binding->value = parsed;
-  if ((binding->on_updated != nullptr) && (binding->owner != nullptr)) {
-    binding->on_updated(binding->owner);
-  }
-  return true;
-}
-
-bool FlightCtrlCli::GetU32Parameter(void *context, char *buffer,
-                                    uint32_t bufferSize)
-{
-  U32ParameterBinding *binding = reinterpret_cast<U32ParameterBinding *>(context);
-  if ((binding == nullptr) || (binding->value == nullptr)) {
-    return false;
-  }
-
-  return FormatU32(buffer, bufferSize, *binding->value);
-}
-
-bool FlightCtrlCli::SetU32Parameter(void *context, const char *value)
-{
-  U32ParameterBinding *binding = reinterpret_cast<U32ParameterBinding *>(context);
-  if ((binding == nullptr) || (binding->value == nullptr)) {
-    return false;
-  }
-
-  uint32_t parsed = 0U;
-  if (!ParseU32(value, &parsed)) {
-    return false;
-  }
-
-  if (binding->has_range &&
-      ((parsed < binding->min_value) || (parsed > binding->max_value))) {
-    return false;
-  }
-
-  *binding->value = parsed;
-  if ((binding->on_updated != nullptr) && (binding->owner != nullptr)) {
-    binding->on_updated(binding->owner);
-  }
-  return true;
-}
-
-bool FlightCtrlCli::GetBoolParameter(void *context, char *buffer,
-                                     uint32_t bufferSize)
-{
-  BoolParameterBinding *binding =
-      reinterpret_cast<BoolParameterBinding *>(context);
-  if ((binding == nullptr) || (binding->value == nullptr)) {
-    return false;
-  }
-
-  return FormatBool(buffer, bufferSize, *binding->value);
-}
-
-bool FlightCtrlCli::SetBoolParameter(void *context, const char *value)
-{
-  BoolParameterBinding *binding =
-      reinterpret_cast<BoolParameterBinding *>(context);
-  if ((binding == nullptr) || (binding->value == nullptr)) {
-    return false;
-  }
-
-  bool parsed = false;
-  if (!ParseBool(value, &parsed)) {
-    return false;
-  }
-
-  *binding->value = parsed;
-  if ((binding->on_updated != nullptr) && (binding->owner != nullptr)) {
-    binding->on_updated(binding->owner);
-  }
-  return true;
 }
 
 bool FlightCtrlCli::GetTransportParameter(void *context, char *buffer,
@@ -534,7 +478,14 @@ bool FlightCtrlCli::GetUptimeParameter(void *context, char *buffer,
                                        uint32_t bufferSize)
 {
   (void)context;
-  return FormatU32(buffer, bufferSize, HAL_GetTick());
+
+  if ((buffer == nullptr) || (bufferSize == 0U)) {
+    return false;
+  }
+
+  const int written = snprintf(buffer, bufferSize, "%lu",
+                               static_cast<unsigned long>(tick::NowMs()));
+  return (written > 0) && (static_cast<uint32_t>(written) < bufferSize);
 }
 
 bool FlightCtrlCli::StatusFunction(Shell *shell, void *context, uint8_t argc,
@@ -558,7 +509,7 @@ bool FlightCtrlCli::StatusFunction(Shell *shell, void *context, uint8_t argc,
   shell->Printf("  shell_link    : %s\r\n",
                 cli->shell_.IsConnected() ? "connected" : "disconnected");
   shell->Printf("  uptime_ms     : %lu\r\n",
-                static_cast<unsigned long>(HAL_GetTick()));
+                static_cast<unsigned long>(tick::NowMs()));
   shell->Printf("  loop_hz       : %lu\r\n",
                 static_cast<unsigned long>(cli->runtime_.control_loop_hz));
   shell->Printf("  arm_locked    : %s\r\n",
@@ -650,7 +601,8 @@ bool FlightCtrlCli::PidSampleFunction(Shell *shell, void *context, uint8_t argc,
   return true;
 }
 
-bool FlightCtrlCli::TransportListFunction(Shell *shell, void *context, uint8_t argc,
+bool FlightCtrlCli::TransportListFunction(Shell *shell, void *context,
+                                          uint8_t argc,
                                           const char *const *argv)
 {
   (void)argv;
@@ -680,7 +632,8 @@ bool FlightCtrlCli::TransportListFunction(Shell *shell, void *context, uint8_t a
   return true;
 }
 
-bool FlightCtrlCli::TransportUseFunction(Shell *shell, void *context, uint8_t argc,
+bool FlightCtrlCli::TransportUseFunction(Shell *shell, void *context,
+                                         uint8_t argc,
                                          const char *const *argv)
 {
   FlightCtrlCli *cli = reinterpret_cast<FlightCtrlCli *>(context);
@@ -701,38 +654,19 @@ bool FlightCtrlCli::TransportUseFunction(Shell *shell, void *context, uint8_t ar
   return cli->UseTransport(argv[0]);
 }
 
-void FlightCtrlCli::IntroAnimation(Shell *shell, void *context)
+bool FlightCtrlCli::IntroAnimation(Shell *shell, void *context, bool start)
 {
-  (void)context;
-
-  if (shell == nullptr) {
-    return;
+  FlightCtrlCli *owner = reinterpret_cast<FlightCtrlCli *>(context);
+  if (owner == nullptr) {
+    return true;
   }
 
-  shell->Write("\x1B[2J\x1B[H");
-  shell->WriteLine("");
-  shell->WriteLine("        ___  ________           ");
-  shell->WriteLine("       / _ \\/ __/ / /_ _____    ");
-  shell->WriteLine("      / , _/ _// / / // / -_)   ");
-  shell->WriteLine("     /_/|_/___/_/_/\\_, /\\__/    ");
-  shell->WriteLine("                   /___/        ");
-  shell->WriteLine("");
-
-  WriteDelay(shell, "Booting iFly secure terminal...", 14U);
-  shell->WriteLine("");
-  WriteSpinner(shell, "Checking transport link", 10U, 45U);
-  WriteSpinner(shell, "Synchronizing command registry", 10U, 45U);
-  WriteProgressBar(shell, "Preparing English CLI", 18U, 22U);
-  shell->WriteLine("");
-  WriteDelay(shell, "Welcome to the iFly Flight Controller.", 12U);
-  shell->WriteLine("");
-  WriteDelay(shell, "English terminal mode is now online.", 12U);
-  shell->WriteLine("");
-  shell->WriteLine("");
+  return owner->UpdateIntroAnimation(shell, start);
 }
 
-void FlightCtrlCli::OnPidParameterUpdated(FlightCtrlCli *owner)
+void FlightCtrlCli::OnPidParameterUpdated(void *context)
 {
+  FlightCtrlCli *owner = reinterpret_cast<FlightCtrlCli *>(context);
   if (owner == nullptr) {
     return;
   }

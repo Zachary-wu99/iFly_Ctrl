@@ -5,6 +5,7 @@
 #include "flight_ctrl_cli.hpp"
 #include "hardware_uart.hpp"
 #include "main.h"
+#include "tick.hpp"
 #include "usb_uart.hpp"
 
 namespace {
@@ -33,10 +34,10 @@ void InitCliRuntime()
 extern "C" void app_main(void)
 {
   InitCliRuntime();
-  HAL_Delay(20U);
+  iFly::tick::DelayMs(20U);
 
   while (1) {
     g_flight_ctrl_cli.Poll();
-    HAL_Delay(kMainLoopDelayMs);
+    iFly::tick::DelayMs(kMainLoopDelayMs);
   }
 }
