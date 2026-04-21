@@ -5,7 +5,6 @@
 
 #include <stdint.h>
 
-#include "can.h"
 #include "lock_free_queue.hpp"
 
 namespace iFly {
@@ -20,7 +19,7 @@ namespace iFly {
  *
  * 它不等于“芯片一定真的焊了两路 CAN 外设”。
  * 当前工程默认只自动映射了 `CAN1`，`CAN2` 这个槽位只是预留好，
- * 以后如果硬件上有第二路 CAN，再把对应的 `CAN_HandleTypeDef *`
+ * 以后如果硬件上有第二路 CAN，再把对应的底层硬件句柄
  * 挂进来即可。
  */
 enum class CanPortId : uint8_t {
@@ -100,7 +99,7 @@ public:
   static CanService &Instance();
 
   /** 手动把某一路逻辑 CAN 端口绑定到具体的 HAL 句柄。 */
-  void AttachHardware(CanPortId port, CAN_HandleTypeDef *hcan);
+  void AttachHardware(CanPortId port, void *hcan);
   /** 初始化某一路 CAN 端口，并挂接上层接收队列。 */
   bool InitPort(CanPortId port, LockFreeQueueBase *rxQueue);
   /** 反初始化某一路端口，停止硬件并清空运行时状态。 */
@@ -129,15 +128,15 @@ public:
   void ServiceRxPath(CanPortId port);
 
   /** HAL 告知某个 RX FIFO 有报文待取时的桥接入口。 */
-  void OnRxFifoPending(CAN_HandleTypeDef *hcan, uint32_t fifo);
+  void OnRxFifoPending(void *hcan, uint32_t fifo);
   /** HAL 告知某个 RX FIFO 已满时的桥接入口。 */
-  void OnRxFifoFull(CAN_HandleTypeDef *hcan, uint32_t fifo);
+  void OnRxFifoFull(void *hcan, uint32_t fifo);
   /** HAL 告知某个发送邮箱完成发送时的桥接入口。 */
-  void OnTxComplete(CAN_HandleTypeDef *hcan);
+  void OnTxComplete(void *hcan);
   /** HAL 告知某个发送邮箱发送中止时的桥接入口。 */
-  void OnTxAbort(CAN_HandleTypeDef *hcan);
+  void OnTxAbort(void *hcan);
   /** HAL 告知 CAN 外设出错时的桥接入口。 */
-  void OnError(CAN_HandleTypeDef *hcan);
+  void OnError(void *hcan);
 
 private:
   CanService() = default;

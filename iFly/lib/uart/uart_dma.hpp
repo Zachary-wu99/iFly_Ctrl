@@ -7,9 +7,6 @@
 
 #include "lock_free_queue.hpp"
 
-struct __UART_HandleTypeDef;
-typedef struct __UART_HandleTypeDef UART_HandleTypeDef;
-
 namespace iFly {
 
 /**
@@ -42,7 +39,7 @@ const char *ToString(UartPortId port);
  * 这个类是硬件串口底层的核心管理器，主要负责三件事：
  *
  * 1. 维护每个逻辑端口的运行时状态
- *    包括 `UART_HandleTypeDef`、RX 用户队列、TX 无锁队列、DMA 缓冲等。
+ *    包括底层硬件句柄、RX 用户队列、TX 无锁队列、DMA 缓冲等。
  *
  * 2. 处理 TX 方向
  *    数据流是：
@@ -70,13 +67,13 @@ public:
   static UartDmaService &Instance();
 
   /**
-   * @brief 手动把一个端口绑定到具体 `UART_HandleTypeDef`。
+   * @brief 手动把一个端口绑定到底层串口硬件句柄。
    *
    * @details
    * 当前实现即使不显式调用，也会在 `InitPort()` 里按默认映射自动查找；
    * 这个接口主要是给后续扩展或特殊板级重绑定预留的。
    */
-  void AttachHardware(UartPortId port, UART_HandleTypeDef *huart);
+  void AttachHardware(UartPortId port, void *huart);
   /**
    * @brief 初始化某个端口。
    *
@@ -104,11 +101,11 @@ public:
   bool IsReady(UartPortId port) const;
 
   /** @brief HAL UART 接收事件回调入口。 */
-  void OnRxEvent(UART_HandleTypeDef *huart, uint16_t size);
+  void OnRxEvent(void *huart, uint16_t size);
   /** @brief HAL UART DMA 发送完成回调入口。 */
-  void OnTxComplete(UART_HandleTypeDef *huart);
+  void OnTxComplete(void *huart);
   /** @brief HAL UART 错误回调入口。 */
-  void OnError(UART_HandleTypeDef *huart);
+  void OnError(void *huart);
 
 private:
   UartDmaService() = default;

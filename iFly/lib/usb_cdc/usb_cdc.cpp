@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "main.h"
+#include "lib/platform/platform_handle.hpp"
 #include "usb_otg.h"
 
 namespace {
@@ -73,59 +74,60 @@ constexpr uint32_t MinU32(uint32_t left, uint32_t right) {
  */
 class Stm32FsPcdAdapter final {
 public:
-  PCD_HandleTypeDef *Handle() const {
-    return &hpcd_USB_OTG_FS;
+  void *Handle() const {
+    return static_cast<void *>(&hpcd_USB_OTG_FS);
   }
 
-  bool Matches(PCD_HandleTypeDef *hpcd) const {
+  bool Matches(void *hpcd) const {
     return hpcd == Handle();
   }
 
   void ConfigureFifos() const {
-    (void)HAL_PCDEx_SetRxFiFo(Handle(), 128U);
-    (void)HAL_PCDEx_SetTxFiFo(Handle(), 0U, 64U);
-    (void)HAL_PCDEx_SetTxFiFo(Handle(), 1U, 64U);
-    (void)HAL_PCDEx_SetTxFiFo(Handle(), 2U, 16U);
+    PCD_HandleTypeDef *hpcd = iFly::platform::AsPcdHandle(Handle());
+    (void)HAL_PCDEx_SetRxFiFo(hpcd, 128U);
+    (void)HAL_PCDEx_SetTxFiFo(hpcd, 0U, 64U);
+    (void)HAL_PCDEx_SetTxFiFo(hpcd, 1U, 64U);
+    (void)HAL_PCDEx_SetTxFiFo(hpcd, 2U, 16U);
   }
 
   HAL_StatusTypeDef Start() const {
-    return HAL_PCD_Start(Handle());
+    return HAL_PCD_Start(iFly::platform::AsPcdHandle(Handle()));
   }
 
   HAL_StatusTypeDef OpenEndpoint(uint8_t epAddr, uint16_t mps, uint8_t epType) const {
-    return HAL_PCD_EP_Open(Handle(), epAddr, mps, epType);
+    return HAL_PCD_EP_Open(iFly::platform::AsPcdHandle(Handle()), epAddr, mps, epType);
   }
 
   HAL_StatusTypeDef CloseEndpoint(uint8_t epAddr) const {
-    return HAL_PCD_EP_Close(Handle(), epAddr);
+    return HAL_PCD_EP_Close(iFly::platform::AsPcdHandle(Handle()), epAddr);
   }
 
   HAL_StatusTypeDef Receive(uint8_t epAddr, uint8_t *buffer, uint32_t length) const {
-    return HAL_PCD_EP_Receive(Handle(), epAddr, buffer, length);
+    return HAL_PCD_EP_Receive(iFly::platform::AsPcdHandle(Handle()), epAddr, buffer, length);
   }
 
   HAL_StatusTypeDef Transmit(uint8_t epAddr, uint8_t *buffer, uint32_t length) const {
-    return HAL_PCD_EP_Transmit(Handle(), epAddr, buffer, length);
+    return HAL_PCD_EP_Transmit(iFly::platform::AsPcdHandle(Handle()), epAddr, buffer, length);
   }
 
   uint32_t GetRxCount(uint8_t epAddr) const {
-    return HAL_PCD_EP_GetRxCount(Handle(), epAddr);
+    return HAL_PCD_EP_GetRxCount(iFly::platform::AsPcdHandle(Handle()), epAddr);
   }
 
   void SetAddress(uint8_t address) const {
-    (void)HAL_PCD_SetAddress(Handle(), address);
+    (void)HAL_PCD_SetAddress(iFly::platform::AsPcdHandle(Handle()), address);
   }
 
   void SetStall(uint8_t epAddr) const {
-    (void)HAL_PCD_EP_SetStall(Handle(), epAddr);
+    (void)HAL_PCD_EP_SetStall(iFly::platform::AsPcdHandle(Handle()), epAddr);
   }
 
   void ClearStall(uint8_t epAddr) const {
-    (void)HAL_PCD_EP_ClrStall(Handle(), epAddr);
+    (void)HAL_PCD_EP_ClrStall(iFly::platform::AsPcdHandle(Handle()), epAddr);
   }
 
   const uint8_t *SetupBuffer() const {
-    return reinterpret_cast<const uint8_t *>(Handle()->Setup);
+    return reinterpret_cast<const uint8_t *>(iFly::platform::AsPcdHandle(Handle())->Setup);
   }
 };
 
@@ -800,42 +802,42 @@ extern "C" {
 
 // 把 HAL USB 复位事件转发给 USB CDC 设备。
 void HAL_PCD_ResetCallback(PCD_HandleTypeDef *hpcd) {
-  if (UsbPcd().Matches(hpcd)) {
+  if (UsbPcd().Matches(static_cast<void *>(hpcd))) {
     iFly::UsbCdcAcm::Instance().OnReset();
   }
 }
 
 // 把 HAL USB SETUP 事件转发给 USB CDC 设备。
 void HAL_PCD_SetupStageCallback(PCD_HandleTypeDef *hpcd) {
-  if (UsbPcd().Matches(hpcd)) {
+  if (UsbPcd().Matches(static_cast<void *>(hpcd))) {
     iFly::UsbCdcAcm::Instance().OnSetupStage();
   }
 }
 
 // 把 HAL USB IN 事件转发给 USB CDC 设备。
 void HAL_PCD_DataInStageCallback(PCD_HandleTypeDef *hpcd, uint8_t epnum) {
-  if (UsbPcd().Matches(hpcd)) {
+  if (UsbPcd().Matches(static_cast<void *>(hpcd))) {
     iFly::UsbCdcAcm::Instance().OnDataInStage(epnum);
   }
 }
 
 // 把 HAL USB OUT 事件转发给 USB CDC 设备。
 void HAL_PCD_DataOutStageCallback(PCD_HandleTypeDef *hpcd, uint8_t epnum) {
-  if (UsbPcd().Matches(hpcd)) {
+  if (UsbPcd().Matches(static_cast<void *>(hpcd))) {
     iFly::UsbCdcAcm::Instance().OnDataOutStage(epnum);
   }
 }
 
 // 把 HAL USB 挂起事件转发给 USB CDC 设备。
 void HAL_PCD_SuspendCallback(PCD_HandleTypeDef *hpcd) {
-  if (UsbPcd().Matches(hpcd)) {
+  if (UsbPcd().Matches(static_cast<void *>(hpcd))) {
     iFly::UsbCdcAcm::Instance().OnSuspend();
   }
 }
 
 // 把 HAL USB 恢复事件转发给 USB CDC 设备。
 void HAL_PCD_ResumeCallback(PCD_HandleTypeDef *hpcd) {
-  if (UsbPcd().Matches(hpcd)) {
+  if (UsbPcd().Matches(static_cast<void *>(hpcd))) {
     iFly::UsbCdcAcm::Instance().OnResume();
   }
 }

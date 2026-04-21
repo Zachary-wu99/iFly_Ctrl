@@ -52,7 +52,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/app_main.cpp
     iFly/app/cli/flight_ctrl_cli.cpp
     iFly/app/ctrl/pid.cpp
-    iFly/app/paramete/parameter_manager.cpp
+    iFly/app/paramete/project_parameter_manager.cpp
+    iFly/app/paramete/project_parameters.cpp
     iFly/app/task_mage/task.cpp
     iFly/app/tick/tick.cpp
     iFly/app/proto/crsf/crsf_protocol.cpp
@@ -67,6 +68,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/lib/uart/uart_dma.cpp
     iFly/lib/usb_cdc/usb_cdc.cpp
     iFly/lib/can/can.cpp
+    iFly/lib/pwm/pwm.cpp
+    iFly/lib/led/led.cpp
 )
 
 # Add include paths
@@ -92,6 +95,8 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/lib/uart
     iFly/lib/usb_cdc
     iFly/lib/can
+    iFly/lib/pwm
+    iFly/lib/led
     iFly/lib/double_buffer
 )
 

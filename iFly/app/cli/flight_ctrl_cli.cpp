@@ -1,5 +1,3 @@
-// 飞控 CLI 模块实现。
-// 包含控制台初始化、参数绑定、命令处理和开场动画状态机。
 #include "flight_ctrl_cli.hpp"
 
 #include <math.h>
@@ -14,13 +12,12 @@ namespace iFly {
 namespace {
 
 constexpr char kCliPrompt[] = "iFly> ";
-constexpr char kCliPassword[] = "ifly";
+constexpr char kDefaultCliPassword[] = "ifly";
 constexpr char kActivationPrompt[] =
     "Press SPACE to enter the iFly secure terminal.";
 constexpr uint64_t kNanosecondsPerMillisecond = 1000000ULL;
 constexpr char kSpinnerFrames[4] = {'|', '/', '-', '\\'};
 
-// 解析 CLI 输入中的浮点数字符串。
 bool ParseFloat(const char *text, float *value)
 {
   if ((text == nullptr) || (value == nullptr)) {
@@ -45,37 +42,135 @@ bool ParseFloat(const char *text, float *value)
   return true;
 }
 
-// 把毫秒数转换为纳秒数。
+bool ParseUint32(const char *text, uint32_t *value)
+{
+  if ((text == nullptr) || (value == nullptr)) {
+    return false;
+  }
+
+  char *end = nullptr;
+  const unsigned long parsed = strtoul(text, &end, 10);
+  if ((end == text) || (end == nullptr)) {
+    return false;
+  }
+
+  while ((*end == ' ') || (*end == '\t')) {
+    ++end;
+  }
+
+  if (*end != '\0') {
+    return false;
+  }
+
+  *value = static_cast<uint32_t>(parsed);
+  return true;
+}
+
+bool CharEqualsIgnoreCase(char left, char right)
+{
+  if ((left >= 'A') && (left <= 'Z')) {
+    left = static_cast<char>(left - 'A' + 'a');
+  }
+  if ((right >= 'A') && (right <= 'Z')) {
+    right = static_cast<char>(right - 'A' + 'a');
+  }
+  return left == right;
+}
+
+bool EqualsIgnoreCase(const char *left, const char *right)
+{
+  if ((left == nullptr) || (right == nullptr)) {
+    return false;
+  }
+
+  while ((*left != '\0') && (*right != '\0')) {
+    if (!CharEqualsIgnoreCase(*left, *right)) {
+      return false;
+    }
+    ++left;
+    ++right;
+  }
+
+  return (*left == '\0') && (*right == '\0');
+}
+
+bool ParseBool(const char *text, bool *value)
+{
+  if ((text == nullptr) || (value == nullptr)) {
+    return false;
+  }
+
+  if (EqualsIgnoreCase(text, "1") ||
+      EqualsIgnoreCase(text, "true") ||
+      EqualsIgnoreCase(text, "on") ||
+      EqualsIgnoreCase(text, "yes")) {
+    *value = true;
+    return true;
+  }
+
+  if (EqualsIgnoreCase(text, "0") ||
+      EqualsIgnoreCase(text, "false") ||
+      EqualsIgnoreCase(text, "off") ||
+      EqualsIgnoreCase(text, "no")) {
+    *value = false;
+    return true;
+  }
+
+  return false;
+}
+
 uint64_t MsToNs(uint32_t value_ms)
 {
   return static_cast<uint64_t>(value_ms) * kNanosecondsPerMillisecond;
 }
 
+bool IsPidParameterName(const char *name)
+{
+  constexpr char kPrefix[] = "control.rate_pid";
+  constexpr uint32_t kPrefixLength = sizeof(kPrefix) - 1U;
+
+  if (name == nullptr) {
+    return false;
+  }
+
+  if (strncmp(name, kPrefix, kPrefixLength) != 0) {
+    return false;
+  }
+
+  return (name[kPrefixLength] == '\0') || (name[kPrefixLength] == '.');
+}
+
+const char *ConfiguredCliPassword(const ProjectParameters &parameters)
+{
+  return (parameters.cli.password[0] != '\0') ? parameters.cli.password
+                                              : kDefaultCliPassword;
+}
+
 } // namespace
 
-// 构造飞控 CLI 并准备默认运行时状态。
 FlightCtrlCli::FlightCtrlCli()
-    : rate_pid_(runtime_.rate_pid)
+    : parameter_manager_(ProjectParameterManager::Instance()),
+      rate_pid_(parameter_manager_.Data().control.rate_pid)
 {
   ResetIntroAnimation();
 }
 
-// 初始化 Shell、参数表、命令表和 PID 运行时。
 void FlightCtrlCli::Init()
 {
+  parameter_manager_.ResetToDefaults();
   ResetIntroAnimation();
   shell_.ClearRegistrations();
   shell_.SetPrompt(kCliPrompt);
-  shell_.SetPassword(kCliPassword);
+  shell_.SetPassword(ConfiguredCliPassword(parameter_manager_.Data()));
   shell_.SetActivationKey(' ', kActivationPrompt);
   shell_.SetSessionAnimation(&FlightCtrlCli::IntroAnimation, this);
+  active_transport_name_ = "unbound";
   UpdateShellBanner();
   RegisterParameters();
   RegisterFunctions();
   ApplyPidConfiguration();
 }
 
-// 注册一个可切换的 CLI 传输通道。
 bool FlightCtrlCli::RegisterTransport(const char *name, SerialIoBase *io)
 {
   if ((name == nullptr) || (io == nullptr) ||
@@ -93,7 +188,6 @@ bool FlightCtrlCli::RegisterTransport(const char *name, SerialIoBase *io)
   return true;
 }
 
-// 切换当前正在使用的 CLI 传输通道。
 bool FlightCtrlCli::UseTransport(const char *name)
 {
   const TransportBinding *binding = FindTransport(name);
@@ -107,89 +201,125 @@ bool FlightCtrlCli::UseTransport(const char *name)
   return true;
 }
 
-// 轮询 Shell，推动输入输出和状态机运行。
 void FlightCtrlCli::Poll()
 {
   shell_.Poll();
 }
 
-// 向 Shell 注册可读写参数和只读状态项。
 void FlightCtrlCli::RegisterParameters()
 {
-  parameter_manager_.Clear();
+  uint8_t index = 0U;
+  auto register_managed_parameter =
+      [this, &index](const char *shell_name,
+                     const char *help,
+                     const char *project_name,
+                     ManagedParameterType type,
+                     float min_float,
+                     float max_float,
+                     uint32_t min_u32,
+                     uint32_t max_u32) {
+        if ((shell_name == nullptr) || (project_name == nullptr) ||
+            (index >= kManagedParameterCount)) {
+          return;
+        }
 
-  // 允许通过 CLI 直接查看和调整速率环 PID 参数，便于在线调参。
-  const ParameterManager::FloatSpec pid_parameters[] = {
-      {"pid.kp", "rate PID proportional gain", &runtime_.rate_pid.kp, 0.0f,
-       1000.0f, true, &FlightCtrlCli::OnPidParameterUpdated, this},
-      {"pid.ki", "rate PID integral gain", &runtime_.rate_pid.ki, 0.0f,
-       1000.0f, true, &FlightCtrlCli::OnPidParameterUpdated, this},
-      {"pid.kd", "rate PID derivative gain", &runtime_.rate_pid.kd, 0.0f,
-       1000.0f, true, &FlightCtrlCli::OnPidParameterUpdated, this},
-      {"pid.kff", "rate PID feedforward gain", &runtime_.rate_pid.kff, 0.0f,
-       1000.0f, true, &FlightCtrlCli::OnPidParameterUpdated, this},
-      {"pid.i_min", "rate PID integral lower limit",
-       &runtime_.rate_pid.integral_min, -1000000.0f, 1000000.0f, true,
-       &FlightCtrlCli::OnPidParameterUpdated, this},
-      {"pid.i_max", "rate PID integral upper limit",
-       &runtime_.rate_pid.integral_max, -1000000.0f, 1000000.0f, true,
-       &FlightCtrlCli::OnPidParameterUpdated, this},
-      {"pid.out_min", "rate PID output lower limit",
-       &runtime_.rate_pid.output_min, -1000000.0f, 1000000.0f, true,
-       &FlightCtrlCli::OnPidParameterUpdated, this},
-      {"pid.out_max", "rate PID output upper limit",
-       &runtime_.rate_pid.output_max, -1000000.0f, 1000000.0f, true,
-       &FlightCtrlCli::OnPidParameterUpdated, this},
-      {"pid.d_cutoff_hz", "rate PID derivative LPF cutoff",
-       &runtime_.rate_pid.derivative_cutoff_hz, 0.0f, 1000.0f, true,
-       &FlightCtrlCli::OnPidParameterUpdated, this},
-  };
+        ManagedParameterContext &context = managed_parameter_contexts_[index];
+        context = ManagedParameterContext {};
+        context.owner = this;
+        context.project_name = project_name;
+        context.type = type;
+        context.min_float = min_float;
+        context.max_float = max_float;
+        context.min_u32 = min_u32;
+        context.max_u32 = max_u32;
 
-  uint32_t index = 0U;
-  for (index = 0U; index < (sizeof(pid_parameters) / sizeof(pid_parameters[0]));
-       ++index) {
-    (void)parameter_manager_.AddFloat(pid_parameters[index]);
-  }
+        (void)shell_.RegisterParameter(
+            {shell_name,
+             help,
+             &FlightCtrlCli::GetManagedParameter,
+             &FlightCtrlCli::SetManagedParameter,
+             &context});
+        ++index;
+      };
 
-  const ParameterManager::U32Spec system_u32_parameters[] = {
-      {"sys.loop_hz", "control loop frequency", &runtime_.control_loop_hz, 50U,
-       4000U, true, nullptr, nullptr},
-  };
-  for (index = 0U;
-       index <
-       (sizeof(system_u32_parameters) / sizeof(system_u32_parameters[0]));
-       ++index) {
-    (void)parameter_manager_.AddU32(system_u32_parameters[index]);
-  }
+  register_managed_parameter("pid.kp", "rate PID proportional gain",
+                             "control.rate_pid.kp", ManagedParameterType::kFloat,
+                             0.0f, 1000.0f, 0U, 0U);
+  register_managed_parameter("pid.ki", "rate PID integral gain",
+                             "control.rate_pid.ki", ManagedParameterType::kFloat,
+                             0.0f, 1000.0f, 0U, 0U);
+  register_managed_parameter("pid.kd", "rate PID derivative gain",
+                             "control.rate_pid.kd", ManagedParameterType::kFloat,
+                             0.0f, 1000.0f, 0U, 0U);
+  register_managed_parameter("pid.kff", "rate PID feedforward gain",
+                             "control.rate_pid.kff", ManagedParameterType::kFloat,
+                             0.0f, 1000.0f, 0U, 0U);
+  register_managed_parameter("pid.i_min", "rate PID integral lower limit",
+                             "control.rate_pid.integral_min",
+                             ManagedParameterType::kFloat, -1000000.0f,
+                             1000000.0f, 0U, 0U);
+  register_managed_parameter("pid.i_max", "rate PID integral upper limit",
+                             "control.rate_pid.integral_max",
+                             ManagedParameterType::kFloat, -1000000.0f,
+                             1000000.0f, 0U, 0U);
+  register_managed_parameter("pid.out_min", "rate PID output lower limit",
+                             "control.rate_pid.output_min",
+                             ManagedParameterType::kFloat, -1000000.0f,
+                             1000000.0f, 0U, 0U);
+  register_managed_parameter("pid.out_max", "rate PID output upper limit",
+                             "control.rate_pid.output_max",
+                             ManagedParameterType::kFloat, -1000000.0f,
+                             1000000.0f, 0U, 0U);
+  register_managed_parameter("pid.d_cutoff_hz", "rate PID derivative LPF cutoff",
+                             "control.rate_pid.derivative_cutoff_hz",
+                             ManagedParameterType::kFloat, 0.0f, 1000.0f, 0U, 0U);
+  register_managed_parameter("sys.loop_hz", "control loop frequency",
+                             "system.control_loop_hz",
+                             ManagedParameterType::kUint32, 0.0f, 0.0f,
+                             50U, 4000U);
+  register_managed_parameter("sys.arm_locked", "arming lock switch",
+                             "system.arm_locked",
+                             ManagedParameterType::kBool, 0.0f, 0.0f, 0U, 0U);
 
-  const ParameterManager::BoolSpec system_bool_parameters[] = {
-      {"sys.arm_locked", "arming lock switch", &runtime_.arm_locked, nullptr,
-       nullptr},
-  };
-  for (index = 0U;
-       index <
-       (sizeof(system_bool_parameters) / sizeof(system_bool_parameters[0]));
-       ++index) {
-    (void)parameter_manager_.AddBool(system_bool_parameters[index]);
-  }
-
-  // 只读项用于暴露运行时状态，不允许通过参数写接口修改。
-  const ParameterManager::CallbackSpec readonly_parameters[] = {
+  (void)shell_.RegisterParameter(
       {"sys.transport", "active CLI transport",
-       &FlightCtrlCli::GetTransportParameter, nullptr, this, nullptr, nullptr},
+       &FlightCtrlCli::GetTransportParameter, nullptr, this});
+  (void)shell_.RegisterParameter(
       {"sys.uptime_ms", "system uptime in milliseconds",
-       &FlightCtrlCli::GetUptimeParameter, nullptr, nullptr, nullptr, nullptr},
-  };
-  for (index = 0U;
-       index < (sizeof(readonly_parameters) / sizeof(readonly_parameters[0]));
-       ++index) {
-    (void)parameter_manager_.AddCallback(readonly_parameters[index]);
-  }
+       &FlightCtrlCli::GetUptimeParameter, nullptr, this});
 
-  (void)parameter_manager_.RegisterToShell(&shell_);
+  (void)parameter_manager_.SetChangeHandler("control.rate_pid.kp",
+                                            &FlightCtrlCli::OnProjectParameterUpdated,
+                                            this);
+  (void)parameter_manager_.SetChangeHandler("control.rate_pid.ki",
+                                            &FlightCtrlCli::OnProjectParameterUpdated,
+                                            this);
+  (void)parameter_manager_.SetChangeHandler("control.rate_pid.kd",
+                                            &FlightCtrlCli::OnProjectParameterUpdated,
+                                            this);
+  (void)parameter_manager_.SetChangeHandler("control.rate_pid.kff",
+                                            &FlightCtrlCli::OnProjectParameterUpdated,
+                                            this);
+  (void)parameter_manager_.SetChangeHandler("control.rate_pid.integral_min",
+                                            &FlightCtrlCli::OnProjectParameterUpdated,
+                                            this);
+  (void)parameter_manager_.SetChangeHandler("control.rate_pid.integral_max",
+                                            &FlightCtrlCli::OnProjectParameterUpdated,
+                                            this);
+  (void)parameter_manager_.SetChangeHandler("control.rate_pid.output_min",
+                                            &FlightCtrlCli::OnProjectParameterUpdated,
+                                            this);
+  (void)parameter_manager_.SetChangeHandler("control.rate_pid.output_max",
+                                            &FlightCtrlCli::OnProjectParameterUpdated,
+                                            this);
+  (void)parameter_manager_.SetChangeHandler("control.rate_pid.derivative_cutoff_hz",
+                                            &FlightCtrlCli::OnProjectParameterUpdated,
+                                            this);
+  (void)parameter_manager_.SetChangeHandler("cli.password",
+                                            &FlightCtrlCli::OnProjectParameterUpdated,
+                                            this);
 }
 
-// 向 Shell 注册飞控相关命令。
 void FlightCtrlCli::RegisterFunctions()
 {
   (void)shell_.RegisterFunction(
@@ -212,7 +342,6 @@ void FlightCtrlCli::RegisterFunctions()
        &FlightCtrlCli::TransportUseFunction, this});
 }
 
-// 刷新 Shell 标题，反映当前传输通道。
 void FlightCtrlCli::UpdateShellBanner()
 {
   const int written = snprintf(
@@ -227,14 +356,18 @@ void FlightCtrlCli::UpdateShellBanner()
   shell_.SetBanner("iFly Flight Controller", banner_subtitle_);
 }
 
-// 把运行时 PID 参数同步到控制器实例。
 void FlightCtrlCli::ApplyPidConfiguration()
 {
-  rate_pid_.Configure(runtime_.rate_pid);
-  runtime_.rate_pid = rate_pid_.GetConfig();
+  rate_pid_.Configure(parameter_manager_.Data().control.rate_pid);
+
+  const Pid::Config &sanitized = rate_pid_.GetConfig();
+  if (memcmp(&parameter_manager_.Data().control.rate_pid,
+             &sanitized,
+             sizeof(Pid::Config)) != 0) {
+    (void)parameter_manager_.Write("control.rate_pid", sanitized);
+  }
 }
 
-// 重置开场动画状态机。
 void FlightCtrlCli::ResetIntroAnimation()
 {
   intro_animation_.phase = IntroAnimationPhase::kIdle;
@@ -243,7 +376,6 @@ void FlightCtrlCli::ResetIntroAnimation()
   intro_animation_.phase_started = false;
 }
 
-// 推进开场动画到下一阶段。
 void FlightCtrlCli::AdvanceIntroAnimation(IntroAnimationPhase next_phase)
 {
   intro_animation_.phase = next_phase;
@@ -252,7 +384,6 @@ void FlightCtrlCli::AdvanceIntroAnimation(IntroAnimationPhase next_phase)
   intro_animation_.phase_started = false;
 }
 
-// 按打字机效果逐步输出一行文本。
 bool FlightCtrlCli::StepTypewriterLine(Shell *shell, uint64_t now_ns,
                                        const char *text, uint32_t delay_ms)
 {
@@ -295,7 +426,6 @@ bool FlightCtrlCli::StepTypewriterLine(Shell *shell, uint64_t now_ns,
   return false;
 }
 
-// 按旋转指示器效果逐步输出一行文本。
 bool FlightCtrlCli::StepSpinnerLine(Shell *shell, uint64_t now_ns,
                                     const char *label, uint8_t rounds,
                                     uint32_t frame_delay_ms)
@@ -343,7 +473,6 @@ bool FlightCtrlCli::StepSpinnerLine(Shell *shell, uint64_t now_ns,
   return false;
 }
 
-// 按进度条效果逐步输出一行文本。
 bool FlightCtrlCli::StepProgressLine(Shell *shell, uint64_t now_ns,
                                      const char *label, uint8_t steps,
                                      uint32_t step_delay_ms)
@@ -384,7 +513,6 @@ bool FlightCtrlCli::StepProgressLine(Shell *shell, uint64_t now_ns,
   return false;
 }
 
-// 根据当前阶段推进开场动画并决定是否结束。
 bool FlightCtrlCli::UpdateIntroAnimation(Shell *shell, bool start)
 {
   if (shell == nullptr) {
@@ -411,7 +539,6 @@ bool FlightCtrlCli::UpdateIntroAnimation(Shell *shell, bool start)
   return true;
 }
 
-// 按名称查找已注册的传输通道。
 const FlightCtrlCli::TransportBinding *FlightCtrlCli::FindTransport(
     const char *name) const
 {
@@ -419,8 +546,7 @@ const FlightCtrlCli::TransportBinding *FlightCtrlCli::FindTransport(
     return nullptr;
   }
 
-  uint8_t index = 0U;
-  for (index = 0U; index < transport_count_; ++index) {
+  for (uint8_t index = 0U; index < transport_count_; ++index) {
     if ((transports_[index].name != nullptr) &&
         (strcmp(transports_[index].name, name) == 0)) {
       return &transports_[index];
@@ -430,7 +556,6 @@ const FlightCtrlCli::TransportBinding *FlightCtrlCli::FindTransport(
   return nullptr;
 }
 
-// 读取当前 CLI 传输通道名称。
 bool FlightCtrlCli::GetTransportParameter(void *context, char *buffer,
                                           uint32_t bufferSize)
 {
@@ -447,7 +572,6 @@ bool FlightCtrlCli::GetTransportParameter(void *context, char *buffer,
          (static_cast<uint32_t>(written) < bufferSize);
 }
 
-// 读取系统运行时间参数。
 bool FlightCtrlCli::GetUptimeParameter(void *context, char *buffer,
                                        uint32_t bufferSize)
 {
@@ -462,7 +586,97 @@ bool FlightCtrlCli::GetUptimeParameter(void *context, char *buffer,
   return (written > 0) && (static_cast<uint32_t>(written) < bufferSize);
 }
 
-// 处理 `status` 命令。
+bool FlightCtrlCli::GetManagedParameter(void *context, char *buffer,
+                                        uint32_t bufferSize)
+{
+  ManagedParameterContext *parameter =
+      reinterpret_cast<ManagedParameterContext *>(context);
+  if ((parameter == nullptr) || (parameter->owner == nullptr) ||
+      (parameter->project_name == nullptr) || (buffer == nullptr) ||
+      (bufferSize == 0U)) {
+    return false;
+  }
+
+  int written = 0;
+  switch (parameter->type) {
+    case ManagedParameterType::kFloat: {
+      float value = 0.0f;
+      if (!parameter->owner->parameter_manager_.Read(parameter->project_name, &value)) {
+        return false;
+      }
+      written = snprintf(buffer, bufferSize, "%.6g", static_cast<double>(value));
+      break;
+    }
+
+    case ManagedParameterType::kUint32: {
+      uint32_t value = 0U;
+      if (!parameter->owner->parameter_manager_.Read(parameter->project_name, &value)) {
+        return false;
+      }
+      written = snprintf(buffer, bufferSize, "%lu",
+                         static_cast<unsigned long>(value));
+      break;
+    }
+
+    case ManagedParameterType::kBool: {
+      bool value = false;
+      if (!parameter->owner->parameter_manager_.Read(parameter->project_name, &value)) {
+        return false;
+      }
+      written = snprintf(buffer, bufferSize, "%s", value ? "true" : "false");
+      break;
+    }
+
+    default:
+      return false;
+  }
+
+  return (written > 0) && (static_cast<uint32_t>(written) < bufferSize);
+}
+
+bool FlightCtrlCli::SetManagedParameter(void *context, const char *value)
+{
+  ManagedParameterContext *parameter =
+      reinterpret_cast<ManagedParameterContext *>(context);
+  if ((parameter == nullptr) || (parameter->owner == nullptr) ||
+      (parameter->project_name == nullptr) || (value == nullptr)) {
+    return false;
+  }
+
+  switch (parameter->type) {
+    case ManagedParameterType::kFloat: {
+      float parsed = 0.0f;
+      if (!ParseFloat(value, &parsed) ||
+          (parsed < parameter->min_float) ||
+          (parsed > parameter->max_float)) {
+        return false;
+      }
+      return parameter->owner->parameter_manager_.Write(parameter->project_name, parsed);
+    }
+
+    case ManagedParameterType::kUint32: {
+      uint32_t parsed = 0U;
+      if (!ParseUint32(value, &parsed) ||
+          (parsed < parameter->min_u32) ||
+          (parsed > parameter->max_u32)) {
+        return false;
+      }
+      return parameter->owner->parameter_manager_.Write(parameter->project_name, parsed);
+    }
+
+    case ManagedParameterType::kBool: {
+      bool parsed = false;
+      if (!ParseBool(value, &parsed)) {
+        return false;
+      }
+      return parameter->owner->parameter_manager_.Write(parameter->project_name, parsed);
+    }
+
+    default:
+      return false;
+  }
+}
+
 bool FlightCtrlCli::StatusFunction(Shell *shell, void *context, uint8_t argc,
                                    const char *const *argv)
 {
@@ -476,6 +690,7 @@ bool FlightCtrlCli::StatusFunction(Shell *shell, void *context, uint8_t argc,
     return false;
   }
 
+  const ProjectParameters &parameters = cli->parameter_manager_.Data();
   const Pid::State &pid_state = cli->rate_pid_.GetState();
   shell->WriteLine("Flight Controller Status");
   shell->Printf("  transport     : %s\r\n",
@@ -486,15 +701,15 @@ bool FlightCtrlCli::StatusFunction(Shell *shell, void *context, uint8_t argc,
   shell->Printf("  uptime_ms     : %lu\r\n",
                 static_cast<unsigned long>(tick::NowMs()));
   shell->Printf("  loop_hz       : %lu\r\n",
-                static_cast<unsigned long>(cli->runtime_.control_loop_hz));
+                static_cast<unsigned long>(parameters.system.control_loop_hz));
   shell->Printf("  arm_locked    : %s\r\n",
-                cli->runtime_.arm_locked ? "true" : "false");
+                parameters.system.arm_locked ? "true" : "false");
   shell->Printf("  pid_kp        : %.6g\r\n",
-                static_cast<double>(cli->runtime_.rate_pid.kp));
+                static_cast<double>(parameters.control.rate_pid.kp));
   shell->Printf("  pid_ki        : %.6g\r\n",
-                static_cast<double>(cli->runtime_.rate_pid.ki));
+                static_cast<double>(parameters.control.rate_pid.ki));
   shell->Printf("  pid_kd        : %.6g\r\n",
-                static_cast<double>(cli->runtime_.rate_pid.kd));
+                static_cast<double>(parameters.control.rate_pid.kd));
   shell->Printf("  pid_integral  : %.6g\r\n",
                 static_cast<double>(pid_state.integral));
   shell->Printf("  pid_last_out  : %.6g\r\n",
@@ -502,7 +717,6 @@ bool FlightCtrlCli::StatusFunction(Shell *shell, void *context, uint8_t argc,
   return true;
 }
 
-// 处理 `sys.reboot` 命令。
 bool FlightCtrlCli::RebootFunction(Shell *shell, void *context, uint8_t argc,
                                    const char *const *argv)
 {
@@ -521,7 +735,6 @@ bool FlightCtrlCli::RebootFunction(Shell *shell, void *context, uint8_t argc,
   return true;
 }
 
-// 处理 `pid.reset` 命令。
 bool FlightCtrlCli::PidResetFunction(Shell *shell, void *context, uint8_t argc,
                                      const char *const *argv)
 {
@@ -540,7 +753,6 @@ bool FlightCtrlCli::PidResetFunction(Shell *shell, void *context, uint8_t argc,
   return true;
 }
 
-// 处理 `pid.sample` 命令。
 bool FlightCtrlCli::PidSampleFunction(Shell *shell, void *context, uint8_t argc,
                                       const char *const *argv)
 {
@@ -579,7 +791,6 @@ bool FlightCtrlCli::PidSampleFunction(Shell *shell, void *context, uint8_t argc,
   return true;
 }
 
-// 处理 `transport.list` 命令。
 bool FlightCtrlCli::TransportListFunction(Shell *shell, void *context,
                                           uint8_t argc,
                                           const char *const *argv)
@@ -600,8 +811,7 @@ bool FlightCtrlCli::TransportListFunction(Shell *shell, void *context,
     return true;
   }
 
-  uint8_t index = 0U;
-  for (index = 0U; index < cli->transport_count_; ++index) {
+  for (uint8_t index = 0U; index < cli->transport_count_; ++index) {
     const bool is_active =
         (cli->active_transport_name_ != nullptr) &&
         (strcmp(cli->active_transport_name_, cli->transports_[index].name) == 0);
@@ -611,7 +821,6 @@ bool FlightCtrlCli::TransportListFunction(Shell *shell, void *context,
   return true;
 }
 
-// 处理 `transport.use` 命令。
 bool FlightCtrlCli::TransportUseFunction(Shell *shell, void *context,
                                          uint8_t argc,
                                          const char *const *argv)
@@ -634,7 +843,6 @@ bool FlightCtrlCli::TransportUseFunction(Shell *shell, void *context,
   return cli->UseTransport(argv[0]);
 }
 
-// 作为 Shell 回调驱动开场动画。
 bool FlightCtrlCli::IntroAnimation(Shell *shell, void *context, bool start)
 {
   FlightCtrlCli *owner = reinterpret_cast<FlightCtrlCli *>(context);
@@ -645,15 +853,21 @@ bool FlightCtrlCli::IntroAnimation(Shell *shell, void *context, bool start)
   return owner->UpdateIntroAnimation(shell, start);
 }
 
-// 在 PID 参数变化后重新应用配置。
-void FlightCtrlCli::OnPidParameterUpdated(void *context)
+void FlightCtrlCli::OnProjectParameterUpdated(const char *name, void *context)
 {
   FlightCtrlCli *owner = reinterpret_cast<FlightCtrlCli *>(context);
-  if (owner == nullptr) {
+  if ((owner == nullptr) || (name == nullptr)) {
     return;
   }
 
-  owner->ApplyPidConfiguration();
+  if (IsPidParameterName(name)) {
+    owner->ApplyPidConfiguration();
+    return;
+  }
+
+  if (strcmp(name, "cli.password") == 0) {
+    owner->shell_.SetPassword(ConfiguredCliPassword(owner->parameter_manager_.Data()));
+  }
 }
 
 } // namespace iFly
