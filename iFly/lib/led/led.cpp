@@ -1,25 +1,76 @@
+/**
+ * @file led.cpp
+ * @brief LED 控制实现。
+ */
 #include "led.hpp"
+
+#include "lib/platform/platform_handle.hpp"
 
 namespace {
 
-// 返回两个数量中的较小值，用于避免对象数组和配置表长度不一致时越界。
+/**
+ * @brief 返回两个数量中的较小值。
+ *
+ * @param left 左侧数量。
+ * @param right 右侧数量。
+ * @return 两者中的较小值。
+ */
 uint32_t MinCount(uint32_t left, uint32_t right) {
   return (left < right) ? left : right;
+}
+
+/**
+ * @brief 将通用句柄转换为 GPIO 端口指针。
+ *
+ * @param handle 通用端口句柄。
+ * @return GPIO 端口指针。
+ */
+GPIO_TypeDef *GpioPort(void *handle) {
+  return iFly::platform::AsGpioPort(handle);
+}
+
+/**
+ * @brief 将只读通用句柄转换为只读 GPIO 端口指针。
+ *
+ * @param handle 只读通用端口句柄。
+ * @return 只读 GPIO 端口指针。
+ */
+const GPIO_TypeDef *GpioPort(const void *handle) {
+  return iFly::platform::AsGpioPort(handle);
+}
+
+/**
+ * @brief 将 LED 引脚状态转换为 HAL 电平类型。
+ *
+ * @param state LED 引脚状态。
+ * @return HAL GPIO 电平值。
+ */
+GPIO_PinState ToHalPinState(iFly::LedPinState state) {
+  return (state == iFly::LedPinState::kSet) ? GPIO_PIN_SET : GPIO_PIN_RESET;
+}
+
+/**
+ * @brief 将 HAL 电平类型转换为 LED 引脚状态。
+ *
+ * @param state HAL GPIO 电平值。
+ * @return LED 引脚状态。
+ */
+iFly::LedPinState FromHalPinState(GPIO_PinState state) {
+  return (state == GPIO_PIN_SET) ? iFly::LedPinState::kSet : iFly::LedPinState::kReset;
 }
 
 } // namespace
 
 namespace iFly {
 
-Led::Led(const LedConfig &config)
-    : config_(config),
-      initialized_((config.port != nullptr) && (config.pin != 0U)) {
+Led::Led(const LedConfig &config) {
+  (void)Init(config, false);
 }
 
-// 绑定新的 LED 配置，并根据需要立即把 GPIO 输出到默认状态。
 bool Led::Init(const LedConfig &config, bool applyDefaultState) {
-  config_ = config;
-  initialized_ = IsConfigValid();
+  config_.activeLevel = config.activeLevel;
+  config_.defaultOn = config.defaultOn;
+  AttachHardware(config.port, config.pin);
   if (!initialized_) {
     return false;
   }
@@ -31,7 +82,6 @@ bool Led::Init(const LedConfig &config, bool applyDefaultState) {
   return true;
 }
 
-// 清除当前配置，让对象回到未初始化状态。
 void Led::Deinit() {
   config_ = {};
   initialized_ = false;
@@ -45,13 +95,26 @@ const LedConfig *Led::GetConfig() const {
   return initialized_ ? &config_ : nullptr;
 }
 
-// 按“逻辑亮灭”控制 LED，不直接暴露底层高低电平给业务层。
+void Led::AttachHardware(void *port, uint16_t pin) {
+  config_.port = port;
+  config_.pin = pin;
+  initialized_ = IsConfigValid();
+}
+
+void *Led::Handle() const {
+  return config_.port;
+}
+
+uint16_t Led::Pin() const {
+  return config_.pin;
+}
+
 bool Led::Set(bool on) const {
   if (!initialized_) {
     return false;
   }
 
-  HAL_GPIO_WritePin(config_.port, config_.pin, LogicalToPhysical(on));
+  HAL_GPIO_WritePin(GpioPort(config_.port), config_.pin, ToHalPinState(LogicalToPhysical(on)));
   return true;
 }
 
@@ -68,11 +131,9 @@ bool Led::Toggle() const {
     return false;
   }
 
-  // 先读取当前逻辑状态，再反向写回。
   return Set(!IsOn());
 }
 
-// 判断 LED 是否点亮时，需要结合有效电平配置做一次逻辑换算。
 bool Led::IsOn() const {
   if (!initialized_) {
     return false;
@@ -81,26 +142,25 @@ bool Led::IsOn() const {
   return ReadPin() == LogicalToPhysical(true);
 }
 
-GPIO_PinState Led::ReadPin() const {
+LedPinState Led::ReadPin() const {
   if (!initialized_) {
-    return GPIO_PIN_RESET;
+    return LedPinState::kReset;
   }
 
-  return HAL_GPIO_ReadPin(config_.port, config_.pin);
+  return FromHalPinState(HAL_GPIO_ReadPin(GpioPort(config_.port), config_.pin));
 }
 
-// 将“亮/灭”的逻辑语义映射成真实 GPIO 输出电平。
-GPIO_PinState Led::LogicalToPhysical(bool on) const {
+LedPinState Led::LogicalToPhysical(bool on) const {
   if (config_.activeLevel == LedActiveLevel::kLow) {
-    return on ? GPIO_PIN_RESET : GPIO_PIN_SET;
+    return on ? LedPinState::kReset : LedPinState::kSet;
   }
 
-  return on ? GPIO_PIN_SET : GPIO_PIN_RESET;
+  return on ? LedPinState::kSet : LedPinState::kReset;
 }
 
-// 当前最基础的合法性判断：端口和引脚都必须有效。
 bool Led::IsConfigValid() const {
-  return (config_.port != nullptr) && (config_.pin != 0U);
+  const GPIO_TypeDef *port = GpioPort(static_cast<const void *>(config_.port));
+  return (port != nullptr) && (config_.pin != 0U);
 }
 
 bool LedController::Init(Led *leds,
@@ -108,7 +168,6 @@ bool LedController::Init(Led *leds,
                          const LedConfig *configs,
                          uint32_t configCount,
                          bool applyDefaultState) {
-  // 先清掉上一轮绑定，避免重复初始化时残留旧状态。
   Deinit();
 
   if ((leds == nullptr) || (configs == nullptr) || (ledCount == 0U) || (configCount == 0U)) {
@@ -116,7 +175,6 @@ bool LedController::Init(Led *leds,
   }
 
   leds_ = leds;
-  // 对象数组和配置表长度不一致时，只初始化两者都覆盖到的那部分。
   count_ = MinCount(ledCount, configCount);
 
   bool allReady = (ledCount == configCount);
@@ -129,7 +187,6 @@ bool LedController::Init(Led *leds,
   return allReady;
 }
 
-// 逐个释放已接管的 LED 对象绑定关系。
 void LedController::Deinit() {
   if (leds_ != nullptr) {
     for (uint32_t index = 0U; index < count_; ++index) {
@@ -176,7 +233,6 @@ bool LedController::IsOn(uint32_t index) const {
   return (led != nullptr) ? led->IsOn() : false;
 }
 
-// 批量操作时忽略单个 LED 的返回值，适合上层做统一开关控制。
 void LedController::SetAll(bool on) const {
   if (leds_ == nullptr) {
     return;

@@ -1,3 +1,7 @@
+/**
+ * @file project_parameter_manager.hpp
+ * @brief 工程参数中心接口。
+ */
 #ifndef IFLY_APP_PARAMETE_PROJECT_PARAMETER_MANAGER_HPP
 #define IFLY_APP_PARAMETE_PROJECT_PARAMETER_MANAGER_HPP
 
@@ -13,112 +17,141 @@ namespace iFly {
  * @brief 工程级参数中心。
  *
  * @details
- * 这个模块和现有只服务 Shell/CLI 的 `ParameterManager` 不同，
- * 它的职责是：
- * - 统一持有整棵工程参数树
- * - 为各模块提供集中读取、修改接口
- * - 通过参数名建立“名字 -> 内存块”的静态映射
- * - 支持基础类型、枚举、结构体、定长数组等可平凡拷贝类型
- *
- * 设计目标：
- * - 不依赖动态内存，适合 MCU 工程
- * - 尽量减少全局变量散落
- * - 模块既可以整组读取参数，也可以按名字读写单个参数
+ * 该类统一持有整棵工程参数树，并提供基于名字的读写、查询与变更通知能力。
  */
 class ProjectParameterManager final {
 public:
-  static constexpr uint16_t kMaxEntryCount = 64U;
-
-  /** @brief 参数访问权限。*/
-  enum class AccessMode : uint8_t {
-    kReadOnly = 0U,
-    kReadWrite = 1U
-  };
-
-  /** @brief 参数更新后的通知回调签名。*/
-  using ChangeHandler = void (*)(const char *name, void *context);
+  static constexpr uint16_t kMaxEntryCount = 120U; /**< 最大参数表项数量。 */
 
   /**
-   * @brief 对外暴露的只读参数表项视图。
-   *
-   * @details
-   * 这里不暴露内部管理字段，只返回查询和调试真正需要的信息。
+   * @brief 参数访问权限。
    */
-  struct EntryView final {
-    const char *name = nullptr;
-    const char *help = nullptr;
-    const void *storage = nullptr;
-    uint32_t size = 0U;
-    AccessMode access = AccessMode::kReadWrite;
+  enum class AccessMode : uint8_t {
+    kReadOnly = 0U, /**< 只允许读取。 */
+    kReadWrite = 1U /**< 允许读写。 */
   };
 
-  /** @brief 获取全局唯一的工程参数中心。*/
+  using ChangeHandler = void (*)(const char *name, void *context); /**< 参数变更回调签名。 */
+
+  /**
+   * @brief 对外暴露的只读参数项视图。
+   */
+  struct EntryView final {
+    const char *name = nullptr; /**< 参数名。 */
+    const char *help = nullptr; /**< 参数帮助文本。 */
+    const void *storage = nullptr; /**< 参数实际存储地址。 */
+    uint32_t size = 0U; /**< 参数占用的字节数。 */
+    AccessMode access = AccessMode::kReadWrite; /**< 当前参数访问权限。 */
+  };
+
+  /**
+   * @brief 获取全局唯一参数中心实例。
+   *
+   * @return 单例引用。
+   */
   static ProjectParameterManager &Instance();
 
   /**
-   * @brief 恢复整棵参数树到默认值。
-   *
-   * @details
-   * 这里只重置参数值本身，不重建绑定表。
-   * 绑定表在构造阶段初始化一次即可。
+   * @brief 将参数树恢复为默认值。
    */
   void ResetToDefaults();
 
-  /** @brief 返回整棵工程参数树的只读引用。*/
+  /**
+   * @brief 获取参数树的只读引用。
+   *
+   * @return 只读参数树引用。
+   */
   const ProjectParameters &Data() const {
     return data_;
   }
 
   /**
-   * @brief 返回整棵工程参数树的可写引用。
+   * @brief 获取参数树的可写引用。
    *
-   * @details
-   * 这个接口适合初始化阶段或高频路径直接使用。
-   * 如果业务需要统一的“参数更新通知”，优先使用 `Write()` / `WriteRaw()`。
+   * @return 可写参数树引用。
    */
   ProjectParameters &MutableData() {
     return data_;
   }
 
-  /** @brief 返回当前已注册的参数表项数量。*/
+  /**
+   * @brief 获取当前已注册参数数量。
+   *
+   * @return 参数表项数量。
+   */
   uint16_t Count() const {
     return count_;
   }
 
-  /** @brief 判断某个参数名是否存在。*/
+  /**
+   * @brief 判断参数名是否存在。
+   *
+   * @param name 参数名。
+   * @return 存在返回 `true`。
+   */
   bool Contains(const char *name) const;
-  /** @brief 查找某个参数的只读描述信息。*/
+
+  /**
+   * @brief 查找参数的只读视图。
+   *
+   * @param name 参数名。
+   * @return 找到时返回视图地址，否则返回 `nullptr`。
+   */
   const EntryView *Find(const char *name) const;
-  /** @brief 查询参数的存储大小，未找到时返回 0。*/
+
+  /**
+   * @brief 查询参数的存储大小。
+   *
+   * @param name 参数名。
+   * @return 参数大小，未找到时返回 `0`。
+   */
   uint32_t SizeOf(const char *name) const;
 
   /**
-   * @brief 读取指定参数的原始二进制内容。
+   * @brief 读取参数的原始二进制内容。
    *
-   * @param name       参数名
-   * @param buffer     调用方提供的输出缓冲区
-   * @param bufferSize 输出缓冲区大小，必须不小于参数真实大小
+   * @param name 参数名。
+   * @param buffer 输出缓冲区。
+   * @param bufferSize 输出缓冲区大小。
+   * @return 读取成功返回 `true`。
    */
   bool ReadRaw(const char *name, void *buffer, uint32_t bufferSize) const;
 
   /**
-   * @brief 写入指定参数的原始二进制内容。
+   * @brief 写入参数的原始二进制内容。
    *
-   * @details
-   * 为了避免部分写入导致对象内容损坏，这里要求 `dataSize`
-   * 必须与参数真实大小完全一致。
+   * @param name 参数名。
+   * @param data 输入数据首地址。
+   * @param dataSize 输入数据大小。
+   * @return 写入成功返回 `true`。
    */
   bool WriteRaw(const char *name, const void *data, uint32_t dataSize);
 
-  /** @brief 为某个参数绑定更新回调。*/
+  /**
+   * @brief 为指定参数绑定更新回调。
+   *
+   * @param name 参数名。
+   * @param handler 变更回调函数。
+   * @param context 回调上下文指针。
+   * @return 绑定成功返回 `true`。
+   */
   bool SetChangeHandler(const char *name, ChangeHandler handler, void *context);
-  /** @brief 清除某个参数绑定的更新回调。*/
+
+  /**
+   * @brief 清除指定参数的更新回调。
+   *
+   * @param name 参数名。
+   * @return 清除成功返回 `true`。
+   */
   bool ClearChangeHandler(const char *name);
 
   /**
-   * @brief 读取指定类型的参数。
+   * @brief 按指定类型读取参数。
    *
-   * @tparam T 可平凡拷贝类型，例如基础类型、枚举、结构体、定长数组封装结构等。
+   * @tparam T 可平凡拷贝类型。
+   * @param name 参数名。
+   * @param value 输出对象地址。
+   * @return 读取成功返回 `true`。
    */
   template <typename T>
   bool Read(const char *name, T *value) const {
@@ -128,9 +161,12 @@ public:
   }
 
   /**
-   * @brief 写入指定类型的参数。
+   * @brief 按指定类型写入参数。
    *
-   * @tparam T 可平凡拷贝类型，例如基础类型、枚举、结构体、定长数组封装结构等。
+   * @tparam T 可平凡拷贝类型。
+   * @param name 参数名。
+   * @param value 输入对象引用。
+   * @return 写入成功返回 `true`。
    */
   template <typename T>
   bool Write(const char *name, const T &value) {
@@ -142,29 +178,56 @@ public:
 private:
   /**
    * @brief 内部参数表项。
-   *
-   * @details
-   * 在只读视图基础上，额外保存更新回调信息，
-   * 便于参数变更后做同步处理。
    */
   struct Entry final {
-    EntryView view {};
-    ChangeHandler on_updated = nullptr;
-    void *on_updated_context = nullptr;
+    EntryView view {}; /**< 对外暴露的只读视图。 */
+    ChangeHandler on_updated = nullptr; /**< 参数更新后的回调函数。 */
+    void *on_updated_context = nullptr; /**< 回调函数的上下文指针。 */
   };
 
   ProjectParameterManager();
 
+  /**
+   * @brief 构建默认参数绑定表。
+   *
+   * @return 构建成功返回 `true`。
+   */
   bool BuildDefaultRegistry();
+
+  /**
+   * @brief 注册单个参数绑定。
+   *
+   * @param binding 参数绑定描述。
+   * @return 注册成功返回 `true`。
+   */
   bool Register(const ProjectParameterBinding &binding);
+
+  /**
+   * @brief 查找可写参数表项。
+   *
+   * @param name 参数名。
+   * @return 找到时返回表项地址，否则返回 `nullptr`。
+   */
   Entry *FindEntry(const char *name);
+
+  /**
+   * @brief 查找只读参数表项。
+   *
+   * @param name 参数名。
+   * @return 找到时返回表项地址，否则返回 `nullptr`。
+   */
   const Entry *FindEntry(const char *name) const;
+
+  /**
+   * @brief 触发参数更新通知。
+   *
+   * @param entry 已更新的参数表项。
+   */
   void NotifyUpdated(const Entry &entry);
 
-private:
-  ProjectParameters data_ {};
-  Entry entries_[kMaxEntryCount] {};
-  uint16_t count_ = 0U;
+  ProjectParameters data_ {}; /**< 当前持有的工程参数树。 */
+  Entry entries_[kMaxEntryCount] {}; /**< 参数注册表。 */
+  uint16_t count_ = 0U; /**< 当前已注册参数数量。 */
 };
 
 } // namespace iFly

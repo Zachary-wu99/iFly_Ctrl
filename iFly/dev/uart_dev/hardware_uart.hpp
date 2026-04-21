@@ -1,5 +1,7 @@
-// 硬件 UART 设备封装接口。
-// 将具体 UART 端口包装成统一的串口字节流对象。
+/**
+ * @file hardware_uart.hpp
+ * @brief 硬件 UART 设备封装接口。
+ */
 #ifndef IFLY_HARDWARE_UART_HPP
 #define IFLY_HARDWARE_UART_HPP
 
@@ -14,47 +16,79 @@ namespace iFly {
  * @brief 面向上层的硬件串口对象。
  *
  * @details
- * 这个类本身很薄，职责刻意保持简单：
- * - 负责绑定一个逻辑串口号 `UartPortId`
- * - 负责持有统一 RX 队列（来自 `SerialIoBase`）
- * - 把上层的 `Init()/Write()/Read()` 请求转交给 `UartDmaService`
- *
- * 真正的 DMA 双缓冲发送、DMA 环形接收、HAL 回调桥接，都在底层
- * `iFly/lib/uart/uart_dma.*` 里做。
+ * 该类负责把某一路逻辑串口包装成统一的字节流设备接口，
+ * 具体的 DMA 双缓冲发送、DMA 环形接收和 HAL 回调桥接
+ * 由 `UartDmaService` 实现。
  */
 class HardwareUart final : public SerialIoBase {
 public:
   /**
-   * @brief 构造一个逻辑硬件串口对象。
+   * @brief 构造一个逻辑串口对象。
    *
-   * @param port 逻辑端口号。软件统一支持 8 路。
-   * @param rxQueueStorageSize 用户层 RX 队列大小。
+   * @param port 逻辑串口编号。
+   * @param rxQueueStorageSize 接收队列总容量。
    */
   explicit HardwareUart(UartPortId port,
                         uint32_t rxQueueStorageSize = kDefaultRxQueueStorageSize);
 
-  /** @brief 初始化当前端口的 UART DMA 链路，并把本对象的 RX 队列挂接到底层。 */
+  /**
+   * @brief 初始化当前串口。
+   */
   void Init() override;
-  /** @brief 把一段待发送数据写入当前端口的发送无锁队列。 */
+
+  /**
+   * @brief 写入待发送数据。
+   *
+   * @param data 待发送数据首地址。
+   * @param len 待发送数据长度，单位为字节。
+   * @return 实际写入的字节数。
+   */
   uint32_t Write(const uint8_t *data, uint32_t len) override;
-  /** @brief 返回当前端口底层 TX 队列剩余空间。 */
+
+  /**
+   * @brief 获取底层发送队列剩余空间。
+   *
+   * @return 剩余可写字节数。
+   */
   uint32_t TxFree() const override;
-  /** @brief 返回当前端口底层 TX 队列已用空间。 */
+
+  /**
+   * @brief 获取底层发送队列已用空间。
+   *
+   * @return 已使用字节数。
+   */
   uint32_t TxUsed() const override;
-  /** @brief 返回当前端口接收链路累计丢弃的字节数。 */
+
+  /**
+   * @brief 获取累计丢弃的接收字节数。
+   *
+   * @return 累计丢弃字节数。
+   */
   uint32_t RxDropped() const override;
-  /** @brief 当前端口是否已完成底层 DMA 接收初始化。 */
+
+  /**
+   * @brief 判断当前串口是否已完成初始化。
+   *
+   * @return 可用返回 `true`。
+   */
   bool IsConnected() const override;
 
-  /** @brief 返回当前对象绑定的逻辑端口号。 */
+  /**
+   * @brief 获取当前绑定的逻辑串口号。
+   *
+   * @return 逻辑串口编号。
+   */
   UartPortId Port() const;
 
 private:
-  /** @brief 获取硬件 UART DMA 单例服务。 */
+  /**
+   * @brief 获取底层 UART DMA 服务单例。
+   *
+   * @return `UartDmaService` 单例引用。
+   */
   static UartDmaService &Device();
 
-private:
-  UartPortId port_;
+  UartPortId port_; /**< 当前对象绑定的逻辑串口号。 */
 };
 
 using uart_port = HardwareUart;

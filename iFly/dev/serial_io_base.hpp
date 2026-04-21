@@ -1,5 +1,7 @@
-// 串行 IO 抽象基类。
-// 统一 USB、UART、CAN 等上层读写接口与接收队列访问方式。
+/**
+ * @file serial_io_base.hpp
+ * @brief 串行 IO 抽象基类。
+ */
 #ifndef IFLY_SERIAL_IO_BASE_HPP
 #define IFLY_SERIAL_IO_BASE_HPP
 
@@ -10,39 +12,28 @@
 namespace iFly {
 
 /**
- * @brief 统一的串口/字节流设备基类。
+ * @brief 统一的串行字节流设备基类。
  *
  * @details
- * 这个类的目标是把“上层真正关心的那部分接口”抽出来统一：
- * - `Init()`：初始化底层链路
- * - `Write()`：写入一段待发送数据
- * - `Read()`：从接收无锁队列中取数据
- * - `Available()/RxFree()/RxUsed()`：查询当前接收队列状态
- * - `TxFree()/TxUsed()/RxDropped()/IsConnected()`：查询底层收发链路状态
- *
- * 设计上的关键点是：
- * 1. 这个基类直接继承 `StaticLockFreeQueue<200>`，因此“对象自身”就是用户层 RX 队列；
- * 2. USB CDC 和硬件 UART 都把收到的数据写入这条队列；
- * 3. 上层应用永远只面对同一套读写接口，不需要关心底层究竟是 USB 还是硬件串口。
- *
- * 也就是说，统一接口的核心不是把所有底层细节都塞到一个类里，
- * 而是统一“面向上层”的那层队列式字节流抽象。
+ * 该类统一抽象 USB、UART、CAN 等上层关心的通用能力，包括：
+ * - 链路初始化；
+ * - 字节流写入；
+ * - 接收队列读取；
+ * - 收发队列状态查询。
  */
 class SerialIoBase : public DynamicLockFreeQueue {
 public:
-  /** @brief 默认 RX 队列底层总存储大小，实际可用容量为该值减 1。 */
-  static constexpr uint32_t kDefaultRxQueueStorageSize = 120U;
+  static constexpr uint32_t kDefaultRxQueueStorageSize = 120U; /**< 默认接收队列总容量。 */
 
   /**
-   * @brief 构造时记录期望的 RX 队列大小。
+   * @brief 构造串行 IO 对象。
    *
-   * @details
-   * 这里并不强制要求构造阶段就一定创建成功，
-   * 因为嵌入式环境下动态分配可能失败，所以后续 `Init()` 里还会再次兜底检查。
+   * @param rxQueueStorageSize 期望创建的接收队列总容量。
    */
   explicit SerialIoBase(uint32_t rxQueueStorageSize = kDefaultRxQueueStorageSize)
       : DynamicLockFreeQueue(),
-        rxQueueStorageSize_((rxQueueStorageSize >= 2U) ? rxQueueStorageSize : kDefaultRxQueueStorageSize) {
+        rxQueueStorageSize_((rxQueueStorageSize >= 2U) ? rxQueueStorageSize
+                                                      : kDefaultRxQueueStorageSize) {
   }
 
   virtual ~SerialIoBase() = default;
@@ -50,55 +41,92 @@ public:
   SerialIoBase(const SerialIoBase &) = delete;
   SerialIoBase &operator=(const SerialIoBase &) = delete;
 
-  /** @brief 初始化底层链路。由具体派生类实现。 */
+  /**
+   * @brief 初始化底层链路。
+   */
   virtual void Init() = 0;
-  /** @brief 向底层发送方向写入一段字节流。由具体派生类实现。 */
+
+  /**
+   * @brief 向底层链路写入待发送数据。
+   *
+   * @param data 待发送数据首地址。
+   * @param len 待发送数据长度，单位为字节。
+   * @return 实际写入的字节数。
+   */
   virtual uint32_t Write(const uint8_t *data, uint32_t len) = 0;
-  /** @brief 查询底层发送缓冲剩余空间。 */
+
+  /**
+   * @brief 获取底层发送缓冲剩余空间。
+   *
+   * @return 剩余可写字节数。
+   */
   virtual uint32_t TxFree() const = 0;
-  /** @brief 查询底层发送缓冲已用空间。 */
+
+  /**
+   * @brief 获取底层发送缓冲已用空间。
+   *
+   * @return 已使用字节数。
+   */
   virtual uint32_t TxUsed() const = 0;
-  /** @brief 查询接收链路累计丢弃的字节数。 */
+
+  /**
+   * @brief 获取接收链路累计丢弃字节数。
+   *
+   * @return 累计丢弃字节数。
+   */
   virtual uint32_t RxDropped() const = 0;
-  /** @brief 查询当前链路是否已经可用。 */
+
+  /**
+   * @brief 判断链路是否处于可用状态。
+   *
+   * @return 可用返回 `true`。
+   */
   virtual bool IsConnected() const = 0;
 
   /**
-   * @brief 从统一的 RX 无锁队列中读取数据。
+   * @brief 从统一接收队列中读取数据。
    *
-   * @details
-   * `Read()` 先调用 `BeforeRead()`，给派生类一个机会把底层暂存数据
-   * 继续上抛到当前 RX 队列，然后再真正执行 `Dequeue()`。
-   *
-   * 对 USB CDC 来说，这一步会触发 `Device().Service()`；
-   * 对硬件 UART 来说，DMA 回调已经直接把数据塞进队列，所以通常不需要额外动作。
+   * @param data 输出缓冲区首地址。
+   * @param len 期望读取长度，单位为字节。
+   * @return 实际读取的字节数。
    */
   uint32_t Read(uint8_t *data, uint32_t len) {
     BeforeRead();
     return Dequeue(data, len);
   }
 
-  /** @brief 返回当前 RX 队列中的可读字节数。 */
+  /**
+   * @brief 获取当前可读字节数。
+   *
+   * @return 接收队列已用空间。
+   */
   uint32_t Available() const {
     return UsedSize();
   }
 
-  /** @brief 返回当前 RX 队列剩余可写空间。 */
+  /**
+   * @brief 获取接收队列剩余空间。
+   *
+   * @return 剩余可写字节数。
+   */
   uint32_t RxFree() const {
     return FreeSize();
   }
 
-  /** @brief 返回当前 RX 队列已用空间。 */
+  /**
+   * @brief 获取接收队列已用空间。
+   *
+   * @return 已使用字节数。
+   */
   uint32_t RxUsed() const {
     return UsedSize();
   }
 
 protected:
   /**
-   * @brief 确保统一 RX 队列已经创建成功。
+   * @brief 确保接收队列已创建成功。
    *
-   * @details
-   * 如果构造阶段创建失败，这里会按记录下来的默认大小再次尝试。
+   * @return 队列存在返回 `true`。
    */
   bool EnsureRxQueueCreated() {
     if (!IsCreated()) {
@@ -108,31 +136,26 @@ protected:
   }
 
   /**
-   * @brief 以基类视角暴露 RX 队列指针。
+   * @brief 以基类视角暴露接收队列指针。
    *
-   * @details
-   * 底层传输层并不需要知道当前对象的具体类型，
-   * 只需要拿到一个 `LockFreeQueueBase*`，把收到的数据塞进去即可。
+   * @return 接收队列基类指针。
    */
   LockFreeQueueBase *RxQueue() {
     return this;
   }
 
   /**
-   * @brief 在真正执行 `Read()` 前的钩子函数。
+   * @brief 在执行读取前补做底层服务。
    *
    * @details
-   * 默认什么都不做。派生类如果有“底层暂存区 -> 统一 RX 队列”的服务动作，
-   * 可以在这里补上。
+   * 默认不做任何动作。派生类可重写该接口，把底层暂存区内的数据
+   * 推送到统一接收队列。
    */
   virtual void BeforeRead() {
   }
 
 private:
-  // 记录期望的 RX 队列总存储大小，真正分配放到 Init() 阶段兜底执行。
-  // 这样派生类传下来的 rxQueueStorageSize 就不会再被忽略。
-  uint32_t rxQueueStorageSize_ = kDefaultRxQueueStorageSize;
-
+  uint32_t rxQueueStorageSize_ = kDefaultRxQueueStorageSize; /**< 接收队列期望容量。 */
 };
 
 } // namespace iFly

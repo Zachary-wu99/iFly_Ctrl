@@ -1,9 +1,19 @@
+/**
+ * @file project_parameter_manager.cpp
+ * @brief 工程参数中心实现。
+ */
 #include "project_parameter_manager.hpp"
 
 namespace iFly {
 
 namespace {
 
+/**
+ * @brief 判断参数名是否有效。
+ *
+ * @param name 参数名字符串。
+ * @return 非空且首字符非空时返回 `true`。
+ */
 bool IsNameValid(const char *name) {
   return (name != nullptr) && (name[0] != '\0');
 }
@@ -17,6 +27,7 @@ ProjectParameterManager &ProjectParameterManager::Instance() {
 
 ProjectParameterManager::ProjectParameterManager()
     : data_(MakeDefaultProjectParameters()) {
+  // 启动时按默认参数表注册全部绑定项。
   (void)BuildDefaultRegistry();
 }
 
@@ -88,6 +99,7 @@ bool ProjectParameterManager::BuildDefaultRegistry() {
 
   count_ = 0U;
   for (uint16_t index = 0U; index < kMaxEntryCount; ++index) {
+    // 清空旧表项，恢复到默认空状态。
     entries_[index] = Entry {};
   }
 

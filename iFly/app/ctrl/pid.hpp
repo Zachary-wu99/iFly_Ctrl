@@ -1,5 +1,7 @@
-// PID 控制器接口。
-// 提供参数配置、状态维护和单次控制更新所需的数据结构。
+/**
+ * @file pid.hpp
+ * @brief PID 控制器接口。
+ */
 #ifndef IFLY_APP_CTRL_PIDCTRL_PID_HPP
 #define IFLY_APP_CTRL_PIDCTRL_PID_HPP
 
@@ -9,116 +11,155 @@ namespace iFly {
 
 /**
  * @brief 通用 PID 控制器。
- *
- * @details
- * 该实现面向嵌入式闭环控制场景，包含参数清洗、微分滤波、
- * 积分限幅、输出限幅以及简单的抗积分饱和逻辑。
  */
 class Pid final {
 public:
-  /** @brief 微分项的计算方式。 */
+  /**
+   * @brief 微分项计算模式。
+   */
   enum class DerivativeMode : uint8_t {
-    /** @brief 关闭微分项。 */
-    kDisabled = 0U,
-    /** @brief 对误差做微分。 */
-    kOnError,
-    /** @brief 对测量值做微分，内部会自动带负号。 */
-    kOnMeasurement,
-    /** @brief 直接使用外部提供的测量值变化率。 */
-    kOnExternalMeasurementRate,
+    kDisabled = 0U, /**< 禁用微分项。 */
+    kOnError, /**< 对误差做微分。 */
+    kOnMeasurement, /**< 对测量值做微分，内部自动取反。 */
+    kOnExternalMeasurementRate /**< 直接使用外部提供的测量变化率。 */
   };
 
-  /** @brief PID 配置参数。 */
+  /**
+   * @brief PID 配置参数。
+   */
   struct Config final {
-    float kp = 0.0f;
-    float ki = 0.0f;
-    float kd = 0.0f;
-    float kff = 0.0f;
+    float kp = 0.0f; /**< 比例增益。 */
+    float ki = 0.0f; /**< 积分增益。 */
+    float kd = 0.0f; /**< 微分增益。 */
+    float kff = 0.0f; /**< 前馈增益。 */
 
-    float integral_min = -1.0e30f;
-    float integral_max = 1.0e30f;
-    float output_min = -1.0e30f;
-    float output_max = 1.0e30f;
+    float integral_min = -1.0e30f; /**< 积分项下限。 */
+    float integral_max = 1.0e30f; /**< 积分项上限。 */
+    float output_min = -1.0e30f; /**< 输出下限。 */
+    float output_max = 1.0e30f; /**< 输出上限。 */
 
-    float derivative_cutoff_hz = 0.0f;
-    float dt_min_s = 1.0e-4f;
-    float dt_max_s = 1.0f;
+    float derivative_cutoff_hz = 0.0f; /**< 微分低通滤波截止频率。 */
+    float dt_min_s = 1.0e-4f; /**< 允许的最小采样周期。 */
+    float dt_max_s = 1.0f; /**< 允许的最大采样周期。 */
 
-    DerivativeMode derivative_mode = DerivativeMode::kOnMeasurement;
+    DerivativeMode derivative_mode = DerivativeMode::kOnMeasurement; /**< 微分项工作模式。 */
   };
 
-  /** @brief 单次 PID 更新输入。 */
+  /**
+   * @brief 单次控制更新输入。
+   */
   struct UpdateInput final {
-    float setpoint = 0.0f;
-    float measurement = 0.0f;
-    float dt_s = 0.0f;
+    float setpoint = 0.0f; /**< 目标值。 */
+    float measurement = 0.0f; /**< 当前测量值。 */
+    float dt_s = 0.0f; /**< 本次控制周期，单位为秒。 */
 
-    float feedforward = 0.0f;
-    // 正值表示测量值正在上升。
-    // 在按测量值微分模式下，控制器会在内部自动添加负号。
-    float measurement_rate = 0.0f;
-    bool measurement_rate_valid = false;
+    float feedforward = 0.0f; /**< 外部前馈项。 */
+    float measurement_rate = 0.0f; /**< 外部测量变化率。 */
+    bool measurement_rate_valid = false; /**< 外部测量变化率是否有效。 */
 
-    bool update_integral = true;
-    bool reset_integral = false;
-    bool reset_derivative = false;
+    bool update_integral = true; /**< 是否更新积分项。 */
+    bool reset_integral = false; /**< 是否在本次更新前清零积分项。 */
+    bool reset_derivative = false; /**< 是否在本次更新前重置微分滤波状态。 */
   };
 
-  /** @brief 单次 PID 更新结果。 */
+  /**
+   * @brief 单次控制更新结果。
+   */
   struct UpdateResult final {
-    float output = 0.0f;
-    float unsaturated_output = 0.0f;
-    float error = 0.0f;
+    float output = 0.0f; /**< 限幅后的最终输出。 */
+    float unsaturated_output = 0.0f; /**< 未限幅的原始输出。 */
+    float error = 0.0f; /**< 当前控制误差。 */
 
-    float proportional = 0.0f;
-    float integral = 0.0f;
-    float derivative = 0.0f;
-    float feedforward = 0.0f;
-    float derivative_raw = 0.0f;
+    float proportional = 0.0f; /**< 比例项输出。 */
+    float integral = 0.0f; /**< 积分项输出。 */
+    float derivative = 0.0f; /**< 微分项输出。 */
+    float feedforward = 0.0f; /**< 前馈项输出。 */
+    float derivative_raw = 0.0f; /**< 微分项滤波前的原始值。 */
 
-    bool output_clamped_low = false;
-    bool output_clamped_high = false;
+    bool output_clamped_low = false; /**< 输出是否命中下限。 */
+    bool output_clamped_high = false; /**< 输出是否命中上限。 */
   };
 
-  /** @brief 控制器内部运行状态。 */
+  /**
+   * @brief 控制器内部运行状态。
+   */
   struct State final {
-    float integral = 0.0f;
-    float previous_error = 0.0f;
-    float previous_measurement = 0.0f;
-    float derivative_state = 0.0f;
-    float last_output = 0.0f;
-    bool initialized = false;
+    float integral = 0.0f; /**< 当前积分状态。 */
+    float previous_error = 0.0f; /**< 上一次误差值。 */
+    float previous_measurement = 0.0f; /**< 上一次测量值。 */
+    float derivative_state = 0.0f; /**< 微分滤波器内部状态。 */
+    float last_output = 0.0f; /**< 上一次输出结果。 */
+    bool initialized = false; /**< 控制器是否已经完成首次更新。 */
   };
 
-  /** @brief 构造一个空配置 PID 控制器。 */
   Pid() = default;
-  /** @brief 直接使用给定配置构造 PID 控制器。 */
+
+  /**
+   * @brief 使用给定配置直接构造控制器。
+   *
+   * @param config PID 配置参数。
+   */
   explicit Pid(const Config &config);
 
-  /** @brief 应用新配置，并对范围与非法值做清洗。 */
+  /**
+   * @brief 应用新的 PID 配置。
+   *
+   * @param config PID 配置参数。
+   */
   void Configure(const Config &config);
-  /** @brief 返回当前生效的 PID 配置。 */
+
+  /**
+   * @brief 获取当前生效配置。
+   *
+   * @return 配置引用。
+   */
   const Config &GetConfig() const {
     return config_;
   }
 
-  /** @brief 返回当前内部状态。 */
+  /**
+   * @brief 获取当前内部状态。
+   *
+   * @return 状态引用。
+   */
   const State &GetState() const {
     return state_;
   }
 
-  /** @brief 完全重置 PID 运行状态。 */
+  /**
+   * @brief 完全重置控制器状态。
+   */
   void Reset();
-  /** @brief 把积分项重置到指定值。 */
+
+  /**
+   * @brief 将积分项重置为指定值。
+   *
+   * @param integral 重置后的积分值。
+   */
   void ResetIntegrator(float integral = 0.0f);
-  /** @brief 直接设置积分项，并自动做积分限幅。 */
+
+  /**
+   * @brief 直接设置积分项。
+   *
+   * @param integral 新的积分值。
+   */
   void SetIntegrator(float integral);
-  /** @brief 读取当前积分项。 */
+
+  /**
+   * @brief 获取当前积分项值。
+   *
+   * @return 当前积分值。
+   */
   float Integrator() const {
     return state_.integral;
   }
 
-  /** @brief 执行一次 PID 更新。 */
+  /**
+   * @brief 执行一次 PID 更新。
+   *
+   * @param input 本次更新的输入数据。
+   * @return 本次更新的结果。
+   */
   UpdateResult Update(const UpdateInput &input);
 
 private:
@@ -133,9 +174,8 @@ private:
   float ClampIntegral(float integral) const;
   float ClampOutput(float output, bool *clamped_low, bool *clamped_high) const;
 
-private:
-  Config config_ {};
-  State state_ {};
+  Config config_ {}; /**< 当前生效配置。 */
+  State state_ {}; /**< 当前运行状态。 */
 };
 
 } // namespace iFly

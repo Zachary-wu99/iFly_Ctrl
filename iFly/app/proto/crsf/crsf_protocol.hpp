@@ -1,5 +1,7 @@
-// CRSF 协议接口。
-// 定义帧结构、RC 通道打包格式以及解析/编码入口。
+/**
+ * @file crsf_protocol.hpp
+ * @brief CRSF 协议接口。
+ */
 #ifndef IFLY_APP_PROTO_CRSF_PROTOCOL_HPP
 #define IFLY_APP_PROTO_CRSF_PROTOCOL_HPP
 
@@ -7,96 +9,84 @@
 
 namespace iFly {
 
-/** @brief 一帧 CRSF 解码结果。 */
+/**
+ * @brief 一帧 CRSF 解码结果。
+ */
 struct CrsfFrame final {
-  static constexpr uint8_t kMaxPayloadSize = 60U;
+  static constexpr uint8_t kMaxPayloadSize = 60U; /**< 最大负载长度。 */
 
-  uint8_t deviceAddress = 0xC8U;
-  uint8_t type = 0U;
-  bool extended = false;
-  uint8_t destination = 0U;
-  uint8_t source = 0U;
-  uint8_t payloadLength = 0U;
-  uint8_t payload[kMaxPayloadSize] {};
+  uint8_t deviceAddress = 0xC8U; /**< 设备地址。 */
+  uint8_t type = 0U; /**< 帧类型。 */
+  bool extended = false; /**< 是否为扩展帧。 */
+  uint8_t destination = 0U; /**< 扩展帧目标地址。 */
+  uint8_t source = 0U; /**< 扩展帧源地址。 */
+  uint8_t payloadLength = 0U; /**< 负载长度。 */
+  uint8_t payload[kMaxPayloadSize] {}; /**< 帧负载内容。 */
 };
 
-/** @brief CRSF 的 16 通道打包格式。 */
+/**
+ * @brief CRSF 的 16 通道打包格式。
+ */
 struct CrsfRcChannelsPacked final {
-  static constexpr uint8_t kChannelCount = 16U;
+  static constexpr uint8_t kChannelCount = 16U; /**< 通道数量。 */
 
-  uint16_t channels[kChannelCount] {};
+  uint16_t channels[kChannelCount] {}; /**< 16 路 RC 通道值。 */
 };
 
 /**
  * @brief CRSF 协议处理器。
- *
- * @details
- * 负责维护流式解析缓冲区，支持从串行字节流中拆包 CRSF 帧，
- * 并提供单帧编码、CRC 计算以及 RC 通道打包辅助函数。
  */
 class CrsfProtocol final {
 public:
-  static constexpr uint8_t kSyncByte = 0xC8U;
-  static constexpr uint8_t kEdgeTxSyncByte = 0xEEU;
-  static constexpr uint8_t kMaxPacketSize = 64U;
-  static constexpr uint8_t kMinPacketSize = 4U;
-  static constexpr uint8_t kMinFrameLength = 2U;
-  static constexpr uint8_t kMaxFrameLength = 62U;
-  static constexpr uint8_t kExtendedTypeMin = 0x28U;
-  static constexpr uint8_t kRcChannelsPackedType = 0x16U;
-  static constexpr uint8_t kCrcPolynomial = 0xD5U;
-  static constexpr uint8_t kRcChannelsPayloadSize = 22U;
+  static constexpr uint8_t kSyncByte = 0xC8U; /**< 标准同步字节。 */
+  static constexpr uint8_t kEdgeTxSyncByte = 0xEEU; /**< EdgeTX 常见同步字节。 */
+  static constexpr uint8_t kMaxPacketSize = 64U; /**< 最大包长。 */
+  static constexpr uint8_t kMinPacketSize = 4U; /**< 最小包长。 */
+  static constexpr uint8_t kMinFrameLength = 2U; /**< 最小帧长度字段值。 */
+  static constexpr uint8_t kMaxFrameLength = 62U; /**< 最大帧长度字段值。 */
+  static constexpr uint8_t kExtendedTypeMin = 0x28U; /**< 扩展帧类型起始值。 */
+  static constexpr uint8_t kRcChannelsPackedType = 0x16U; /**< RC 通道帧类型。 */
+  static constexpr uint8_t kCrcPolynomial = 0xD5U; /**< CRC 多项式。 */
+  static constexpr uint8_t kRcChannelsPayloadSize = 22U; /**< RC 通道负载长度。 */
 
+  /**
+   * @brief 解析统计信息。
+   */
   struct ParseStats final {
-    uint32_t bytesReceived = 0U;
-    uint32_t framesDecoded = 0U;
-    uint32_t framesDelivered = 0U;
-    uint32_t framesDropped = 0U;
-    uint32_t invalidFrames = 0U;
-    uint32_t droppedBytes = 0U;
-    uint32_t crcErrors = 0U;
-    uint32_t resyncCount = 0U;
+    uint32_t bytesReceived = 0U; /**< 累计接收字节数。 */
+    uint32_t framesDecoded = 0U; /**< 成功解码帧数。 */
+    uint32_t framesDelivered = 0U; /**< 成功输出帧数。 */
+    uint32_t framesDropped = 0U; /**< 因输出空间不足丢弃的帧数。 */
+    uint32_t invalidFrames = 0U; /**< 非法帧数量。 */
+    uint32_t droppedBytes = 0U; /**< 为重同步丢弃的字节数。 */
+    uint32_t crcErrors = 0U; /**< CRC 校验失败次数。 */
+    uint32_t resyncCount = 0U; /**< 重同步次数。 */
   };
 
   CrsfProtocol() = default;
 
-  /** @brief 清空内部缓冲和统计状态。 */
   void Reset();
-
-  /** @brief 从字节流中解析尽可能多的 CRSF 帧。 */
   uint32_t Parse(const uint8_t *data,
                  uint32_t length,
                  CrsfFrame *outFrames,
                  uint32_t maxFrames);
-
-  /** @brief 把一帧 CRSF 数据编码成原始字节流。 */
   bool Encode(const CrsfFrame &frame,
               uint8_t *outFrame,
               uint32_t outCapacity,
               uint32_t *writtenLength = nullptr) const;
 
-  /** @brief 返回累计解析统计信息。 */
   const ParseStats &Stats() const {
     return stats_;
   }
 
-  /** @brief 尝试直接解码一段完整原始帧。 */
   static bool TryDecodeFrame(const uint8_t *rawFrame,
                              uint32_t rawLength,
                              CrsfFrame *frame);
-
-  /** @brief 校验一段原始帧是否有效。 */
   static bool IsValidFrame(const uint8_t *rawFrame, uint32_t rawLength);
-  /** @brief 判断类型是否属于扩展帧。 */
   static bool IsExtendedType(uint8_t type);
-  /** @brief 计算 CRSF CRC。 */
   static uint8_t ComputeCrc(const uint8_t *data, uint32_t length);
-
-  /** @brief 解包 RC 通道载荷。 */
   static bool DecodeRcChannelsPacked(const CrsfFrame &frame,
                                      CrsfRcChannelsPacked *channels);
-
-  /** @brief 按 RC 通道格式编码一帧 CRSF 原始数据。 */
   static bool EncodeRcChannelsPacked(uint8_t deviceAddress,
                                      const CrsfRcChannelsPacked &channels,
                                      uint8_t *outFrame,
@@ -104,25 +94,17 @@ public:
                                      uint32_t *writtenLength = nullptr);
 
 private:
-  /** @brief 根据 CRSF length 字段推导整个包长。 */
   static uint8_t ComputeExpectedPacketSize(uint8_t frameLength);
-  /** @brief 从 11bit 打包载荷中读取一个通道值。 */
   static uint16_t ReadChannel11(const uint8_t *payload, uint8_t channelIndex);
-  /** @brief 向 11bit 打包载荷中写入一个通道值。 */
   static void WriteChannel11(uint8_t *payload, uint8_t channelIndex, uint16_t value);
-
-  /** @brief 根据当前缓冲区刷新期望包长。 */
   void RefreshExpectedPacketSize();
-  /** @brief 消费缓冲区头部已处理字节。 */
   void ConsumeLeadingBytes(uint8_t count);
-  /** @brief 丢弃无效前导字节并计入统计。 */
   void DropLeadingBytes(uint8_t count);
 
-private:
-  uint8_t buffer_[kMaxPacketSize] {};
-  uint8_t bufferedBytes_ = 0U;
-  uint8_t expectedPacketSize_ = 0U;
-  ParseStats stats_ {};
+  uint8_t buffer_[kMaxPacketSize] {}; /**< 流式解析缓冲区。 */
+  uint8_t bufferedBytes_ = 0U; /**< 当前缓存字节数。 */
+  uint8_t expectedPacketSize_ = 0U; /**< 当前期望包长。 */
+  ParseStats stats_ {}; /**< 解析统计信息。 */
 };
 
 } // namespace iFly

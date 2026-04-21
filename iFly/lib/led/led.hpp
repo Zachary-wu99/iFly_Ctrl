@@ -1,144 +1,271 @@
+/**
+ * @file led.hpp
+ * @brief LED 控制接口。
+ */
 #ifndef IFLY_LED_HPP
 #define IFLY_LED_HPP
 
 #include <stdint.h>
 
-#include "gpio.h"
-
 namespace iFly {
 
 /**
- * @brief LED 有效电平定义。
- *
- * @details
- * 不同硬件板上的 LED 驱动方式可能不同：
- * - `kHigh`：GPIO 输出高电平时，LED 点亮
- * - `kLow` ：GPIO 输出低电平时，LED 点亮
- *
- * 这样做可以兼容高电平点亮和低电平点亮两类硬件，无需改业务层逻辑。
+ * @brief LED 点亮有效电平。
  */
 enum class LedActiveLevel : uint8_t {
-  kHigh = 0U,
-  kLow = 1U
+  kHigh = 0U, /**< GPIO 输出高电平时 LED 点亮。 */
+  kLow = 1U   /**< GPIO 输出低电平时 LED 点亮。 */
 };
 
 /**
- * @brief 单个 LED 通道的配置表项。
- *
- * @details
- * `Led` 类本身不负责初始化 GPIO 复用、模式、上下拉等硬件属性，
- * 这些仍然由 CubeMX 生成的 HAL 初始化代码负责。
- *
- * 本结构体只描述“这个 LED 绑定到哪个 GPIO、什么电平点亮、默认是否亮”。
+ * @brief LED 引脚的物理电平状态。
+ */
+enum class LedPinState : uint8_t {
+  kReset = 0U, /**< 引脚处于低电平。 */
+  kSet = 1U    /**< 引脚处于高电平。 */
+};
+
+/**
+ * @brief 单个 LED 的硬件绑定配置。
  */
 struct LedConfig final {
-  /** GPIO 端口，例如 GPIOA / GPIOB / GPIOC。*/
-  GPIO_TypeDef *port = nullptr;
-  /** GPIO 引脚掩码，例如 GPIO_PIN_8。*/
-  uint16_t pin = 0U;
-  /** LED 的有效电平。*/
-  LedActiveLevel activeLevel = LedActiveLevel::kHigh;
-  /** 初始化时是否默认点亮。*/
-  bool defaultOn = false;
+  void *port = nullptr; /**< 目标 GPIO 端口句柄，例如 `GPIOA`。 */
+  uint16_t pin = 0U; /**< 目标 GPIO 引脚掩码，例如 `GPIO_PIN_8`。 */
+  LedActiveLevel activeLevel = LedActiveLevel::kHigh; /**< LED 的有效电平配置。 */
+  bool defaultOn = false; /**< 初始化后是否立即点亮。 */
 };
 
 /**
- * @brief 单个 LED 对象。
- *
- * @details
- * 一个 `Led` 实例只管理一个 GPIO 输出引脚。
- * 通过配置表可以把它绑定到任意 HAL GPIO 引脚，而不依赖固定的
- * `LED_R`、`LED_G` 之类工程宏，因此更适合复用和移植。
+ * @brief 单个 LED 控制对象。
  */
 class Led final {
 public:
   Led() = default;
-  /** 使用配置表直接构造一个 LED 对象。*/
+
+  /**
+   * @brief 根据配置直接构造 LED 对象。
+   *
+   * @param config LED 初始化配置。
+   */
   explicit Led(const LedConfig &config);
 
-  /** 绑定 LED 配置，并可选是否立即应用默认状态。*/
+  /**
+   * @brief 初始化 LED 绑定关系。
+   *
+   * @param config LED 初始化配置。
+   * @param applyDefaultState 是否立即应用 `config.defaultOn`。
+   * @return 初始化成功返回 `true`。
+   */
   bool Init(const LedConfig &config, bool applyDefaultState = true);
-  /** 清除当前绑定配置。*/
+
+  /**
+   * @brief 解除当前 LED 的硬件绑定。
+   */
   void Deinit();
 
-  /** 查询当前 LED 是否已经完成配置绑定。*/
+  /**
+   * @brief 判断 LED 是否已绑定有效硬件。
+   *
+   * @return 已完成初始化返回 `true`。
+   */
   bool IsReady() const;
-  /** 获取当前 LED 的配置指针，未初始化时返回空指针。*/
+
+  /**
+   * @brief 获取当前生效的配置。
+   *
+   * @return 已初始化时返回配置地址，否则返回 `nullptr`。
+   */
   const LedConfig *GetConfig() const;
 
-  /** 按逻辑状态设置 LED，`true` 表示亮，`false` 表示灭。*/
+  /**
+   * @brief 重新绑定 GPIO 端口和引脚。
+   *
+   * @param port GPIO 端口句柄。
+   * @param pin GPIO 引脚掩码。
+   */
+  void AttachHardware(void *port, uint16_t pin);
+
+  /**
+   * @brief 获取当前绑定的 GPIO 端口句柄。
+   *
+   * @return 端口句柄。
+   */
+  void *Handle() const;
+
+  /**
+   * @brief 获取当前绑定的 GPIO 引脚掩码。
+   *
+   * @return 引脚掩码。
+   */
+  uint16_t Pin() const;
+
+  /**
+   * @brief 按逻辑亮灭状态设置 LED。
+   *
+   * @param on `true` 表示点亮，`false` 表示熄灭。
+   * @return 设置成功返回 `true`。
+   */
   bool Set(bool on) const;
-  /** 点亮 LED。*/
+
+  /**
+   * @brief 点亮 LED。
+   *
+   * @return 操作成功返回 `true`。
+   */
   bool On() const;
-  /** 熄灭 LED。*/
+
+  /**
+   * @brief 熄灭 LED。
+   *
+   * @return 操作成功返回 `true`。
+   */
   bool Off() const;
-  /** 翻转 LED 当前状态。*/
+
+  /**
+   * @brief 翻转 LED 当前状态。
+   *
+   * @return 操作成功返回 `true`。
+   */
   bool Toggle() const;
-  /** 读取 LED 当前逻辑状态，返回 `true` 表示亮。*/
+
+  /**
+   * @brief 查询 LED 当前逻辑状态。
+   *
+   * @return 点亮返回 `true`，否则返回 `false`。
+   */
   bool IsOn() const;
-  /** 直接读取 GPIO 当前物理电平。*/
-  GPIO_PinState ReadPin() const;
+
+  /**
+   * @brief 读取 LED 引脚的物理电平。
+   *
+   * @return 当前引脚电平。
+   */
+  LedPinState ReadPin() const;
 
 private:
-  /** 把逻辑亮灭状态转换成实际 GPIO 输出电平。*/
-  GPIO_PinState LogicalToPhysical(bool on) const;
-  /** 检查当前配置是否有效。*/
+  /**
+   * @brief 将逻辑亮灭状态转换为物理电平。
+   *
+   * @param on `true` 表示点亮。
+   * @return 对应的物理电平值。
+   */
+  LedPinState LogicalToPhysical(bool on) const;
+
+  /**
+   * @brief 检查当前配置是否有效。
+   *
+   * @return 配置合法返回 `true`。
+   */
   bool IsConfigValid() const;
 
-  LedConfig config_ {};
-  bool initialized_ = false;
+  LedConfig config_ {}; /**< 当前 LED 的运行时配置。 */
+  bool initialized_ = false; /**< 是否已完成有效初始化。 */
 };
 
 /**
- * @brief 基于参数表的 LED 控制器。
- *
- * @details
- * 这个类适合批量管理一组 LED。
- * 它本身不做动态内存分配，调用者提供：
- * - `Led` 对象数组
- * - `LedConfig` 配置表
- *
- * 这样在更换板卡时，一般只需要调整配置表，不需要改控制逻辑。
+ * @brief 批量 LED 控制器。
  */
 class LedController final {
 public:
   LedController() = default;
 
-  /** 使用对象数组和配置表批量初始化 LED。*/
+  /**
+   * @brief 批量初始化一组 LED。
+   *
+   * @param leds LED 对象数组。
+   * @param ledCount `leds` 数组元素个数。
+   * @param configs LED 配置数组。
+   * @param configCount `configs` 数组元素个数。
+   * @param applyDefaultState 是否立即应用每个 LED 的默认状态。
+   * @return 全部 LED 初始化成功返回 `true`。
+   */
   bool Init(Led *leds,
             uint32_t ledCount,
             const LedConfig *configs,
             uint32_t configCount,
             bool applyDefaultState = true);
-  /** 反初始化所有受管 LED。*/
+
+  /**
+   * @brief 释放当前接管的所有 LED。
+   */
   void Deinit();
 
-  /** 返回当前已接管的 LED 数量。*/
+  /**
+   * @brief 获取当前受管 LED 数量。
+   *
+   * @return LED 数量。
+   */
   uint32_t Count() const;
-  /** 按索引获取某个 LED 对象，越界时返回空指针。*/
+
+  /**
+   * @brief 按索引获取某个 LED 对象。
+   *
+   * @param index LED 索引。
+   * @return 索引有效时返回对象地址，否则返回 `nullptr`。
+   */
   Led *At(uint32_t index) const;
 
-  /** 设置指定索引 LED 的逻辑状态。*/
+  /**
+   * @brief 设置指定 LED 的逻辑状态。
+   *
+   * @param index LED 索引。
+   * @param on `true` 表示点亮。
+   * @return 操作成功返回 `true`。
+   */
   bool Set(uint32_t index, bool on) const;
-  /** 点亮指定索引的 LED。*/
+
+  /**
+   * @brief 点亮指定 LED。
+   *
+   * @param index LED 索引。
+   * @return 操作成功返回 `true`。
+   */
   bool On(uint32_t index) const;
-  /** 熄灭指定索引的 LED。*/
+
+  /**
+   * @brief 熄灭指定 LED。
+   *
+   * @param index LED 索引。
+   * @return 操作成功返回 `true`。
+   */
   bool Off(uint32_t index) const;
-  /** 翻转指定索引 LED 的状态。*/
+
+  /**
+   * @brief 翻转指定 LED 的状态。
+   *
+   * @param index LED 索引。
+   * @return 操作成功返回 `true`。
+   */
   bool Toggle(uint32_t index) const;
-  /** 查询指定索引 LED 当前是否点亮。*/
+
+  /**
+   * @brief 查询指定 LED 是否点亮。
+   *
+   * @param index LED 索引。
+   * @return 点亮返回 `true`。
+   */
   bool IsOn(uint32_t index) const;
 
-  /** 统一设置全部 LED 的逻辑状态。*/
+  /**
+   * @brief 统一设置全部 LED 的逻辑状态。
+   *
+   * @param on `true` 表示全部点亮。
+   */
   void SetAll(bool on) const;
-  /** 点亮全部 LED。*/
+
+  /**
+   * @brief 点亮全部 LED。
+   */
   void AllOn() const;
-  /** 熄灭全部 LED。*/
+
+  /**
+   * @brief 熄灭全部 LED。
+   */
   void AllOff() const;
 
 private:
-  Led *leds_ = nullptr;
-  uint32_t count_ = 0U;
+  Led *leds_ = nullptr; /**< 当前受管的 LED 对象数组。 */
+  uint32_t count_ = 0U; /**< 当前受管的 LED 数量。 */
 };
 
 } // namespace iFly
