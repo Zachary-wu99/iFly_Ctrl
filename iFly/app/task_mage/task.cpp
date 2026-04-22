@@ -1,10 +1,7 @@
-// 任务管理模块实现。
-// 负责任务槽位、句柄校验、底层定时器重装和任务生命周期管理。
 #include "task.hpp"
 
 namespace iFly::task {
 
-// 返回单例实例。
 TaskManager &TaskManager::Instance()
 {
   // 函数内静态对象实现单例，避免全局初始化顺序问题。
@@ -12,7 +9,6 @@ TaskManager &TaskManager::Instance()
   return instance;
 }
 
-// 创建一个任务槽位并启动定时触发。
 TaskManager::TaskHandle TaskManager::CreateTask(const TaskConfig &config)
 {
   // 没有回调就没有创建意义，直接拒绝。
@@ -61,7 +57,6 @@ TaskManager::TaskHandle TaskManager::CreateTask(const TaskConfig &config)
   return slot.handle;
 }
 
-// 创建周期任务。
 TaskManager::TaskHandle TaskManager::CreatePeriodicTask(
     TaskCallback callback, void *context, uint32_t period_ms, uint8_t priority,
     uint32_t start_delay_ms, const char *name)
@@ -77,7 +72,6 @@ TaskManager::TaskHandle TaskManager::CreatePeriodicTask(
   return CreateTask(config);
 }
 
-// 创建一次性任务。
 TaskManager::TaskHandle TaskManager::CreateOneShotTask(
     TaskCallback callback, void *context, uint32_t delay_ms, uint8_t priority,
     const char *name)
@@ -93,7 +87,6 @@ TaskManager::TaskHandle TaskManager::CreateOneShotTask(
   return CreateTask(config);
 }
 
-// 删除指定任务。
 bool TaskManager::DeleteTask(TaskHandle handle)
 {
   const int16_t slot_index = FindSlotIndex(handle);
@@ -120,7 +113,6 @@ bool TaskManager::DeleteTask(TaskHandle handle)
   return true;
 }
 
-// 删除所有任务。
 void TaskManager::DeleteAllTasks()
 {
   for (uint8_t slot_index = 0U; slot_index < kMaxTasks; ++slot_index) {
@@ -147,7 +139,6 @@ void TaskManager::DeleteAllTasks()
   }
 }
 
-// 重设指定任务的下一次触发延时。
 bool TaskManager::DelayTask(TaskHandle handle, uint32_t delay_ms)
 {
   const int16_t slot_index = FindSlotIndex(handle);
@@ -174,7 +165,6 @@ bool TaskManager::DelayTask(TaskHandle handle, uint32_t delay_ms)
   return RearmTimer(slot, delay_ms);
 }
 
-// 请求延后当前正在执行的任务。
 bool TaskManager::DelayCurrentTask(uint32_t delay_ms)
 {
   if ((current_task_handle_ == kInvalidTaskHandle) ||
@@ -193,7 +183,6 @@ bool TaskManager::DelayCurrentTask(uint32_t delay_ms)
   return true;
 }
 
-// 挂起指定任务。
 bool TaskManager::SuspendTask(TaskHandle handle)
 {
   const int16_t slot_index = FindSlotIndex(handle);
@@ -222,7 +211,6 @@ bool TaskManager::SuspendTask(TaskHandle handle)
   return StopTimer(slot);
 }
 
-// 恢复挂起任务并重新安排触发时间。
 bool TaskManager::ResumeTask(TaskHandle handle, uint32_t delay_ms)
 {
   const int16_t slot_index = FindSlotIndex(handle);
@@ -249,13 +237,11 @@ bool TaskManager::ResumeTask(TaskHandle handle, uint32_t delay_ms)
          SoftTimerService::kInvalidTaskHandle;
 }
 
-// 检查任务句柄是否仍然有效。
 bool TaskManager::IsTaskAlive(TaskHandle handle) const
 {
   return FindSlotIndex(handle) >= 0;
 }
 
-// 检查任务是否处于挂起状态。
 bool TaskManager::IsTaskSuspended(TaskHandle handle) const
 {
   const int16_t slot_index = FindSlotIndex(handle);
@@ -266,7 +252,6 @@ bool TaskManager::IsTaskSuspended(TaskHandle handle) const
   return tasks_[static_cast<uint8_t>(slot_index)].suspended;
 }
 
-// 读取任务当前信息。
 bool TaskManager::GetTaskInfo(TaskHandle handle, TaskInfo *info) const
 {
   if (info == nullptr) {
@@ -287,7 +272,6 @@ bool TaskManager::GetTaskInfo(TaskHandle handle, TaskInfo *info) const
   return true;
 }
 
-// 统计当前已分配的任务数量。
 uint32_t TaskManager::TaskCount() const
 {
   uint32_t count = 0U;
@@ -301,19 +285,16 @@ uint32_t TaskManager::TaskCount() const
   return count;
 }
 
-// 派发当前已到期的任务。
 uint32_t TaskManager::Dispatch()
 {
   return SoftTimerService::Instance().Dispatch();
 }
 
-// 返回当前时基计数值。
 uint32_t TaskManager::Now() const
 {
   return SoftTimerService::Instance().Now();
 }
 
-// 作为底层定时器入口转发到实际任务回调。
 void TaskManager::TaskEntry(void *context)
 {
   TaskSlot *slot = reinterpret_cast<TaskSlot *>(context);
@@ -388,32 +369,27 @@ void TaskManager::TaskEntry(void *context)
   manager.ClearTaskSlot(slot_index);
 }
 
-// 构造带代数信息的任务句柄。
 TaskManager::TaskHandle TaskManager::MakeTaskHandle(uint8_t slot_index,
                                                     uint32_t generation)
 {
   return (generation << 16U) | static_cast<uint32_t>(slot_index + 1U);
 }
 
-// 从句柄中提取槽位索引。
 uint8_t TaskManager::ExtractTaskIndex(TaskHandle handle)
 {
   return static_cast<uint8_t>((handle & 0xFFFFU) - 1U);
 }
 
-// 从句柄中提取代数计数。
 uint32_t TaskManager::ExtractTaskGeneration(TaskHandle handle)
 {
   return handle >> 16U;
 }
 
-// 检查任务句柄是否有效。
 bool TaskManager::IsValidTaskHandle(TaskHandle handle)
 {
   return handle != kInvalidTaskHandle;
 }
 
-// 解析任务的首次启动延时。
 uint32_t TaskManager::ResolveStartDelayMs(const TaskConfig &config)
 {
   if (config.start_delay_ms != kUsePeriodAsStartDelay) {
@@ -423,7 +399,6 @@ uint32_t TaskManager::ResolveStartDelayMs(const TaskConfig &config)
   return (config.period_ms > 0U) ? config.period_ms : 0U;
 }
 
-// 为任务启动底层定时器。
 SoftTimerService::TaskHandle TaskManager::StartTimer(TaskSlot &slot,
                                                      uint32_t delay_ms)
 {
@@ -446,7 +421,6 @@ SoftTimerService::TaskHandle TaskManager::StartTimer(TaskSlot &slot,
   return timer_handle;
 }
 
-// 停止任务关联的底层定时器。
 bool TaskManager::StopTimer(TaskSlot &slot)
 {
   if (slot.timer_handle == SoftTimerService::kInvalidTaskHandle) {
@@ -461,7 +435,6 @@ bool TaskManager::StopTimer(TaskSlot &slot)
   return result;
 }
 
-// 按新延时重装底层定时器。
 bool TaskManager::RearmTimer(TaskSlot &slot, uint32_t delay_ms)
 {
   if (!StopTimer(slot)) {
@@ -471,7 +444,6 @@ bool TaskManager::RearmTimer(TaskSlot &slot, uint32_t delay_ms)
   return StartTimer(slot, delay_ms) != SoftTimerService::kInvalidTaskHandle;
 }
 
-// 查找空闲任务槽位。
 uint8_t TaskManager::FindFreeSlot() const
 {
   for (uint8_t slot_index = 0U; slot_index < kMaxTasks; ++slot_index) {
@@ -483,7 +455,6 @@ uint8_t TaskManager::FindFreeSlot() const
   return kMaxTasks;
 }
 
-// 根据句柄查找任务槽位索引。
 int16_t TaskManager::FindSlotIndex(TaskHandle handle) const
 {
   if (!IsValidTaskHandle(handle)) {
@@ -498,7 +469,6 @@ int16_t TaskManager::FindSlotIndex(TaskHandle handle) const
   return IsHandleMatch(tasks_[slot_index], handle, slot_index) ? slot_index : -1;
 }
 
-// 校验槽位与句柄是否匹配。
 bool TaskManager::IsHandleMatch(const TaskSlot &slot, TaskHandle handle,
                                 uint8_t slot_index) const
 {
@@ -506,7 +476,6 @@ bool TaskManager::IsHandleMatch(const TaskSlot &slot, TaskHandle handle,
          (slot.generation == ExtractTaskGeneration(handle));
 }
 
-// 清空指定槽位。
 void TaskManager::ClearTaskSlot(uint8_t slot_index)
 {
   TaskSlot &slot = tasks_[slot_index];

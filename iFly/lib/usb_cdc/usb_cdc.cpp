@@ -1,16 +1,13 @@
-// USB CDC ACM 协议层实现。
-// 负责控制请求、端点缓冲、数据收发和配置状态维护。
 #include "usb_cdc.hpp"
 
 #include <string.h>
 
 #include "main.h"
-#include "lib/platform/platform_handle.hpp"
+#include "platform_handle.hpp"
+#include "usermath.hpp"
 #include "usb_otg.h"
 
 namespace {
-
-// ---------------- USB 请求与描述符常量 ----------------
 
 constexpr uint8_t kReqTypeMask = 0x60U;
 constexpr uint8_t kReqTypeStandard = 0x00U;
@@ -43,35 +40,6 @@ constexpr uint8_t kEndpoint0Out = 0x00U;
 constexpr uint8_t kEndpoint0In = 0x80U;
 constexpr uint16_t kCdcConfigValue = 0x0001U;
 
-// 返回两个 16 位无符号整数中的较小值。
-constexpr uint16_t MinU16(uint16_t left, uint16_t right) {
-  return (left < right) ? left : right;
-}
-
-// 返回两个无符号整数中的较小值。
-constexpr uint32_t MinU32(uint32_t left, uint32_t right) {
-  return (left < right) ? left : right;
-}
-
-/*
- * 使用 RAII 方式屏蔽中断，避免主循环与 USB 回调在访问共享状态时彼此打断。
- *
- * 当前类主要在以下场景使用该保护：
- * - 主循环调用 `Write()` / `Read()` / `Service()` 时；
- * - 需要同时操作“底层环形缓冲区 + 上层无锁队列 + 发送双缓冲状态”时。
- */
-/*
- * 该适配器把 STM32 HAL PCD 操作封装在一个独立模块里。
- *
- * 以后若移植到别的平台，只需替换这里的实现：
- * - 端点打开/关闭
- * - Setup 包读取
- * - OUT 接收挂起
- * - IN 数据发送
- * - FIFO 配置与总线启动
- *
- * 上层 `UsbCdcAcm` 不直接依赖具体 HAL 细节。
- */
 class Stm32FsPcdAdapter final {
 public:
   void *Handle() const {
@@ -131,13 +99,10 @@ public:
   }
 };
 
-// 返回底层 USB PCD 适配器。
 Stm32FsPcdAdapter &UsbPcd() {
   static Stm32FsPcdAdapter adapter;
   return adapter;
 }
-
-// ---------------- USB 描述符 ----------------
 
 const uint8_t kDeviceDescriptor[] = {
   0x12U,
@@ -196,21 +161,17 @@ const uint8_t kSerialStringDescriptor[] = {
 
 namespace iFly {
 
-// ---------------- UsbCdcAcm 实现 ----------------
-
 UsbCdcAcm &UsbCdcAcm::Instance() {
   static UsbCdcAcm instance;
   return instance;
 }
 
-// 构造USB CDC ACM 设备并初始化默认成员状态。
 UsbCdcAcm::UsbCdcAcm()
   : rxEndpointBuffer_(kEpDataMps),
     txQueue_(),
     txEndpointBuffer_(kEpDataMps) {
 }
 
-// 初始化模块运行时状态。
 void UsbCdcAcm::Init() {
   txQueue_.Recreate();
   (void)rxEndpointBuffer_.Recreate(kEpDataMps);
@@ -231,7 +192,6 @@ void UsbCdcAcm::Init() {
   initialized_.store(true, std::memory_order_release);
 }
 
-// 绑定上层接收队列。
 void UsbCdcAcm::AttachRxQueue(LockFreeQueueBase *queue) {
   appRxQueue_ = queue;
 
@@ -240,12 +200,10 @@ void UsbCdcAcm::AttachRxQueue(LockFreeQueueBase *queue) {
   }
 }
 
-// 推动后台服务路径继续处理。
 void UsbCdcAcm::Service() {
   ServiceTxPath();
 }
 
-// 向发送路径写入数据。
 uint32_t UsbCdcAcm::Write(const uint8_t *data, uint32_t len) {
   if ((data == nullptr) || (len == 0U) || (!txQueue_.IsCreated())) {
     return 0U;
@@ -256,7 +214,6 @@ uint32_t UsbCdcAcm::Write(const uint8_t *data, uint32_t len) {
   return accepted;
 }
 
-// 从接收路径读取数据。
 uint32_t UsbCdcAcm::Read(uint8_t *data, uint32_t len) {
   if ((appRxQueue_ == nullptr) || (!appRxQueue_->IsCreated())) {
     return 0U;
@@ -265,44 +222,36 @@ uint32_t UsbCdcAcm::Read(uint8_t *data, uint32_t len) {
   return appRxQueue_->Dequeue(data, len);
 }
 
-// 返回当前可读的数据量。
 uint32_t UsbCdcAcm::Available() const {
   return UpperRxUsed();
 }
 
-// 返回发送缓冲已用空间。
 uint32_t UsbCdcAcm::TxUsed() const {
   return txQueue_.UsedSize();
 }
 
-// 返回发送缓冲剩余空间。
 uint32_t UsbCdcAcm::TxFree() const {
   return txQueue_.FreeSize();
 }
 
-// 返回接收缓冲已用空间。
 uint32_t UsbCdcAcm::RxUsed() const {
   return UpperRxUsed();
 }
 
-// 返回接收缓冲剩余空间。
 uint32_t UsbCdcAcm::RxFree() const {
   return UpperRxFree();
 }
 
-// 返回接收链路累计丢弃的数据量。
 uint32_t UsbCdcAcm::RxDropped() const {
   return rxDropped_.load(std::memory_order_acquire);
 }
 
-// 返回当前是否已经完成配置。
 bool UsbCdcAcm::IsConfigured() const {
   return initialized_.load(std::memory_order_acquire) &&
          configured_.load(std::memory_order_acquire) &&
          !suspended_.load(std::memory_order_acquire);
 }
 
-// 重置运行时状态。
 void UsbCdcAcm::ResetRuntimeState() {
   configured_.store(false, std::memory_order_release);
   suspended_.store(false, std::memory_order_release);
@@ -333,13 +282,11 @@ void UsbCdcAcm::ResetRuntimeState() {
   rxDropped_.store(0U, std::memory_order_release);
 }
 
-// 打开控制端点。
 void UsbCdcAcm::OpenControlEndpoints() {
   (void)UsbPcd().OpenEndpoint(kEndpoint0Out, kEp0Mps, EP_TYPE_CTRL);
   (void)UsbPcd().OpenEndpoint(kEndpoint0In, kEp0Mps, EP_TYPE_CTRL);
 }
 
-// 打开数据端点。
 void UsbCdcAcm::OpenDataEndpoints() {
   (void)UsbPcd().OpenEndpoint(kEpCdcCmdIn, kEpCmdMps, EP_TYPE_INTR);
   (void)UsbPcd().OpenEndpoint(kEpCdcDataOut, kEpDataMps, EP_TYPE_BULK);
@@ -347,7 +294,6 @@ void UsbCdcAcm::OpenDataEndpoints() {
   PrimeOutEndpoint();
 }
 
-// 关闭数据端点。
 void UsbCdcAcm::CloseDataEndpoints() {
   (void)UsbPcd().CloseEndpoint(kEpCdcCmdIn);
   (void)UsbPcd().CloseEndpoint(kEpCdcDataOut);
@@ -357,7 +303,6 @@ void UsbCdcAcm::CloseDataEndpoints() {
   txEndpointBuffer_.Clear();
 }
 
-// 预置下一次 OUT 端点接收。
 void UsbCdcAcm::PrimeOutEndpoint() {
   uint8_t *buffer = rxEndpointBuffer_.ActiveBuffer();
   if (buffer != nullptr) {
@@ -365,14 +310,12 @@ void UsbCdcAcm::PrimeOutEndpoint() {
   }
 }
 
-// 处理复位事件。
 void UsbCdcAcm::OnReset() {
   ResetRuntimeState();
   UsbPcd().SetAddress(0U);
   OpenControlEndpoints();
 }
 
-// 处理 SETUP 阶段请求。
 void UsbCdcAcm::OnSetupStage() {
   const uint8_t *setupBuffer = UsbPcd().SetupBuffer();
   if (setupBuffer == nullptr) {
@@ -401,7 +344,6 @@ void UsbCdcAcm::OnSetupStage() {
   StallControlEndpoint();
 }
 
-// 处理 IN 方向传输完成事件。
 void UsbCdcAcm::OnDataInStage(uint8_t epnum) {
   if (epnum == 0U) {
     ContinueControlInTransfer();
@@ -415,7 +357,6 @@ void UsbCdcAcm::OnDataInStage(uint8_t epnum) {
   }
 }
 
-// 处理 OUT 方向接收完成事件。
 void UsbCdcAcm::OnDataOutStage(uint8_t epnum) {
   if (epnum == 0U) {
     if (ep0OutState_ == Ep0OutState::kSetLineCoding) {
@@ -441,7 +382,8 @@ void UsbCdcAcm::OnDataOutStage(uint8_t epnum) {
 
   if (epnum == (kEpCdcDataOut & 0x7FU)) {
     const uint8_t *completedBuffer = rxEndpointBuffer_.ActiveBuffer();
-    const uint32_t rxLen = MinU32(UsbPcd().GetRxCount(kEpCdcDataOut), kEpDataMps);
+    const uint32_t rxLen = iFly::usermath::Min<uint32_t>(UsbPcd().GetRxCount(kEpCdcDataOut),
+                                                         kEpDataMps);
     rxEndpointBuffer_.SetActiveLength(static_cast<uint16_t>(rxLen));
     rxEndpointBuffer_.SwapBuffers();
     rxEndpointBuffer_.ClearActive();
@@ -450,18 +392,15 @@ void UsbCdcAcm::OnDataOutStage(uint8_t epnum) {
   }
 }
 
-// 处理挂起事件。
 void UsbCdcAcm::OnSuspend() {
   suspended_.store(true, std::memory_order_release);
 }
 
-// 处理恢复事件。
 void UsbCdcAcm::OnResume() {
   suspended_.store(false, std::memory_order_release);
   ServiceTxPath();
 }
 
-// 处理标准控制请求。
 void UsbCdcAcm::HandleStandardRequest(const SetupPacket &setup) {
   switch (setup.bRequest) {
     case kReqGetDescriptor:
@@ -542,7 +481,6 @@ void UsbCdcAcm::HandleStandardRequest(const SetupPacket &setup) {
   }
 }
 
-// 处理类控制请求。
 void UsbCdcAcm::HandleClassRequest(const SetupPacket &setup) {
   const uint8_t recipient = setup.bmRequestType & kRecipientMask;
   if (recipient != kRecipientInterface) {
@@ -584,7 +522,6 @@ void UsbCdcAcm::HandleClassRequest(const SetupPacket &setup) {
   }
 }
 
-// 处理描述符读取请求。
 void UsbCdcAcm::HandleGetDescriptor(const SetupPacket &setup) {
   const uint8_t descriptorType = static_cast<uint8_t>((setup.wValue >> 8U) & 0x00FFU);
   const uint8_t descriptorIndex = static_cast<uint8_t>(setup.wValue & 0x00FFU);
@@ -642,9 +579,8 @@ void UsbCdcAcm::HandleGetDescriptor(const SetupPacket &setup) {
   StartControlInTransfer(descriptor, descriptorLength, setup.wLength);
 }
 
-// 启动控制端点 IN 方向传输。
 void UsbCdcAcm::StartControlInTransfer(const uint8_t *data, uint16_t len, uint16_t requestLen) {
-  const uint16_t actualLen = MinU16(len, requestLen);
+  const uint16_t actualLen = iFly::usermath::Min<uint16_t>(len, requestLen);
   ep0InPtr_ = data;
   ep0InRemaining_ = actualLen;
   ep0InRequestLen_ = requestLen;
@@ -654,13 +590,12 @@ void UsbCdcAcm::StartControlInTransfer(const uint8_t *data, uint16_t len, uint16
     return;
   }
 
-  const uint16_t packetLen = MinU16(ep0InRemaining_, kEp0Mps);
+  const uint16_t packetLen = iFly::usermath::Min<uint16_t>(ep0InRemaining_, kEp0Mps);
   (void)UsbPcd().Transmit(kEndpoint0In, const_cast<uint8_t *>(ep0InPtr_), packetLen);
   ep0InPtr_ += packetLen;
   ep0InRemaining_ = static_cast<uint16_t>(ep0InRemaining_ - packetLen);
 }
 
-// 继续分片发送控制端点数据。
 void UsbCdcAcm::ContinueControlInTransfer() {
   if (ep0InRemaining_ == 0U) {
     ep0InPtr_ = nullptr;
@@ -669,24 +604,21 @@ void UsbCdcAcm::ContinueControlInTransfer() {
     return;
   }
 
-  const uint16_t packetLen = MinU16(ep0InRemaining_, kEp0Mps);
+  const uint16_t packetLen = iFly::usermath::Min<uint16_t>(ep0InRemaining_, kEp0Mps);
   (void)UsbPcd().Transmit(kEndpoint0In, const_cast<uint8_t *>(ep0InPtr_), packetLen);
   ep0InPtr_ += packetLen;
   ep0InRemaining_ = static_cast<uint16_t>(ep0InRemaining_ - packetLen);
 }
 
-// 发送控制传输状态阶段。
 void UsbCdcAcm::SendControlStatus() {
   (void)UsbPcd().Transmit(kEndpoint0In, &ep0ZlpDummy_, 0U);
 }
 
-// 让控制端点进入 STALL 状态。
 void UsbCdcAcm::StallControlEndpoint() {
   UsbPcd().SetStall(kEndpoint0In);
   UsbPcd().SetStall(kEndpoint0Out);
 }
 
-// 把收到的数据包推入上层接收队列。
 void UsbCdcAcm::PushReceivedPacket(const uint8_t *data, uint32_t len) {
   if ((data == nullptr) || (len == 0U)) {
     return;
@@ -702,7 +634,6 @@ void UsbCdcAcm::PushReceivedPacket(const uint8_t *data, uint32_t len) {
   }
 }
 
-// 推进发送路径继续出队。
 void UsbCdcAcm::ServiceTxPath() {
   (void)txServiceRequests_.fetch_add(1U, std::memory_order_acq_rel);
   if (txServiceRunning_.exchange(true, std::memory_order_acq_rel)) {
@@ -760,7 +691,6 @@ void UsbCdcAcm::ServiceTxPath() {
   }
 }
 
-// 把待发数据装入备用发送缓冲。
 uint32_t UsbCdcAcm::LoadTxPacketToInactiveBuffer() {
   if ((!txQueue_.IsCreated()) || (!txEndpointBuffer_.IsCreated()) || txEndpointBuffer_.HasInactiveData()) {
     return 0U;
@@ -778,7 +708,6 @@ uint32_t UsbCdcAcm::LoadTxPacketToInactiveBuffer() {
   return pulled;
 }
 
-// 返回上层接收队列已用空间。
 uint32_t UsbCdcAcm::UpperRxUsed() const {
   if ((appRxQueue_ == nullptr) || (!appRxQueue_->IsCreated())) {
     return 0U;
@@ -787,7 +716,6 @@ uint32_t UsbCdcAcm::UpperRxUsed() const {
   return appRxQueue_->UsedSize();
 }
 
-// 返回上层接收队列剩余空间。
 uint32_t UsbCdcAcm::UpperRxFree() const {
   if ((appRxQueue_ == nullptr) || (!appRxQueue_->IsCreated())) {
     return 0U;
@@ -800,42 +728,36 @@ uint32_t UsbCdcAcm::UpperRxFree() const {
 
 extern "C" {
 
-// 把 HAL USB 复位事件转发给 USB CDC 设备。
 void HAL_PCD_ResetCallback(PCD_HandleTypeDef *hpcd) {
   if (UsbPcd().Matches(static_cast<void *>(hpcd))) {
     iFly::UsbCdcAcm::Instance().OnReset();
   }
 }
 
-// 把 HAL USB SETUP 事件转发给 USB CDC 设备。
 void HAL_PCD_SetupStageCallback(PCD_HandleTypeDef *hpcd) {
   if (UsbPcd().Matches(static_cast<void *>(hpcd))) {
     iFly::UsbCdcAcm::Instance().OnSetupStage();
   }
 }
 
-// 把 HAL USB IN 事件转发给 USB CDC 设备。
 void HAL_PCD_DataInStageCallback(PCD_HandleTypeDef *hpcd, uint8_t epnum) {
   if (UsbPcd().Matches(static_cast<void *>(hpcd))) {
     iFly::UsbCdcAcm::Instance().OnDataInStage(epnum);
   }
 }
 
-// 把 HAL USB OUT 事件转发给 USB CDC 设备。
 void HAL_PCD_DataOutStageCallback(PCD_HandleTypeDef *hpcd, uint8_t epnum) {
   if (UsbPcd().Matches(static_cast<void *>(hpcd))) {
     iFly::UsbCdcAcm::Instance().OnDataOutStage(epnum);
   }
 }
 
-// 把 HAL USB 挂起事件转发给 USB CDC 设备。
 void HAL_PCD_SuspendCallback(PCD_HandleTypeDef *hpcd) {
   if (UsbPcd().Matches(static_cast<void *>(hpcd))) {
     iFly::UsbCdcAcm::Instance().OnSuspend();
   }
 }
 
-// 把 HAL USB 恢复事件转发给 USB CDC 设备。
 void HAL_PCD_ResumeCallback(PCD_HandleTypeDef *hpcd) {
   if (UsbPcd().Matches(static_cast<void *>(hpcd))) {
     iFly::UsbCdcAcm::Instance().OnResume();

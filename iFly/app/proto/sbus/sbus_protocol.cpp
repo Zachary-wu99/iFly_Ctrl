@@ -1,5 +1,3 @@
-// SBUS 协议实现。
-// 负责帧同步、字段拆包、校验和通道位打包处理。
 #include "sbus_protocol.hpp"
 
 #include <string.h>
@@ -12,7 +10,6 @@ constexpr uint16_t kAnalogChannelMask = 0x07FFU;
 
 } // namespace
 
-// 重置内部运行状态。
 void SbusProtocol::Reset()
 {
   (void)memset(buffer_, 0, sizeof(buffer_));
@@ -20,7 +17,6 @@ void SbusProtocol::Reset()
   stats_ = ParseStats {};
 }
 
-// 解析输入字节流并输出已完成的帧。
 uint32_t SbusProtocol::Parse(const uint8_t *data,
                              uint32_t length,
                              SbusFrame *outFrames,
@@ -69,7 +65,6 @@ uint32_t SbusProtocol::Parse(const uint8_t *data,
   return delivered;
 }
 
-// 把结构化数据编码为协议帧。
 bool SbusProtocol::Encode(const SbusFrame &frame,
                           uint8_t *outFrame,
                           uint32_t outLength) const
@@ -105,7 +100,6 @@ bool SbusProtocol::Encode(const SbusFrame &frame,
   return true;
 }
 
-// 尝试解析一帧完整报文。
 bool SbusProtocol::TryDecodeFrame(const uint8_t *rawFrame,
                                   uint32_t rawLength,
                                   SbusFrame *frame)
@@ -128,7 +122,6 @@ bool SbusProtocol::TryDecodeFrame(const uint8_t *rawFrame,
   return true;
 }
 
-// 校验当前报文格式是否合法。
 bool SbusProtocol::IsValidFrame(const uint8_t *rawFrame, uint32_t rawLength)
 {
   if ((rawFrame == nullptr) || (rawLength < kFrameSize)) {
@@ -146,7 +139,6 @@ bool SbusProtocol::IsValidFrame(const uint8_t *rawFrame, uint32_t rawLength)
   return IsValidFooter(rawFrame[kFooterOffset]);
 }
 
-// 校验帧尾是否合法。
 bool SbusProtocol::IsValidFooter(uint8_t footer)
 {
   switch (footer) {
@@ -161,7 +153,6 @@ bool SbusProtocol::IsValidFooter(uint8_t footer)
   }
 }
 
-// 从位打包负载中读取单个通道值。
 uint16_t SbusProtocol::ReadChannel(const uint8_t *payload, uint8_t channelIndex)
 {
   if (payload == nullptr) {
@@ -182,7 +173,6 @@ uint16_t SbusProtocol::ReadChannel(const uint8_t *payload, uint8_t channelIndex)
   return value;
 }
 
-// 把单个通道值写入位打包负载。
 void SbusProtocol::WriteChannel(uint8_t *payload, uint8_t channelIndex, uint16_t value)
 {
   if (payload == nullptr) {
@@ -204,7 +194,6 @@ void SbusProtocol::WriteChannel(uint8_t *payload, uint8_t channelIndex, uint16_t
   }
 }
 
-// 丢弃无效字节直到下一个候选帧头。
 void SbusProtocol::DropUntilNextCandidate()
 {
   uint8_t shift = bufferedBytes_;

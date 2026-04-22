@@ -19,6 +19,12 @@ namespace iFly {
 class UsbEndpointDoubleBuffer final : public StaticByteDoubleBuffer<200U> {
 public:
   UsbEndpointDoubleBuffer() = default;
+
+  /**
+   * @brief 使用指定包长直接构造双缓冲区。
+   *
+   * @param packetSize 单个端点包的大小。
+   */
   explicit UsbEndpointDoubleBuffer(uint16_t packetSize)
       : StaticByteDoubleBuffer<200U>(packetSize) {
   }
@@ -32,44 +38,161 @@ private:
  */
 class UsbCdcAcm final {
 public:
+  /**
+   * @brief 获取 USB CDC ACM 单例。
+   *
+   * @return 单例引用。
+   */
   static UsbCdcAcm &Instance();
+
+  /**
+   * @brief 初始化 USB CDC ACM 协议层。
+   */
   void Init();
+
+  /**
+   * @brief 绑定上层接收队列。
+   *
+   * @param queue 上层统一接收队列。
+   */
   void AttachRxQueue(LockFreeQueueBase *queue);
+
+  /**
+   * @brief 驱动后台服务逻辑。
+   */
   void Service();
+
+  /**
+   * @brief 写入待发送数据。
+   *
+   * @param data 待发送数据首地址。
+   * @param len 待发送数据长度，单位为字节。
+   * @return 实际接受写入的字节数。
+   */
   uint32_t Write(const uint8_t *data, uint32_t len);
+
+  /**
+   * @brief 从上层接收队列中读取数据。
+   *
+   * @param data 输出缓冲区首地址。
+   * @param len 期望读取长度，单位为字节。
+   * @return 实际读取的字节数。
+   */
   uint32_t Read(uint8_t *data, uint32_t len);
+
+  /**
+   * @brief 获取当前可读字节数。
+   *
+   * @return 当前可读字节数。
+   */
   uint32_t Available() const;
+
+  /**
+   * @brief 获取发送队列已用空间。
+   *
+   * @return 已使用字节数。
+   */
   uint32_t TxUsed() const;
+
+  /**
+   * @brief 获取发送队列剩余空间。
+   *
+   * @return 剩余可写字节数。
+   */
   uint32_t TxFree() const;
+
+  /**
+   * @brief 获取接收队列已用空间。
+   *
+   * @return 已使用字节数。
+   */
   uint32_t RxUsed() const;
+
+  /**
+   * @brief 获取接收队列剩余空间。
+   *
+   * @return 剩余可写字节数。
+   */
   uint32_t RxFree() const;
+
+  /**
+   * @brief 获取接收链路累计丢字节数。
+   *
+   * @return 累计丢失字节数。
+   */
   uint32_t RxDropped() const;
+
+  /**
+   * @brief 判断 USB 设备是否已完成配置。
+   *
+   * @return 已完成配置返回 `true`。
+   */
   bool IsConfigured() const;
+
+  /**
+   * @brief 处理 USB 复位事件。
+   */
   void OnReset();
+
+  /**
+   * @brief 处理 USB Setup 阶段事件。
+   */
   void OnSetupStage();
+
+  /**
+   * @brief 处理 USB IN 方向数据阶段事件。
+   *
+   * @param epnum 端点编号。
+   */
   void OnDataInStage(uint8_t epnum);
+
+  /**
+   * @brief 处理 USB OUT 方向数据阶段事件。
+   *
+   * @param epnum 端点编号。
+   */
   void OnDataOutStage(uint8_t epnum);
+
+  /**
+   * @brief 处理 USB 挂起事件。
+   */
   void OnSuspend();
+
+  /**
+   * @brief 处理 USB 恢复事件。
+   */
   void OnResume();
 
 private:
+  /**
+   * @brief 构造 USB CDC ACM 协议层对象。
+   */
   UsbCdcAcm();
 
-  struct SetupPacket {
-    uint8_t bmRequestType; /**< 控制请求类型。 */
-    uint8_t bRequest; /**< 控制请求编号。 */
-    uint16_t wValue; /**< 控制请求参数值。 */
-    uint16_t wIndex; /**< 控制请求索引值。 */
-    uint16_t wLength; /**< 控制请求数据长度。 */
+  /**
+   * @brief USB Setup 包结构。
+   */
+  struct SetupPacket final {
+    uint8_t bmRequestType = 0U; /**< 控制请求类型。 */
+    uint8_t bRequest = 0U; /**< 控制请求编号。 */
+    uint16_t wValue = 0U; /**< 控制请求参数值。 */
+    uint16_t wIndex = 0U; /**< 控制请求索引值。 */
+    uint16_t wLength = 0U; /**< 控制请求数据长度。 */
   };
 
-  struct LineCoding {
-    uint32_t baudrate; /**< 波特率。 */
-    uint8_t stopBits; /**< 停止位配置。 */
-    uint8_t parityType; /**< 校验位配置。 */
-    uint8_t dataBits; /**< 数据位宽。 */
+  /**
+   * @brief 串口线编码配置。
+   */
+  struct LineCoding final {
+    uint32_t baudrate = 0U; /**< 波特率。 */
+    uint8_t stopBits = 0U; /**< 停止位配置。 */
+    uint8_t parityType = 0U; /**< 校验位配置。 */
+    uint8_t dataBits = 0U; /**< 数据位宽。 */
   };
 
+  /**
+   * @brief 端点 0 OUT 方向状态。
+   */
   enum class Ep0OutState : uint8_t {
     kIdle = 0U, /**< 空闲状态。 */
     kSetLineCoding = 1U /**< 正在接收设置串口格式请求。 */
@@ -83,22 +206,108 @@ private:
   static constexpr uint16_t kEpCmdMps = 8U; /**< 命令端点最大包长。 */
   static constexpr uint32_t kTxQueueStorageSize = 200U; /**< 发送队列容量。 */
 
+  /**
+   * @brief 重置运行时状态。
+   */
   void ResetRuntimeState();
+
+  /**
+   * @brief 打开控制端点。
+   */
   void OpenControlEndpoints();
+
+  /**
+   * @brief 打开数据端点。
+   */
   void OpenDataEndpoints();
+
+  /**
+   * @brief 关闭数据端点。
+   */
   void CloseDataEndpoints();
+
+  /**
+   * @brief 预挂起下一次 OUT 端点接收。
+   */
   void PrimeOutEndpoint();
+
+  /**
+   * @brief 处理标准控制请求。
+   *
+   * @param setup 当前 Setup 包。
+   */
   void HandleStandardRequest(const SetupPacket &setup);
+
+  /**
+   * @brief 处理类控制请求。
+   *
+   * @param setup 当前 Setup 包。
+   */
   void HandleClassRequest(const SetupPacket &setup);
+
+  /**
+   * @brief 处理描述符读取请求。
+   *
+   * @param setup 当前 Setup 包。
+   */
   void HandleGetDescriptor(const SetupPacket &setup);
+
+  /**
+   * @brief 启动控制端点 IN 方向传输。
+   *
+   * @param data 待发送数据首地址。
+   * @param len 实际数据长度。
+   * @param requestLen 请求方声明的长度。
+   */
   void StartControlInTransfer(const uint8_t *data, uint16_t len, uint16_t requestLen);
+
+  /**
+   * @brief 继续分片发送控制端点 IN 数据。
+   */
   void ContinueControlInTransfer();
+
+  /**
+   * @brief 发送控制传输状态阶段。
+   */
   void SendControlStatus();
+
+  /**
+   * @brief 将控制端点置为 STALL 状态。
+   */
   void StallControlEndpoint();
+
+  /**
+   * @brief 将接收到的数据推入上层队列。
+   *
+   * @param data 接收数据首地址。
+   * @param len 接收数据长度。
+   */
   void PushReceivedPacket(const uint8_t *data, uint32_t len);
+
+  /**
+   * @brief 驱动发送路径继续工作。
+   */
   void ServiceTxPath();
+
+  /**
+   * @brief 从发送队列装载一个包到备用缓冲区。
+   *
+   * @return 本次装载的字节数。
+   */
   uint32_t LoadTxPacketToInactiveBuffer();
+
+  /**
+   * @brief 获取上层接收队列已用空间。
+   *
+   * @return 已使用字节数。
+   */
   uint32_t UpperRxUsed() const;
+
+  /**
+   * @brief 获取上层接收队列剩余空间。
+   *
+   * @return 剩余可写字节数。
+   */
   uint32_t UpperRxFree() const;
 
   LockFreeQueueBase *appRxQueue_ = nullptr; /**< 上层接收队列。 */
@@ -107,11 +316,11 @@ private:
   std::atomic<bool> configured_ {false}; /**< 是否已被主机配置。 */
   std::atomic<bool> suspended_ {false}; /**< 当前是否处于挂起状态。 */
   volatile uint8_t currentConfig_ = 0U; /**< 当前 USB 配置值。 */
-  volatile uint8_t currentInterface_ = 0U; /**< 当前接口号。 */
-  LineCoding lineCoding_ {115200U, 0U, 0U, 8U}; /**< 当前串口格式。 */
-  volatile uint8_t controlLineState_ = 0U; /**< 主机设置的控制线状态。 */
+  volatile uint8_t currentInterface_ = 0U; /**< 当前接口编号。 */
+  LineCoding lineCoding_ {115200U, 0U, 0U, 8U}; /**< 当前串口线编码。 */
+  volatile uint8_t controlLineState_ = 0U; /**< 当前控制线状态。 */
 
-  Ep0OutState ep0OutState_ = Ep0OutState::kIdle; /**< 控制端点 OUT 状态机状态。 */
+  Ep0OutState ep0OutState_ = Ep0OutState::kIdle; /**< 控制端点 OUT 状态。 */
   uint8_t ep0OutBuffer_[kEp0Mps] {}; /**< 控制端点 OUT 缓冲区。 */
   uint16_t ep0OutExpectedLen_ = 0U; /**< 控制端点 OUT 期望接收长度。 */
 
@@ -121,12 +330,12 @@ private:
   uint8_t ep0ZlpDummy_ = 0U; /**< 零长度包占位字节。 */
   uint8_t lineCodingBuffer_[7] {}; /**< LineCoding 临时编码缓冲区。 */
 
-  UsbEndpointDoubleBuffer rxEndpointBuffer_ {}; /**< OUT 端点双缓冲。 */
+  UsbEndpointDoubleBuffer rxEndpointBuffer_ {}; /**< OUT 端点双缓冲区。 */
   StaticLockFreeQueue<kTxQueueStorageSize> txQueue_ {}; /**< 发送队列。 */
-  UsbEndpointDoubleBuffer txEndpointBuffer_ {}; /**< IN 端点双缓冲。 */
+  UsbEndpointDoubleBuffer txEndpointBuffer_ {}; /**< IN 端点双缓冲区。 */
 
   std::atomic<bool> txBusy_ {false}; /**< 当前是否正在发送数据。 */
-  std::atomic<uint32_t> rxDropped_ {0U}; /**< 接收链路累计丢弃字节数。 */
+  std::atomic<uint32_t> rxDropped_ {0U}; /**< 接收链路累计丢字节数。 */
   std::atomic<uint32_t> txServiceRequests_ {0U}; /**< 待处理发送服务请求计数。 */
   std::atomic<bool> txServiceRunning_ {false}; /**< 发送服务是否正在运行。 */
 };

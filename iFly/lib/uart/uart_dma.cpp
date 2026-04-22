@@ -1,5 +1,3 @@
-// UART DMA 底层服务实现。
-// 负责 DMA 接收、发送队列装载和 HAL 回调处理。
 #include "uart_dma.hpp"
 
 #include <string.h>
@@ -17,25 +15,10 @@ const UART_HandleTypeDef *UartHandle(const void *handle) {
   return iFly::platform::AsUartHandle(handle);
 }
 
-/* 把枚举端口号转换成数组下标，便于统一管理 8 路软件槽位。 */
 constexpr uint8_t PortIndex(iFly::UartPortId port) {
   return static_cast<uint8_t>(port);
 }
 
-/*
- * UART TX 双缓冲区。
- *
- * 发送方向的数据流不是“上层一写就直接 DMA 发走”，而是：
- * 1. 上层先写入 TX 无锁队列；
- * 2. 底层从队列里取一包，装入 inactive 槽位；
- * 3. 当前 DMA 空闲时，把 inactive 槽位切成 active 并发出；
- * 4. 另一块槽位可以同时预装下一包数据。
- *
- * 这样做的好处是：
- * - 不需要让 DMA 直接引用上层传进来的瞬时缓冲区
- * - 当前包发送时，可以并行准备下一包
- * - 逻辑上与 USB CDC 的双缓冲发送模型保持一致
- */
 class UartTxDoubleBuffer final : public iFly::StaticByteDoubleBuffer<iFly::UartDmaService::kFixedTxDmaBufferSize> {
 public:
   UartTxDoubleBuffer()
@@ -80,22 +63,16 @@ struct UartPortSlot final {
   std::atomic<bool> txServiceRunning {false};
 };
 
-/* 软件层统一的 8 路端口状态表。 */
 class UartDmaServiceStorage final {
 public:
   UartPortSlot slots[iFly::UartDmaService::kMaxPorts] {};
 };
 
-/* 返回全局唯一的端口状态表。 */
 UartDmaServiceStorage &Storage() {
   static UartDmaServiceStorage storage;
   return storage;
 }
 
-/*
- * 默认端口映射。
- *
- */
 void *DefaultHandleForPort(iFly::UartPortId port) {
   switch (port) {
     case iFly::UartPortId::kUsart1:
@@ -118,7 +95,6 @@ void *DefaultHandleForPort(iFly::UartPortId port) {
   }
 }
 
-/* 通过 HAL 句柄反查它属于哪一个软件端口槽位。 */
 UartPortSlot *FindSlot(void *huart) {
   if (huart == nullptr) {
     return nullptr;
@@ -134,20 +110,6 @@ UartPortSlot *FindSlot(void *huart) {
   return nullptr;
 }
 
-/*
- * 确保 RX DMA 环形缓冲区已经创建且大小正确。
- *
- * 如果大小变化，就重新申请；同时把“已处理位置”归零，
- * 让新的 DMA 接收从头开始计数。
- */
-/*
- * 启动“DMA + IDLE”接收。
- *
- * 这里使用 HAL 的 `HAL_UARTEx_ReceiveToIdle_DMA()`：
- * - DMA 一直把字节写入环形缓冲区
- * - 半满 / 全满 / 空闲帧间隔 时触发 RxEvent 回调
- * - 回调里再把“新增的那段数据”搬到上层 RX 队列
- */
 bool StartRx(UartPortSlot &slot) {
   UART_HandleTypeDef *huart = UartHandle(slot.huart);
   if ((huart == nullptr) || (huart->hdmarx == nullptr) || (slot.rxDmaBufferSize == 0U)) {
@@ -160,7 +122,6 @@ bool StartRx(UartPortSlot &slot) {
   return HAL_UARTEx_ReceiveToIdle_DMA(huart, slot.rxDmaBuffer, slot.rxDmaBufferSize) == HAL_OK;
 }
 
-/* 把一段连续收到的数据尽力写入用户层 RX 队列，并统计丢字节数。 */
 void PushRxRange(UartPortSlot &slot, const uint8_t *data, uint16_t length) {
   if ((data == nullptr) || (length == 0U)) {
     return;
@@ -176,16 +137,6 @@ void PushRxRange(UartPortSlot &slot, const uint8_t *data, uint16_t length) {
   }
 }
 
-/*
- * 根据当前 DMA 写入位置，计算“自上次处理后新增了哪一段数据”。
- *
- * 分两种情况：
- * 1. `currentPos > previousPos`
- *    说明 DMA 还没绕回，直接处理 `[previousPos, currentPos)`。
- * 2. `currentPos < previousPos`
- *    说明 DMA 已经回卷，要拆成两段：
- *    `[previousPos, bufferEnd)` + `[0, currentPos)`。
- */
 void ProcessRxDelta(UartPortSlot &slot, uint16_t currentPos) {
   const uint16_t bufferSize = slot.rxDmaBufferSize;
   if (bufferSize == 0U) {
@@ -213,11 +164,6 @@ void ProcessRxDelta(UartPortSlot &slot, uint16_t currentPos) {
   slot.rxLastPos = (currentPos == bufferSize) ? 0U : currentPos;
 }
 
-/*
- * 尝试把下一包待发送数据从 TX 无锁队列取出，并装载到 inactive 槽位。
- *
- * 如果 inactive 槽位里已经有包了，就不重复装。
- */
 uint32_t LoadTxPacketToInactiveBuffer(UartPortSlot &slot) {
   if (!slot.txQueue.IsCreated() || !slot.txBuffers.IsCreated() || slot.txBuffers.HasInactiveData()) {
     return 0U;
@@ -236,16 +182,6 @@ uint32_t LoadTxPacketToInactiveBuffer(UartPortSlot &slot) {
   return pulled;
 }
 
-/*
- * 推进 TX 状态机。
- *
- * 它做两件事：
- * 1. 先尽量把 inactive 槽位装满下一包数据；
- * 2. 如果当前 DMA 空闲且 inactive 有包，就立刻发出。
- *
- * 这样，无论是上层刚写入新数据，还是上一个 DMA 包刚发完，
- * 都可以统一调用这个函数继续把链路往前推。
- */
 void ServiceTxPathOnce(UartPortSlot &slot) {
   UART_HandleTypeDef *huart = UartHandle(slot.huart);
   if ((huart == nullptr) || (huart->hdmatx == nullptr) ||
@@ -281,7 +217,6 @@ void ServiceTxPathOnce(UartPortSlot &slot) {
   slot.txBusy.store(false, std::memory_order_release);
 }
 
-// 推进发送路径继续出队。
 void ServiceTxPath(UartPortSlot &slot) {
   (void)slot.txServiceRequests.fetch_add(1U, std::memory_order_acq_rel);
   if (slot.txServiceRunning.exchange(true, std::memory_order_acq_rel)) {
@@ -308,7 +243,6 @@ void ServiceTxPath(UartPortSlot &slot) {
 
 namespace iFly {
 
-/* 端口名转换工具，主要给日志或调试用。 */
 const char *ToString(UartPortId port) {
   switch (port) {
     case UartPortId::kUsart1:
@@ -333,17 +267,11 @@ const char *ToString(UartPortId port) {
   }
 }
 
-/* 单例服务入口。 */
 UartDmaService &UartDmaService::Instance() {
   static UartDmaService instance;
   return instance;
 }
 
-/*
- * 手动绑定某个逻辑端口到 конкрет HAL UART 句柄。
- *
- * 正常情况下不一定需要显式调用，因为 `InitPort()` 会按默认映射自动填充。
- */
 void UartDmaService::AttachHardware(UartPortId port, void *huart) {
   UartPortSlot &slot = Storage().slots[PortIndex(port)];
   slot.huart = huart;
@@ -353,16 +281,6 @@ void UartDmaService::AttachHardware(UartPortId port, void *huart) {
   slot.txServiceRunning.store(false, std::memory_order_release);
 }
 
-/*
- * 初始化某个端口的完整流程：
- * 1. 获取或确定底层 HAL UART 句柄；
- * 2. 挂接上层统一 RX 队列；
- * 3. 创建/重建 TX 无锁队列；
- * 4. 创建/重建 TX 双缓冲；
- * 5. 创建/重建 RX DMA 环形缓冲；
- * 6. 启动 `ReceiveToIdle DMA` 接收；
- * 7. 尝试推进一次发送状态机。
- */
 bool UartDmaService::InitPort(UartPortId port, LockFreeQueueBase *rxQueue) {
   UartPortSlot &slot = Storage().slots[PortIndex(port)];
   if (slot.huart == nullptr) {
@@ -394,7 +312,6 @@ bool UartDmaService::InitPort(UartPortId port, LockFreeQueueBase *rxQueue) {
   return slot.initialized.load(std::memory_order_acquire);
 }
 
-/* 停止某个端口并释放动态申请的 DMA/RX/TX 运行时资源。 */
 void UartDmaService::DeinitPort(UartPortId port) {
   UartPortSlot &slot = Storage().slots[PortIndex(port)];
   slot.initialized.store(false, std::memory_order_release);
@@ -416,13 +333,6 @@ void UartDmaService::DeinitPort(UartPortId port) {
   slot.txServiceRunning.store(false, std::memory_order_release);
 }
 
-/*
- * 写入发送数据。
- *
- * 这里不会阻塞等待 DMA 发送完成，而是：
- * - 先把数据尽力写入 TX 无锁队列
- * - 然后立即调用 `ServiceTxPath()`，尝试把链路往前推进
- */
 uint32_t UartDmaService::Write(UartPortId port, const uint8_t *data, uint32_t len) {
   if ((data == nullptr) || (len == 0U)) {
     return 0U;
@@ -438,24 +348,20 @@ uint32_t UartDmaService::Write(UartPortId port, const uint8_t *data, uint32_t le
   return accepted;
 }
 
-/* 查询发送队列剩余空间。 */
 uint32_t UartDmaService::TxFree(UartPortId port) const {
   const UartPortSlot &slot = Storage().slots[PortIndex(port)];
   return slot.txQueue.IsCreated() ? slot.txQueue.FreeSize() : 0U;
 }
 
-/* 查询发送队列已用空间。 */
 uint32_t UartDmaService::TxUsed(UartPortId port) const {
   const UartPortSlot &slot = Storage().slots[PortIndex(port)];
   return slot.txQueue.IsCreated() ? slot.txQueue.UsedSize() : 0U;
 }
 
-/* 查询 RX 上抛过程累计丢弃的字节数。 */
 uint32_t UartDmaService::RxDropped(UartPortId port) const {
   return Storage().slots[PortIndex(port)].rxDropped.load(std::memory_order_acquire);
 }
 
-/* 当前端口是否已具备 HAL UART 句柄和 DMA RX/TX 资源。 */
 bool UartDmaService::IsReady(UartPortId port) const {
   const UartPortSlot &slot = Storage().slots[PortIndex(port)];
   const UART_HandleTypeDef *huart = UartHandle(static_cast<const void *>(slot.huart));
@@ -465,7 +371,6 @@ bool UartDmaService::IsReady(UartPortId port) const {
          (huart->hdmatx != nullptr);
 }
 
-/* HAL 在“半满 / 满 / IDLE”等接收事件发生时回调到这里。 */
 void UartDmaService::OnRxEvent(void *huart, uint16_t size) {
   UartPortSlot *slot = FindSlot(huart);
   if ((slot == nullptr) || !slot->initialized.load(std::memory_order_acquire)) {
@@ -475,7 +380,6 @@ void UartDmaService::OnRxEvent(void *huart, uint16_t size) {
   ProcessRxDelta(*slot, size);
 }
 
-/* HAL 在一包 DMA 发送完成后回调到这里，继续推进下一包。 */
 void UartDmaService::OnTxComplete(void *huart) {
   UartPortSlot *slot = FindSlot(huart);
   if ((slot == nullptr) || !slot->initialized.load(std::memory_order_acquire)) {
@@ -487,7 +391,6 @@ void UartDmaService::OnTxComplete(void *huart) {
   ServiceTxPath(*slot);
 }
 
-/* 出错后尽量重启接收，并继续尝试发送。 */
 void UartDmaService::OnError(void *huart) {
   UartPortSlot *slot = FindSlot(huart);
   if ((slot == nullptr) || (slot->huart == nullptr)) {
@@ -502,17 +405,14 @@ void UartDmaService::OnError(void *huart) {
 
 } // namespace iFly
 
-/* HAL 弱符号回调桥接到 C++ 单例。 */
 extern "C" void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
   iFly::UartDmaService::Instance().OnRxEvent(static_cast<void *>(huart), Size);
 }
 
-/* HAL 弱符号回调桥接到 C++ 单例。 */
 extern "C" void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
   iFly::UartDmaService::Instance().OnTxComplete(static_cast<void *>(huart));
 }
 
-/* HAL 弱符号回调桥接到 C++ 单例。 */
 extern "C" void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
   iFly::UartDmaService::Instance().OnError(static_cast<void *>(huart));
 }

@@ -98,6 +98,8 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/lib/pwm
     iFly/lib/led
     iFly/lib/double_buffer
+    iFly/lib
+    iFly/lib/platform
 )
 
 # Add project symbols (macros)

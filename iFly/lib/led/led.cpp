@@ -1,60 +1,22 @@
-/**
- * @file led.cpp
- * @brief LED 控制实现。
- */
 #include "led.hpp"
 
-#include "lib/platform/platform_handle.hpp"
+#include "platform_handle.hpp"
+#include "usermath.hpp"
 
 namespace {
 
-/**
- * @brief 返回两个数量中的较小值。
- *
- * @param left 左侧数量。
- * @param right 右侧数量。
- * @return 两者中的较小值。
- */
-uint32_t MinCount(uint32_t left, uint32_t right) {
-  return (left < right) ? left : right;
-}
-
-/**
- * @brief 将通用句柄转换为 GPIO 端口指针。
- *
- * @param handle 通用端口句柄。
- * @return GPIO 端口指针。
- */
 GPIO_TypeDef *GpioPort(void *handle) {
   return iFly::platform::AsGpioPort(handle);
 }
 
-/**
- * @brief 将只读通用句柄转换为只读 GPIO 端口指针。
- *
- * @param handle 只读通用端口句柄。
- * @return 只读 GPIO 端口指针。
- */
 const GPIO_TypeDef *GpioPort(const void *handle) {
   return iFly::platform::AsGpioPort(handle);
 }
 
-/**
- * @brief 将 LED 引脚状态转换为 HAL 电平类型。
- *
- * @param state LED 引脚状态。
- * @return HAL GPIO 电平值。
- */
 GPIO_PinState ToHalPinState(iFly::LedPinState state) {
   return (state == iFly::LedPinState::kSet) ? GPIO_PIN_SET : GPIO_PIN_RESET;
 }
 
-/**
- * @brief 将 HAL 电平类型转换为 LED 引脚状态。
- *
- * @param state HAL GPIO 电平值。
- * @return LED 引脚状态。
- */
 iFly::LedPinState FromHalPinState(GPIO_PinState state) {
   return (state == GPIO_PIN_SET) ? iFly::LedPinState::kSet : iFly::LedPinState::kReset;
 }
@@ -175,7 +137,7 @@ bool LedController::Init(Led *leds,
   }
 
   leds_ = leds;
-  count_ = MinCount(ledCount, configCount);
+  count_ = iFly::usermath::Min<uint32_t>(ledCount, configCount);
 
   bool allReady = (ledCount == configCount);
   for (uint32_t index = 0U; index < count_; ++index) {

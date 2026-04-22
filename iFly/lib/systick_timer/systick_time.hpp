@@ -41,7 +41,7 @@ uint64_t ifly_systick_time_now_ns(void);
  * @brief 计算经过的毫秒数。
  *
  * @param start_ms 起始毫秒时间戳。
- * @return 经过的毫秒数。
+ * @return 已经过的毫秒数。
  */
 uint32_t ifly_systick_time_elapsed_ms(uint32_t start_ms);
 
@@ -49,7 +49,7 @@ uint32_t ifly_systick_time_elapsed_ms(uint32_t start_ms);
  * @brief 计算经过的微秒数。
  *
  * @param start_us 起始微秒时间戳。
- * @return 经过的微秒数。
+ * @return 已经过的微秒数。
  */
 uint64_t ifly_systick_time_elapsed_us(uint64_t start_us);
 
@@ -57,19 +57,19 @@ uint64_t ifly_systick_time_elapsed_us(uint64_t start_us);
  * @brief 计算经过的纳秒数。
  *
  * @param start_ns 起始纳秒时间戳。
- * @return 经过的纳秒数。
+ * @return 已经过的纳秒数。
  */
 uint64_t ifly_systick_time_elapsed_ns(uint64_t start_ns);
 
 /**
- * @brief 毫秒级阻塞延时。
+ * @brief 执行毫秒级阻塞延时。
  *
  * @param delay_ms 延时时长，单位为毫秒。
  */
 void ifly_systick_time_delay_ms(uint32_t delay_ms);
 
 /**
- * @brief 微秒级阻塞延时。
+ * @brief 执行微秒级阻塞延时。
  *
  * @param delay_us 延时时长，单位为微秒。
  */
@@ -82,13 +82,63 @@ namespace iFly {
 
 namespace systick_time {
 
+/**
+ * @brief 获取当前毫秒时间戳。
+ *
+ * @return 当前毫秒计数值。
+ */
 uint32_t NowMs();
+
+/**
+ * @brief 获取当前微秒时间戳。
+ *
+ * @return 当前微秒计数值。
+ */
 uint64_t NowUs();
+
+/**
+ * @brief 获取当前纳秒时间戳。
+ *
+ * @return 当前纳秒计数值。
+ */
 uint64_t NowNs();
+
+/**
+ * @brief 计算经过的毫秒数。
+ *
+ * @param start_ms 起始毫秒时间戳。
+ * @return 已经过的毫秒数。
+ */
 uint32_t ElapsedMs(uint32_t start_ms);
+
+/**
+ * @brief 计算经过的微秒数。
+ *
+ * @param start_us 起始微秒时间戳。
+ * @return 已经过的微秒数。
+ */
 uint64_t ElapsedUs(uint64_t start_us);
+
+/**
+ * @brief 计算经过的纳秒数。
+ *
+ * @param start_ns 起始纳秒时间戳。
+ * @return 已经过的纳秒数。
+ */
 uint64_t ElapsedNs(uint64_t start_ns);
+
+/**
+ * @brief 执行毫秒级阻塞延时。
+ *
+ * @param delay_ms 延时时长，单位为毫秒。
+ */
 void DelayMs(uint32_t delay_ms);
+
+/**
+ * @brief 执行微秒级阻塞延时。
+ *
+ * @param delay_us 延时时长，单位为微秒。
+ */
 void DelayUs(uint32_t delay_us);
 
 } // namespace systick_time
@@ -135,7 +185,7 @@ public:
    * @brief 计算经过的纳秒数。
    *
    * @param start_ns 起始纳秒时间戳。
-   * @return 经过的纳秒数。
+   * @return 已经过的纳秒数。
    */
   uint64_t ElapsedNs(uint64_t start_ns) const;
 
@@ -143,7 +193,7 @@ public:
    * @brief 计算经过的微秒数。
    *
    * @param start_us 起始微秒时间戳。
-   * @return 经过的微秒数。
+   * @return 已经过的微秒数。
    */
   uint64_t ElapsedUs(uint64_t start_us) const;
 

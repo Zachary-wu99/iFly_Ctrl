@@ -1,19 +1,9 @@
-/**
- * @file project_parameter_manager.cpp
- * @brief 工程参数中心实现。
- */
 #include "project_parameter_manager.hpp"
 
 namespace iFly {
 
 namespace {
 
-/**
- * @brief 判断参数名是否有效。
- *
- * @param name 参数名字符串。
- * @return 非空且首字符非空时返回 `true`。
- */
 bool IsNameValid(const char *name) {
   return (name != nullptr) && (name[0] != '\0');
 }
