@@ -3,7 +3,7 @@
 #include <string.h>
 
 #include "double_buffer.hpp"
-#include "lib/platform/platform_handle.hpp"
+#include "platform_handle.hpp"
 
 namespace {
 

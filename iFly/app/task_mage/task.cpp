@@ -1,30 +1,247 @@
 #include "task.hpp"
 
-namespace iFly::task {
+namespace {
 
-TaskManager &TaskManager::Instance()
-{
-  // 函数内静态对象实现单例，避免全局初始化顺序问题。
-  static TaskManager instance;
-  return instance;
+struct TaskSlot final {
+  const char *name = nullptr; /**< 任务名称。 */
+  iFly::TaskCallback callback = nullptr; /**< 任务回调函数。 */
+  void *context = nullptr; /**< 任务回调上下文。 */
+  iFly::TaskHandle handle = iFly::kInvalidTaskHandle; /**< 上层任务句柄。 */
+  iFly::SoftTimerService::TaskHandle timer_handle =
+      iFly::SoftTimerService::kInvalidTaskHandle; /**< 绑定的软定时器句柄。 */
+  uint32_t period_ms = 0U; /**< 任务周期，单位为毫秒。 */
+  uint32_t default_start_delay_ms = 0U; /**< 默认启动延时，单位为毫秒。 */
+  uint32_t requested_delay_ms = 0U; /**< 当前请求的延时时长，单位为毫秒。 */
+  uint32_t generation = 0U; /**< 槽位代数计数。 */
+  uint8_t priority = iFly::SoftTimerService::kLowestPriority; /**< 任务优先级。 */
+  uint8_t slot_index = iFly::kMaxTasks; /**< 当前槽位索引。 */
+  bool allocated = false; /**< 槽位是否已分配。 */
+  bool auto_reload = true; /**< 是否自动重装。 */
+  bool suspended = false; /**< 是否处于挂起状态。 */
+  bool running = false; /**< 是否正在执行回调。 */
+  bool pending_delete = false; /**< 是否等待回调结束后删除。 */
+  bool delay_requested = false; /**< 是否已请求延后执行。 */
+};
+
+struct TaskRuntimeState final {
+  TaskSlot tasks[iFly::kMaxTasks] {}; /**< 固定大小任务槽位表。 */
+  iFly::TaskHandle current_task_handle = iFly::kInvalidTaskHandle; /**< 当前正在执行的任务句柄。 */
+  uint8_t current_task_index = iFly::kMaxTasks; /**< 当前正在执行的槽位索引。 */
+};
+
+TaskRuntimeState &Runtime() {
+  static TaskRuntimeState runtime; // 任务模块全局运行时状态。
+  return runtime;
 }
 
-TaskManager::TaskHandle TaskManager::CreateTask(const TaskConfig &config)
-{
-  // 没有回调就没有创建意义，直接拒绝。
+iFly::TaskHandle MakeTaskHandle(uint8_t slot_index, uint32_t generation) {
+  return (generation << 16U) | static_cast<uint32_t>(slot_index + 1U);
+}
+
+uint8_t ExtractTaskIndex(iFly::TaskHandle handle) {
+  return static_cast<uint8_t>((handle & 0xFFFFU) - 1U);
+}
+
+uint32_t ExtractTaskGeneration(iFly::TaskHandle handle) {
+  return handle >> 16U;
+}
+
+bool IsValidTaskHandle(iFly::TaskHandle handle) {
+  return handle != iFly::kInvalidTaskHandle;
+}
+
+bool IsHandleMatch(const TaskSlot &slot,
+                   iFly::TaskHandle handle,
+                   uint8_t slot_index) {
+  return slot.allocated && (slot.slot_index == slot_index) &&
+         (slot.generation == ExtractTaskGeneration(handle));
+}
+
+uint32_t ResolveStartDelayMs(const iFly::TaskConfig &config) {
+  if (config.start_delay_ms != iFly::kUsePeriodAsStartDelay) {
+    return config.start_delay_ms;
+  }
+
+  return (config.period_ms > 0U) ? config.period_ms : 0U;
+}
+
+uint8_t FindFreeSlot() {
+  TaskRuntimeState &runtime = Runtime(); // 任务模块运行时状态表。
+  for (uint8_t slot_index = 0U; slot_index < iFly::kMaxTasks; ++slot_index) {
+    if (!runtime.tasks[slot_index].allocated) {
+      return slot_index;
+    }
+  }
+
+  return iFly::kMaxTasks;
+}
+
+int16_t FindSlotIndex(iFly::TaskHandle handle) {
+  if (!IsValidTaskHandle(handle)) {
+    return -1;
+  }
+
+  const uint8_t slot_index = ExtractTaskIndex(handle); // 句柄编码中的槽位索引。
+  if (slot_index >= iFly::kMaxTasks) {
+    return -1;
+  }
+
+  return IsHandleMatch(Runtime().tasks[slot_index], handle, slot_index) ? slot_index
+                                                                         : -1;
+}
+
+void ClearTaskSlot(uint8_t slot_index) {
+  TaskSlot &slot = Runtime().tasks[slot_index]; // 需要清空的任务槽位。
+  slot.name = nullptr;
+  slot.callback = nullptr;
+  slot.context = nullptr;
+  slot.handle = iFly::kInvalidTaskHandle;
+  slot.timer_handle = iFly::SoftTimerService::kInvalidTaskHandle;
+  slot.period_ms = 0U;
+  slot.default_start_delay_ms = 0U;
+  slot.requested_delay_ms = 0U;
+  slot.priority = iFly::SoftTimerService::kLowestPriority;
+  slot.slot_index = iFly::kMaxTasks;
+  slot.allocated = false;
+  slot.auto_reload = true;
+  slot.suspended = false;
+  slot.running = false;
+  slot.pending_delete = false;
+  slot.delay_requested = false;
+}
+
+void TaskEntry(void *context);
+
+iFly::SoftTimerService::TaskHandle StartTimer(TaskSlot &slot, uint32_t delay_ms) {
+  iFly::SoftTimerService::TaskConfig config {}; // 底层软定时器创建配置。
+  config.callback = &TaskEntry;
+  config.context = &slot;
+  config.interval_ms = 0U;
+  config.start_delay_ms = delay_ms;
+  config.priority = slot.priority;
+  config.auto_reload = true;
+
+  const iFly::SoftTimerService::TaskHandle timer_handle =
+      iFly::SoftTimerService::Instance().CreateTask(config);
+  if (timer_handle == iFly::SoftTimerService::kInvalidTaskHandle) {
+    return iFly::SoftTimerService::kInvalidTaskHandle;
+  }
+
+  slot.timer_handle = timer_handle;
+  slot.suspended = false;
+  return timer_handle;
+}
+
+bool StopTimer(TaskSlot &slot) {
+  if (slot.timer_handle == iFly::SoftTimerService::kInvalidTaskHandle) {
+    return true;
+  }
+
+  const bool result =
+      iFly::SoftTimerService::Instance().DeleteTask(slot.timer_handle);
+  if (result) {
+    slot.timer_handle = iFly::SoftTimerService::kInvalidTaskHandle;
+  }
+
+  return result;
+}
+
+bool RearmTimer(TaskSlot &slot, uint32_t delay_ms) {
+  if (!StopTimer(slot)) {
+    return false;
+  }
+
+  return StartTimer(slot, delay_ms) !=
+         iFly::SoftTimerService::kInvalidTaskHandle;
+}
+
+void TaskEntry(void *context) {
+  TaskSlot *slot = reinterpret_cast<TaskSlot *>(context); // 当前回调关联的任务槽位。
+  if ((slot == nullptr) || !slot->allocated || (slot->slot_index >= iFly::kMaxTasks)) {
+    return;
+  }
+
+  TaskRuntimeState &runtime = Runtime(); // 任务模块运行时状态表。
+  const uint8_t slot_index = slot->slot_index; // 当前槽位索引。
+  const iFly::TaskHandle handle = slot->handle; // 当前任务句柄快照。
+
+  runtime.current_task_handle = handle;
+  runtime.current_task_index = slot_index;
+  slot->running = true;
+
+  if (slot->callback != nullptr) {
+    slot->callback(slot->context);
+  }
+
+  runtime.current_task_handle = iFly::kInvalidTaskHandle;
+  runtime.current_task_index = iFly::kMaxTasks;
+
+  // 回调期间若任务已经被删除或槽位被复用，则不再继续处理。
+  if (!IsHandleMatch(*slot, handle, slot_index)) {
+    return;
+  }
+
+  slot->running = false;
+
+  if (slot->pending_delete) {
+    ClearTaskSlot(slot_index);
+    return;
+  }
+
+  if (slot->suspended) {
+    slot->timer_handle = iFly::SoftTimerService::kInvalidTaskHandle;
+    return;
+  }
+
+  if (slot->delay_requested) {
+    const uint32_t delay_ms = slot->requested_delay_ms; // 用户请求的新延时参数。
+    slot->delay_requested = false;
+    slot->requested_delay_ms = 0U;
+
+    if (iFly::SoftTimerService::Instance().DelayCurrentTask(delay_ms)) {
+      return;
+    }
+
+    ClearTaskSlot(slot_index);
+    return;
+  }
+
+  if (slot->auto_reload && (slot->period_ms > 0U)) {
+    if (iFly::SoftTimerService::Instance().DelayCurrentTask(slot->period_ms)) {
+      return;
+    }
+
+    ClearTaskSlot(slot_index);
+    return;
+  }
+
+  if (slot->auto_reload) {
+    slot->suspended = true;
+    slot->timer_handle = iFly::SoftTimerService::kInvalidTaskHandle;
+    return;
+  }
+
+  ClearTaskSlot(slot_index);
+}
+
+} // namespace
+
+namespace iFly {
+
+TaskHandle TaskCreate(const TaskConfig &config) {
   if (config.callback == nullptr) {
     return kInvalidTaskHandle;
   }
 
-  const uint8_t slot_index = FindFreeSlot();
+  const uint8_t slot_index = FindFreeSlot(); // 新任务分配到的槽位索引。
   if (slot_index >= kMaxTasks) {
     return kInvalidTaskHandle;
   }
 
-  TaskSlot &slot = tasks_[slot_index];
+  TaskRuntimeState &runtime = Runtime(); // 任务模块运行时状态表。
+  TaskSlot &slot = runtime.tasks[slot_index]; // 本次要初始化的任务槽位。
 
-  // 代数递增，用于防止旧句柄在槽位复用后误操作新任务。
-  uint32_t generation = slot.generation + 1U;
+  uint32_t generation = slot.generation + 1U; // 新句柄对应的槽位代数。
   if (generation == 0U) {
     generation = 1U;
   }
@@ -47,7 +264,6 @@ TaskManager::TaskHandle TaskManager::CreateTask(const TaskConfig &config)
   slot.pending_delete = false;
   slot.delay_requested = false;
 
-  // 上层任务本质上是一个“一次性触发后进入统一入口”的 SoftTimer 任务。
   if (StartTimer(slot, slot.default_start_delay_ms) ==
       SoftTimerService::kInvalidTaskHandle) {
     ClearTaskSlot(slot_index);
@@ -57,11 +273,13 @@ TaskManager::TaskHandle TaskManager::CreateTask(const TaskConfig &config)
   return slot.handle;
 }
 
-TaskManager::TaskHandle TaskManager::CreatePeriodicTask(
-    TaskCallback callback, void *context, uint32_t period_ms, uint8_t priority,
-    uint32_t start_delay_ms, const char *name)
-{
-  TaskConfig config {};
+TaskHandle TaskCreatePeriodic(TaskCallback callback,
+                              void *context,
+                              uint32_t period_ms,
+                              uint8_t priority,
+                              uint32_t start_delay_ms,
+                              const char *name) {
+  TaskConfig config {}; // 周期任务创建配置。
   config.name = name;
   config.callback = callback;
   config.context = context;
@@ -69,14 +287,15 @@ TaskManager::TaskHandle TaskManager::CreatePeriodicTask(
   config.start_delay_ms = start_delay_ms;
   config.priority = priority;
   config.auto_reload = true;
-  return CreateTask(config);
+  return TaskCreate(config);
 }
 
-TaskManager::TaskHandle TaskManager::CreateOneShotTask(
-    TaskCallback callback, void *context, uint32_t delay_ms, uint8_t priority,
-    const char *name)
-{
-  TaskConfig config {};
+TaskHandle TaskCreateOneShot(TaskCallback callback,
+                             void *context,
+                             uint32_t delay_ms,
+                             uint8_t priority,
+                             const char *name) {
+  TaskConfig config {}; // 单次任务创建配置。
   config.name = name;
   config.callback = callback;
   config.context = context;
@@ -84,22 +303,20 @@ TaskManager::TaskHandle TaskManager::CreateOneShotTask(
   config.start_delay_ms = delay_ms;
   config.priority = priority;
   config.auto_reload = false;
-  return CreateTask(config);
+  return TaskCreate(config);
 }
 
-bool TaskManager::DeleteTask(TaskHandle handle)
-{
-  const int16_t slot_index = FindSlotIndex(handle);
+bool TaskDelete(TaskHandle handle) {
+  const int16_t slot_index = FindSlotIndex(handle); // 目标任务槽位索引。
   if (slot_index < 0) {
     return false;
   }
 
-  TaskSlot &slot = tasks_[static_cast<uint8_t>(slot_index)];
+  TaskSlot &slot = Runtime().tasks[static_cast<uint8_t>(slot_index)]; // 目标任务槽位。
   slot.delay_requested = false;
   slot.requested_delay_ms = 0U;
 
   if (slot.running) {
-    // 若当前任务正处于回调中，则标记为“回调返回后删除”。
     slot.pending_delete = true;
     if (slot.timer_handle != SoftTimerService::kInvalidTaskHandle) {
       (void)SoftTimerService::Instance().DeleteTask(slot.timer_handle);
@@ -113,10 +330,10 @@ bool TaskManager::DeleteTask(TaskHandle handle)
   return true;
 }
 
-void TaskManager::DeleteAllTasks()
-{
+void TaskDeleteAll() {
+  TaskRuntimeState &runtime = Runtime(); // 任务模块运行时状态表。
   for (uint8_t slot_index = 0U; slot_index < kMaxTasks; ++slot_index) {
-    TaskSlot &slot = tasks_[slot_index];
+    TaskSlot &slot = runtime.tasks[slot_index]; // 当前遍历到的任务槽位。
     if (!slot.allocated) {
       continue;
     }
@@ -125,7 +342,6 @@ void TaskManager::DeleteAllTasks()
     slot.requested_delay_ms = 0U;
 
     if (slot.running) {
-      // 正在执行的任务不能立刻清槽，延后到回调退出后处理。
       slot.pending_delete = true;
       if (slot.timer_handle != SoftTimerService::kInvalidTaskHandle) {
         (void)SoftTimerService::Instance().DeleteTask(slot.timer_handle);
@@ -139,18 +355,17 @@ void TaskManager::DeleteAllTasks()
   }
 }
 
-bool TaskManager::DelayTask(TaskHandle handle, uint32_t delay_ms)
-{
-  const int16_t slot_index = FindSlotIndex(handle);
+bool TaskDelay(TaskHandle handle, uint32_t delay_ms) {
+  const int16_t slot_index = FindSlotIndex(handle); // 目标任务槽位索引。
   if (slot_index < 0) {
     return false;
   }
 
-  TaskSlot &slot = tasks_[static_cast<uint8_t>(slot_index)];
+  TaskRuntimeState &runtime = Runtime(); // 任务模块运行时状态表。
+  TaskSlot &slot = runtime.tasks[static_cast<uint8_t>(slot_index)]; // 目标任务槽位。
 
-  // 如果目标任务正是当前回调中的任务，则记录请求，等回调退出后再重装。
-  if (slot.running && (current_task_handle_ == handle) &&
-      (current_task_index_ == static_cast<uint8_t>(slot_index))) {
+  if (slot.running && (runtime.current_task_handle == handle) &&
+      (runtime.current_task_index == static_cast<uint8_t>(slot_index))) {
     slot.requested_delay_ms = delay_ms;
     slot.delay_requested = true;
     return true;
@@ -161,19 +376,19 @@ bool TaskManager::DelayTask(TaskHandle handle, uint32_t delay_ms)
   slot.requested_delay_ms = 0U;
   slot.suspended = false;
 
-  // 对未运行的任务，直接重装底层定时器即可。
   return RearmTimer(slot, delay_ms);
 }
 
-bool TaskManager::DelayCurrentTask(uint32_t delay_ms)
-{
-  if ((current_task_handle_ == kInvalidTaskHandle) ||
-      (current_task_index_ >= kMaxTasks)) {
+bool TaskDelayCurrent(uint32_t delay_ms) {
+  TaskRuntimeState &runtime = Runtime(); // 任务模块运行时状态表。
+  if ((runtime.current_task_handle == kInvalidTaskHandle) ||
+      (runtime.current_task_index >= kMaxTasks)) {
     return false;
   }
 
-  TaskSlot &slot = tasks_[current_task_index_];
-  if (!IsHandleMatch(slot, current_task_handle_, current_task_index_) ||
+  TaskSlot &slot = runtime.tasks[runtime.current_task_index]; // 当前正在执行的任务槽位。
+  if (!IsHandleMatch(slot, runtime.current_task_handle,
+                     runtime.current_task_index) ||
       !slot.running) {
     return false;
   }
@@ -183,14 +398,13 @@ bool TaskManager::DelayCurrentTask(uint32_t delay_ms)
   return true;
 }
 
-bool TaskManager::SuspendTask(TaskHandle handle)
-{
-  const int16_t slot_index = FindSlotIndex(handle);
+bool TaskSuspend(TaskHandle handle) {
+  const int16_t slot_index = FindSlotIndex(handle); // 目标任务槽位索引。
   if (slot_index < 0) {
     return false;
   }
 
-  TaskSlot &slot = tasks_[static_cast<uint8_t>(slot_index)];
+  TaskSlot &slot = Runtime().tasks[static_cast<uint8_t>(slot_index)]; // 目标任务槽位。
   if (slot.suspended) {
     return true;
   }
@@ -200,7 +414,6 @@ bool TaskManager::SuspendTask(TaskHandle handle)
   slot.requested_delay_ms = 0U;
 
   if (slot.running) {
-    // 若任务当前正在执行，只取消后续触发，不打断本次回调。
     if (slot.timer_handle != SoftTimerService::kInvalidTaskHandle) {
       (void)SoftTimerService::Instance().DeleteTask(slot.timer_handle);
       slot.timer_handle = SoftTimerService::kInvalidTaskHandle;
@@ -211,14 +424,13 @@ bool TaskManager::SuspendTask(TaskHandle handle)
   return StopTimer(slot);
 }
 
-bool TaskManager::ResumeTask(TaskHandle handle, uint32_t delay_ms)
-{
-  const int16_t slot_index = FindSlotIndex(handle);
+bool TaskResume(TaskHandle handle, uint32_t delay_ms) {
+  const int16_t slot_index = FindSlotIndex(handle); // 目标任务槽位索引。
   if (slot_index < 0) {
     return false;
   }
 
-  TaskSlot &slot = tasks_[static_cast<uint8_t>(slot_index)];
+  TaskSlot &slot = Runtime().tasks[static_cast<uint8_t>(slot_index)]; // 目标任务槽位。
   if (!slot.suspended &&
       (slot.timer_handle != SoftTimerService::kInvalidTaskHandle)) {
     return true;
@@ -226,7 +438,7 @@ bool TaskManager::ResumeTask(TaskHandle handle, uint32_t delay_ms)
 
   const uint32_t resolved_delay =
       (delay_ms == kUsePeriodAsStartDelay) ? slot.default_start_delay_ms
-                                           : delay_ms;
+                                           : delay_ms; // 恢复任务后实际使用的启动延时。
 
   slot.pending_delete = false;
   slot.delay_requested = false;
@@ -237,33 +449,31 @@ bool TaskManager::ResumeTask(TaskHandle handle, uint32_t delay_ms)
          SoftTimerService::kInvalidTaskHandle;
 }
 
-bool TaskManager::IsTaskAlive(TaskHandle handle) const
-{
+bool TaskIsAlive(TaskHandle handle) {
   return FindSlotIndex(handle) >= 0;
 }
 
-bool TaskManager::IsTaskSuspended(TaskHandle handle) const
-{
-  const int16_t slot_index = FindSlotIndex(handle);
+bool TaskIsSuspended(TaskHandle handle) {
+  const int16_t slot_index = FindSlotIndex(handle); // 目标任务槽位索引。
   if (slot_index < 0) {
     return false;
   }
 
-  return tasks_[static_cast<uint8_t>(slot_index)].suspended;
+  return Runtime().tasks[static_cast<uint8_t>(slot_index)].suspended;
 }
 
-bool TaskManager::GetTaskInfo(TaskHandle handle, TaskInfo *info) const
-{
+bool TaskGetInfo(TaskHandle handle, TaskInfo *info) {
   if (info == nullptr) {
     return false;
   }
 
-  const int16_t slot_index = FindSlotIndex(handle);
+  const int16_t slot_index = FindSlotIndex(handle); // 目标任务槽位索引。
   if (slot_index < 0) {
     return false;
   }
 
-  const TaskSlot &slot = tasks_[static_cast<uint8_t>(slot_index)];
+  const TaskSlot &slot =
+      Runtime().tasks[static_cast<uint8_t>(slot_index)]; // 目标任务槽位快照。
   info->name = slot.name;
   info->period_ms = slot.period_ms;
   info->priority = slot.priority;
@@ -272,12 +482,11 @@ bool TaskManager::GetTaskInfo(TaskHandle handle, TaskInfo *info) const
   return true;
 }
 
-uint32_t TaskManager::TaskCount() const
-{
-  uint32_t count = 0U;
-
+uint32_t TaskCount() {
+  TaskRuntimeState &runtime = Runtime(); // 任务模块运行时状态表。
+  uint32_t count = 0U; // 当前已分配任务数量。
   for (uint8_t slot_index = 0U; slot_index < kMaxTasks; ++slot_index) {
-    if (tasks_[slot_index].allocated) {
+    if (runtime.tasks[slot_index].allocated) {
       ++count;
     }
   }
@@ -285,216 +494,12 @@ uint32_t TaskManager::TaskCount() const
   return count;
 }
 
-uint32_t TaskManager::Dispatch()
-{
+uint32_t TaskDispatch() {
   return SoftTimerService::Instance().Dispatch();
 }
 
-uint32_t TaskManager::Now() const
-{
+uint32_t TaskNow() {
   return SoftTimerService::Instance().Now();
 }
 
-void TaskManager::TaskEntry(void *context)
-{
-  TaskSlot *slot = reinterpret_cast<TaskSlot *>(context);
-  if ((slot == nullptr) || !slot->allocated || (slot->slot_index >= kMaxTasks)) {
-    return;
-  }
-
-  TaskManager &manager = Instance();
-  const uint8_t slot_index = slot->slot_index;
-  const TaskHandle handle = slot->handle;
-
-  manager.current_task_handle_ = handle;
-  manager.current_task_index_ = slot_index;
-  slot->running = true;
-
-  if (slot->callback != nullptr) {
-    slot->callback(slot->context);
-  }
-
-  manager.current_task_handle_ = kInvalidTaskHandle;
-  manager.current_task_index_ = kMaxTasks;
-
-  // 若回调期间该任务已经被删除/复用，则不再继续处理后续逻辑。
-  if (!manager.IsHandleMatch(*slot, handle, slot_index)) {
-    return;
-  }
-
-  slot->running = false;
-
-  if (slot->pending_delete) {
-    manager.ClearTaskSlot(slot_index);
-    return;
-  }
-
-  if (slot->suspended) {
-    slot->timer_handle = SoftTimerService::kInvalidTaskHandle;
-    return;
-  }
-
-  if (slot->delay_requested) {
-    const uint32_t delay_ms = slot->requested_delay_ms;
-    slot->delay_requested = false;
-    slot->requested_delay_ms = 0U;
-
-    // 这里依赖底层“当前任务延时”能力，把下一次唤醒时间交给 SoftTimer。
-    if (SoftTimerService::Instance().DelayCurrentTask(delay_ms)) {
-      return;
-    }
-
-    manager.ClearTaskSlot(slot_index);
-    return;
-  }
-
-  if (slot->auto_reload && (slot->period_ms > 0U)) {
-    // 固定周期任务自动按周期重装。
-    if (SoftTimerService::Instance().DelayCurrentTask(slot->period_ms)) {
-      return;
-    }
-
-    manager.ClearTaskSlot(slot_index);
-    return;
-  }
-
-  if (slot->auto_reload) {
-    // 手动重装任务执行一次后进入挂起态，保留句柄供后续再次启动。
-    slot->suspended = true;
-    slot->timer_handle = SoftTimerService::kInvalidTaskHandle;
-    return;
-  }
-
-  // 单次任务执行完成后直接释放。
-  manager.ClearTaskSlot(slot_index);
-}
-
-TaskManager::TaskHandle TaskManager::MakeTaskHandle(uint8_t slot_index,
-                                                    uint32_t generation)
-{
-  return (generation << 16U) | static_cast<uint32_t>(slot_index + 1U);
-}
-
-uint8_t TaskManager::ExtractTaskIndex(TaskHandle handle)
-{
-  return static_cast<uint8_t>((handle & 0xFFFFU) - 1U);
-}
-
-uint32_t TaskManager::ExtractTaskGeneration(TaskHandle handle)
-{
-  return handle >> 16U;
-}
-
-bool TaskManager::IsValidTaskHandle(TaskHandle handle)
-{
-  return handle != kInvalidTaskHandle;
-}
-
-uint32_t TaskManager::ResolveStartDelayMs(const TaskConfig &config)
-{
-  if (config.start_delay_ms != kUsePeriodAsStartDelay) {
-    return config.start_delay_ms;
-  }
-
-  return (config.period_ms > 0U) ? config.period_ms : 0U;
-}
-
-SoftTimerService::TaskHandle TaskManager::StartTimer(TaskSlot &slot,
-                                                     uint32_t delay_ms)
-{
-  SoftTimerService::TaskConfig config {};
-  config.callback = &TaskEntry;
-  config.context = &slot;
-  config.interval_ms = 0U;
-  config.start_delay_ms = delay_ms;
-  config.priority = slot.priority;
-  config.auto_reload = true;
-
-  const SoftTimerService::TaskHandle timer_handle =
-      SoftTimerService::Instance().CreateTask(config);
-  if (timer_handle == SoftTimerService::kInvalidTaskHandle) {
-    return SoftTimerService::kInvalidTaskHandle;
-  }
-
-  slot.timer_handle = timer_handle;
-  slot.suspended = false;
-  return timer_handle;
-}
-
-bool TaskManager::StopTimer(TaskSlot &slot)
-{
-  if (slot.timer_handle == SoftTimerService::kInvalidTaskHandle) {
-    return true;
-  }
-
-  const bool result = SoftTimerService::Instance().DeleteTask(slot.timer_handle);
-  if (result) {
-    slot.timer_handle = SoftTimerService::kInvalidTaskHandle;
-  }
-
-  return result;
-}
-
-bool TaskManager::RearmTimer(TaskSlot &slot, uint32_t delay_ms)
-{
-  if (!StopTimer(slot)) {
-    return false;
-  }
-
-  return StartTimer(slot, delay_ms) != SoftTimerService::kInvalidTaskHandle;
-}
-
-uint8_t TaskManager::FindFreeSlot() const
-{
-  for (uint8_t slot_index = 0U; slot_index < kMaxTasks; ++slot_index) {
-    if (!tasks_[slot_index].allocated) {
-      return slot_index;
-    }
-  }
-
-  return kMaxTasks;
-}
-
-int16_t TaskManager::FindSlotIndex(TaskHandle handle) const
-{
-  if (!IsValidTaskHandle(handle)) {
-    return -1;
-  }
-
-  const uint8_t slot_index = ExtractTaskIndex(handle);
-  if (slot_index >= kMaxTasks) {
-    return -1;
-  }
-
-  return IsHandleMatch(tasks_[slot_index], handle, slot_index) ? slot_index : -1;
-}
-
-bool TaskManager::IsHandleMatch(const TaskSlot &slot, TaskHandle handle,
-                                uint8_t slot_index) const
-{
-  return slot.allocated && (slot.slot_index == slot_index) &&
-         (slot.generation == ExtractTaskGeneration(handle));
-}
-
-void TaskManager::ClearTaskSlot(uint8_t slot_index)
-{
-  TaskSlot &slot = tasks_[slot_index];
-  slot.name = nullptr;
-  slot.callback = nullptr;
-  slot.context = nullptr;
-  slot.handle = kInvalidTaskHandle;
-  slot.timer_handle = SoftTimerService::kInvalidTaskHandle;
-  slot.period_ms = 0U;
-  slot.default_start_delay_ms = 0U;
-  slot.requested_delay_ms = 0U;
-  slot.priority = SoftTimerService::kLowestPriority;
-  slot.slot_index = kMaxTasks;
-  slot.allocated = false;
-  slot.auto_reload = true;
-  slot.suspended = false;
-  slot.running = false;
-  slot.pending_delete = false;
-  slot.delay_requested = false;
-}
-
-} // namespace iFly::task
+} // namespace iFly

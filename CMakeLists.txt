@@ -70,6 +70,9 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/lib/can/can.cpp
     iFly/lib/pwm/pwm.cpp
     iFly/lib/led/led.cpp
+    iFly/task/task_all_init.cpp
+    iFly/task/task_cli_poll.cpp
+    iFly/task/task_led_ctrl.cpp
 )
 
 # Add include paths
@@ -100,6 +103,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/lib/double_buffer
     iFly/lib
     iFly/lib/platform
+    iFly/task
 )
 
 # Add project symbols (macros)
