@@ -1,30 +1,111 @@
-/**
- * Any CSS included here will be global. The classic template
- * bundles Infima by default. Infima is a CSS framework designed to
- * work well for content-centric websites.
- */
-
-/* You can override the default Infima variables here. */
 :root {
-  --ifm-color-primary: #2e8555;
-  --ifm-color-primary-dark: #29784c;
-  --ifm-color-primary-darker: #277148;
-  --ifm-color-primary-darkest: #205d3b;
-  --ifm-color-primary-light: #33925d;
-  --ifm-color-primary-lighter: #359962;
-  --ifm-color-primary-lightest: #3cad6e;
+  --ifm-color-primary: #0a6a65;
+  --ifm-color-primary-dark: #095f5b;
+  --ifm-color-primary-darker: #085955;
+  --ifm-color-primary-darkest: #064945;
+  --ifm-color-primary-light: #0b7570;
+  --ifm-color-primary-lighter: #0c7b76;
+  --ifm-color-primary-lightest: #10918b;
+  --ifm-background-color: #f4efe6;
+  --ifm-background-surface-color: rgba(255, 251, 244, 0.9);
+  --ifm-navbar-background-color: rgba(244, 239, 230, 0.82);
+  --ifm-footer-background-color: #ece3d4;
+  --ifm-font-family-base: 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', sans-serif;
+  --ifm-heading-font-family: Georgia, 'Times New Roman', 'Songti SC', serif;
+  --ifm-heading-color: #1f2a2b;
+  --ifm-menu-color-active: #0a6a65;
   --ifm-code-font-size: 95%;
-  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+  --ifm-link-color: #0a6a65;
+  --ifm-link-hover-color: #074d49;
+  --ifm-table-stripe-background: rgba(10, 106, 101, 0.04);
+  --docusaurus-highlighted-code-line-bg: rgba(10, 106, 101, 0.12);
+  --doc-card-border: rgba(57, 88, 90, 0.12);
 }
 
-/* For readability concerns, you should choose a lighter palette in dark mode. */
-[data-theme='dark'] {
-  --ifm-color-primary: #25c2a0;
-  --ifm-color-primary-dark: #21af90;
-  --ifm-color-primary-darker: #1fa588;
-  --ifm-color-primary-darkest: #1a8870;
-  --ifm-color-primary-light: #29d5b0;
-  --ifm-color-primary-lighter: #32d8b4;
-  --ifm-color-primary-lightest: #4fddbf;
-  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+html,
+body {
+  background:
+    radial-gradient(circle at top right, rgba(193, 166, 112, 0.18), transparent 24rem),
+    radial-gradient(circle at left center, rgba(10, 106, 101, 0.1), transparent 30rem),
+    #f4efe6;
+}
+
+body {
+  color: #243133;
+}
+
+.navbar {
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(57, 88, 90, 0.1);
+}
+
+.navbar__title {
+  letter-spacing: 0.04em;
+}
+
+.main-wrapper {
+  background: transparent;
+}
+
+.theme-doc-sidebar-container {
+  border-right: 1px solid rgba(57, 88, 90, 0.1);
+  background: rgba(250, 246, 239, 0.72);
+}
+
+.theme-doc-sidebar-menu {
+  padding-top: 1rem;
+}
+
+.theme-doc-sidebar-item-category-level-1 > .menu__list-item-collapsible {
+  font-weight: 700;
+}
+
+.theme-doc-markdown {
+  background: rgba(255, 252, 247, 0.8);
+  border: 1px solid var(--doc-card-border);
+  border-radius: 20px;
+  box-shadow: 0 18px 50px rgba(88, 78, 56, 0.08);
+  padding: 2rem;
+}
+
+.theme-doc-markdown h1 {
+  font-size: clamp(2.2rem, 4vw, 3.4rem);
+  letter-spacing: 0.02em;
+}
+
+.theme-doc-markdown h2 {
+  border-bottom: 1px solid rgba(57, 88, 90, 0.12);
+  padding-bottom: 0.45rem;
+  margin-top: 2.4rem;
+}
+
+.theme-doc-markdown code {
+  border: 1px solid rgba(57, 88, 90, 0.08);
+}
+
+.theme-doc-markdown pre code {
+  border: 0;
+}
+
+.theme-doc-markdown table {
+  display: table;
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.theme-doc-markdown th,
+.theme-doc-markdown td {
+  border: 1px solid rgba(57, 88, 90, 0.1);
+}
+
+.footer {
+  border-top: 1px solid rgba(57, 88, 90, 0.1);
+}
+
+@media (max-width: 996px) {
+  .theme-doc-markdown {
+    border-radius: 16px;
+    padding: 1.25rem;
+  }
 }

@@ -1,47 +1,66 @@
 ---
-sidebar_position: 1
+slug: /
+title: 工程简介
+description: iFly_Ctrl 工程结构、运行入口与模块分层概览
 ---
 
-# Tutorial Intro
+# iFly_Ctrl 工程简介
 
-Let's discover **Docusaurus in less than 5 minutes**.
+`iFly_Ctrl` 是一个面向 `STM32F405xx` 的嵌入式控制工程。工程使用 `STM32CubeMX` 生成 `Core/` 与 `Drivers/` 初始化代码，使用 `CMake + Ninja` 管理构建，应用逻辑以 `C++17` 组织在 `iFly/` 目录。
 
-## Getting Started
+## 当前启动链路
 
-Get started by **creating a new site**.
+当前代码中的启动路径如下：
 
-Or **try Docusaurus immediately** with **[docusaurus.new](https://docusaurus.new)**.
+1. `Core/Src/main.c` 完成 `HAL` 与板级外设初始化。
+2. `app_main()` 调用 `iFly::InitAllTasks()`。
+3. `InitAllTasks()` 初始化 `FlightCtrlCli`、`UsbUart`，并创建三个周期任务。
+4. 主循环持续调用 `iFly::TaskDispatch()`，由 `SoftTimerService` 分发已到期任务。
 
-### What you'll need
-
-- [Node.js](https://nodejs.org/en/download/) version 20.0 or above:
-  - When installing Node.js, you are recommended to check all checkboxes related to dependencies.
-
-## Generate a new site
-
-Generate a new Docusaurus site using the **classic template**.
-
-The classic template will automatically be added to your project after you run the command:
-
-```bash
-npm init docusaurus@latest my-website classic
+```text
+Core/Src/main.c
+  -> app_main()
+    -> iFly::InitAllTasks()
+      -> FlightCtrlCli
+      -> UsbUart
+      -> TaskCreatePeriodic(...)
+    -> while (1) { TaskDispatch(); }
 ```
 
-You can type this command into Command Prompt, Powershell, Terminal, or any other integrated terminal of your code editor.
+## 目录分层
 
-The command also installs all necessary dependencies you need to run Docusaurus.
+| 目录 | 作用 |
+| --- | --- |
+| `Core/` | STM32CubeMX 生成的启动代码、时钟配置与外设初始化 |
+| `Drivers/` | HAL 与 CMSIS 驱动 |
+| `cmake/` | 工具链与 CubeMX-CMake 相关脚本 |
+| `iFly/app/` | 应用层模块，包括 CLI、PID、协议解析、时间接口和任务封装 |
+| `iFly/dev/` | 面向上层的设备抽象，统一 `USB`、`UART`、`CAN` 的访问方式 |
+| `iFly/lib/` | 底层基础库，包括时间基准、软定时、无锁队列、USB CDC、UART DMA 等 |
+| `iFly/task/` | 当前主程序实际接入的任务初始化与任务回调 |
 
-## Start your site
+## 当前已接入任务
 
-Run the development server:
+| 任务名 | 创建位置 | 周期 | 优先级 | 当前回调内容 |
+| --- | --- | --- | --- | --- |
+| `pid_ctrl` | `iFly/task/task_pid_ctrl.cpp` | `1 ms` | `kHighestPriority + 2`，数值为 `2` | 回调函数已创建，函数体为空 |
+| `led_ctrl` | `iFly/task/task_led_ctrl.cpp` | `500 ms` | `kLowestPriority - 1`，数值为 `254` | 回调函数已创建，函数体为空 |
+| `cli_poll` | `iFly/task/task_cli_poll.cpp` | `200 ms` | `kLowestPriority`，数值为 `255` | 调用 `FlightCtrlCli::Poll()` |
 
-```bash
-cd my-website
-npm run start
-```
+## 模块关系
 
-The `cd` command changes the directory you're working with. In order to work with your newly created Docusaurus site, you'll need to navigate the terminal there.
+| 分层 | 主要内容 |
+| --- | --- |
+| 应用层 | `FlightCtrlCli`、`Pid`、`ProjectParameterManager`、`TaskCreatePeriodic`、`tick`、`CRSF/SBUS` |
+| 设备抽象层 | `SerialIoBase`、`HardwareUart`、`UsbUart`、`HardwareCan` |
+| 基础库 | `Shell`、`SoftTimerService`、`SysTickNsTimer`、`UartDmaService`、`UsbCdcAcm`、`LockFreeQueueBase` |
 
-The `npm run start` command builds your website locally and serves it through a development server, ready for you to view at http://localhost:3000/.
+## 当前通信入口
 
-Open `docs/intro.md` (this page) and edit some lines: the site **reloads automatically** and displays your changes.
+`InitAllTasks()` 当前注册并启用的 CLI 传输通道为 `usb`。`FlightCtrlCli` 使用 `Shell` 提供命令、函数和参数接口，默认参数由 `ProjectParameterManager` 持有。
+
+## 文档导航
+
+- `构建`：页面结构已预留。
+- `上手开发`：说明 `iFly/app/` 中各模块的用法和代码示例。
+- `底层实现`：说明 `iFly/lib/` 中关键模块的实现技术和重要代码注解。
