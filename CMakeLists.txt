@@ -73,6 +73,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/task/task_all_init.cpp
     iFly/task/task_cli_poll.cpp
     iFly/task/task_led_ctrl.cpp
+    iFly/task/task_pid_ctrl.cpp
 )
 
 # Add include paths
