@@ -2,7 +2,7 @@ title: iFly
 lang: en
 description: a catchy description for your project
 
-remote_theme: rundocs/jekyll-rtd-theme
+remote_theme: jekyll-theme-primer
 
 readme_index:
   with_frontmatter: true
