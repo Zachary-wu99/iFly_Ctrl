@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>iFly_Ctrl 文档站 | 架构说明</title>
+  <meta
+    name="description"
+    content="iFly_Ctrl 架构页，按模块和分层说明当前代码结构，聚焦已落地的驱动、模块和基础设施。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;800&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="assets/styles.css?v=20260421-2">
+  <script defer src="assets/script.js?v=20260421-2"></script>
+</head>
+<body class="page-architecture">
+  <div class="scroll-progress" aria-hidden="true"></div>
+  <div class="site-shell">
+    <header class="topbar">
+      <a class="brand" href="index.html">
+        <span class="brand-mark">iF</span>
+        <span class="brand-copy">
+          <strong>iFly_Ctrl</strong>
+          <small>Architecture</small>
+        </span>
+      </a>
+      <nav class="topnav" aria-label="站点导航">
+        <a data-page-link href="index.html">首页</a>
+        <a data-page-link href="quickstart.html">快速上手</a>
+        <a data-page-link href="architecture.html">架构</a>
+        <a data-page-link href="implementation.html">底层实现</a>
+        <a data-page-link href="contributing.html">文档协作</a>
+        <a class="nav-external" href="https://github.com/Zachary-wu99/iFly_Ctrl" target="_blank" rel="noreferrer">GitHub</a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero section hero-single hero-compact">
+        <div class="hero-copy reveal">
+          <p class="eyebrow">Architecture / Layers / Modules</p>
+          <h1>架构说明<br><span>聚焦当前已落地的模块、驱动和基础设施</span></h1>
+          <p class="hero-lead">
+            架构页按“工程层次”和“模块关系”整理当前实现。
+            应用层飞控逻辑尚未拼装为完整闭环，因此本文不采用主链路叙事。
+          </p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#position">先看当前定位</a>
+            <a class="button button-secondary" href="#layers">先看分层</a>
+            <a class="button button-secondary" href="#app-layout">先看 app 模块</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section reveal">
+        <div class="docs-layout reverse">
+          <aside class="toc-card reveal" data-spy-nav>
+            <h3>本页目录</h3>
+            <p class="toc-note">本页聚焦模块结构、分层关系和当前边界。</p>
+            <nav class="toc-nav" aria-label="架构目录">
+              <a href="#position">当前定位</a>
+              <a href="#layers">工程分层</a>
+              <a href="#app-layout">app 模块结构</a>
+              <a href="#service-layout">dev / lib 结构</a>
+              <a href="#repo-layout">目录结构</a>
+              <a href="#hardware">硬件资源</a>
+              <a href="#status">当前状态</a>
+            </nav>
+          </aside>
+
+          <div class="content-stack">
+            <section id="position" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">Current Position</p>
+                <h2>当前工程定位</h2>
+                <p>理解这一点以后，后面的架构才不会读偏。</p>
+              </div>
+              <div class="detail-grid">
+                <article class="detail-card">
+                  <h3>现在是什么</h3>
+                  <p>现在是一个以 STM32F405 为底座、围绕通信、CLI、参数、控制基础件和协议模块展开的模块化工程。</p>
+                </article>
+                <article class="detail-card">
+                  <h3>现在不是什么</h3>
+                  <p>现在还不是一个已经把姿态估计、控制分配、执行器输出和调度完全拼起来的应用层飞控系统。</p>
+                </article>
+                <article class="detail-card">
+                  <h3>为什么要这样写架构</h3>
+                  <p>因为如果架构页过早围绕“主链路”描述，会把模块开发阶段误写成完整业务阶段，后面越写越不准确。</p>
+                </article>
+                <article class="detail-card">
+                  <h3>因此这页讲什么</h3>
+                  <p>这页只讲当前真实存在的工程层次、模块边界、目录结构、硬件资源和已落地能力。</p>
+                </article>
+              </div>
+            </section>
+
+            <section id="layers" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">Layers</p>
+                <h2>当前工程可以分成五层</h2>
+              </div>
+              <div class="layer-board">
+                <div class="layer-row">
+                  <span class="layer-title">CubeMX / HAL</span>
+                  <div class="layer-chips">
+                    <span>Core/</span>
+                    <span>Drivers/</span>
+                    <span>iFly_Ctrl.ioc</span>
+                  </div>
+                </div>
+                <div class="layer-row">
+                  <span class="layer-title">Runtime Services</span>
+                  <div class="layer-chips">
+                    <span>usb_cdc</span>
+                    <span>uart_dma</span>
+                    <span>can</span>
+                    <span>soft_timer</span>
+                    <span>systick_timer</span>
+                    <span>double_buffer</span>
+                    <span>freelock_queue</span>
+                  </div>
+                </div>
+                <div class="layer-row">
+                  <span class="layer-title">Device Wrappers</span>
+                  <div class="layer-chips">
+                    <span>SerialIoBase</span>
+                    <span>HardwareUart</span>
+                    <span>UsbUart</span>
+                    <span>HardwareCan</span>
+                  </div>
+                </div>
+                <div class="layer-row">
+                  <span class="layer-title">App Modules</span>
+                  <div class="layer-chips">
+                    <span>FlightCtrlCli</span>
+                    <span>ParameterManager</span>
+                    <span>Pid</span>
+                    <span>tick</span>
+                    <span>ObserverChannel</span>
+                    <span>TaskManager</span>
+                    <span>SbusProtocol</span>
+                    <span>CrsfProtocol</span>
+                  </div>
+                </div>
+                <div class="layer-row">
+                  <span class="layer-title">Application Assembly</span>
+                  <div class="layer-chips">
+                    <span>app_main.cpp</span>
+                    <span>当前仍是模块级装配</span>
+                    <span>完整飞控逻辑未拼装</span>
+                  </div>
+                </div>
+              </div>
+              <div class="callout callout-accent">
+                <strong>这一层次的意义</strong>
+                <p>底层硬件初始化继续交给 CubeMX，服务层处理收发和调度细节，device wrapper 统一上层接口，app 层专注模块能力，应用装配层只负责把需要的模块接起来。</p>
+              </div>
+            </section>
+
+            <section id="app-layout" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">App Layout</p>
+                <h2>app 目录的模块结构</h2>
+                <p>这里按职责而不是按文件名罗列。</p>
+              </div>
+              <div class="detail-grid">
+                <article class="detail-card">
+                  <h3>交互与装配</h3>
+                  <ul>
+                    <li><code>app/cli/flight_ctrl_cli.*</code>：终端场景装配。</li>
+                    <li><code>app_main.cpp</code>：把 transport 和 CLI 接到当前最小应用入口。</li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>控制与参数</h3>
+                  <ul>
+                    <li><code>app/ctrl/pid.*</code>：控制器基础件。</li>
+                    <li><code>app/paramete/parameter_manager.*</code>：参数注册与映射。</li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>时间、观察者、任务</h3>
+                  <ul>
+                    <li><code>app/tick/tick.*</code>：统一时间接口。</li>
+                    <li><code>app/observer/observer_channel.hpp</code>：观察者快照通道。</li>
+                    <li><code>app/task_mage/task.*</code>：基于 SoftTimer 的上层任务管理。</li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>协议模块</h3>
+                  <ul>
+                    <li><code>app/proto/sbus/*</code>：SBUS 帧解析与编码。</li>
+                    <li><code>app/proto/crsf/*</code>：CRSF 帧解析、CRC 和 RC Packed 处理。</li>
+                  </ul>
+                </article>
+              </div>
+            </section>
+
+            <section id="service-layout" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">Dev &amp; Lib Layout</p>
+                <h2>dev 和 lib 目录承担的角色</h2>
+              </div>
+              <div class="detail-grid">
+                <article class="detail-card">
+                  <h3>dev：对上统一接口</h3>
+                  <ul>
+                    <li><code>serial_io_base.hpp</code>：统一字节流抽象。</li>
+                    <li><code>uart_dev/</code>：硬件 UART 包装器。</li>
+                    <li><code>usb_dev/</code>：USB CDC 包装器。</li>
+                    <li><code>can_dev/</code>：CAN 包装器。</li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>lib：对下处理细节</h3>
+                  <ul>
+                    <li><code>usb_cdc/</code>：USB CDC ACM 协议层。</li>
+                    <li><code>uart/</code>：UART DMA 服务。</li>
+                    <li><code>can/</code>：CAN 服务。</li>
+                    <li><code>soft_timer/</code>：非抢占式软定时器。</li>
+                    <li><code>systick_timer/</code>：HAL Tick + DWT 时间底座。</li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>共享基础件</h3>
+                  <ul>
+                    <li><code>freelock_queue/</code>：无锁队列。</li>
+                    <li><code>double_buffer/</code>：双缓冲。</li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>这两层的关系</h3>
+                  <p>dev 负责给上层提供统一接口，lib 负责把具体硬件和运行时细节藏起来。这样上层切换 USB、UART、CAN 时，不需要改成完全不同的使用方式。</p>
+                </article>
+              </div>
+            </section>
+
+            <section id="repo-layout" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">Repository Layout</p>
+                <h2>目录结构</h2>
+              </div>
+              <pre class="code-block"><code>iFly_Ctrl/
+├─ Core/                      # CubeMX 生成的应用层 C 代码
+├─ Drivers/                   # HAL / CMSIS 驱动
+├─ cmake/                     # 工具链与构建脚本
+├─ iFly/
+│  ├─ app/                    # 上层模块
+│  │  ├─ cli/
+│  │  ├─ ctrl/
+│  │  ├─ observer/
+│  │  ├─ paramete/
+│  │  ├─ proto/
+│  │  ├─ task_mage/
+│  │  └─ tick/
+│  ├─ dev/                    # 对上统一的设备包装层
+│  ├─ lib/                    # 真正的底层服务和基础件
+│  └─ app_main.cpp            # 当前应用装配入口
+├─ CMakeLists.txt
+├─ CMakePresets.json
+└─ iFly_Ctrl.ioc</code></pre>
+              <div class="callout">
+                <strong>注意</strong>
+                  <p><code>paramete</code> 和 <code>task_mage</code> 等目录名按仓库现状保留，文档应照实记录，不自行改写路径名。</p>
+              </div>
+            </section>
+
+            <section id="hardware" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">Hardware Resources</p>
+                <h2>当前已配置的硬件资源</h2>
+              </div>
+              <div class="kv-table">
+                <table class="doc-table">
+                  <thead>
+                    <tr>
+                      <th>资源</th>
+                      <th>当前用途</th>
+                      <th>说明</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>USB_OTG_FS</code></td>
+                      <td>CLI 调试入口</td>
+                      <td>当前默认使用的交互通道。</td>
+                    </tr>
+                    <tr>
+                      <td><code>UART5</code></td>
+                      <td>CLI 备用通道</td>
+                      <td>经由 UART DMA 服务提供备用调试链路。</td>
+                    </tr>
+                    <tr>
+                      <td><code>UART4</code> / <code>USART1/2/3/6</code></td>
+                      <td>已初始化</td>
+                      <td>当前没有被 app 层业务明确绑定。</td>
+                    </tr>
+                    <tr>
+                      <td><code>CAN1</code></td>
+                      <td>框架准备阶段</td>
+                      <td>当前仍处于 <code>CAN_MODE_LOOPBACK</code>。</td>
+                    </tr>
+                    <tr>
+                      <td><code>SysTick + DWT</code></td>
+                      <td>时间基准</td>
+                      <td>供 tick 和 soft timer 复用。</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section id="status" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">Current Status</p>
+                <h2>当前状态应该怎么理解</h2>
+              </div>
+              <div class="state-board">
+                <article class="state-column">
+                  <h3>已经落地的模块能力</h3>
+                  <ul class="bullet-list">
+                    <li>CLI 与 Shell 交互</li>
+                    <li>参数系统</li>
+                    <li>PID 控制器基础件</li>
+                    <li>USB CDC 与 UART DMA 通信服务</li>
+                    <li>tick 时间工具</li>
+                    <li>Observer / Task / Protocol 模块代码</li>
+                  </ul>
+                </article>
+                <article class="state-column">
+                  <h3>还没做成完整业务装配的内容</h3>
+                  <ul class="bullet-list">
+                    <li>应用层飞控任务调度</li>
+                    <li>姿态估计业务对象</li>
+                    <li>遥控输入到控制输出的完整闭环</li>
+                    <li>执行器和飞控业务状态对象</li>
+                  </ul>
+                </article>
+                <article class="state-column">
+                  <h3>文档写法上的要求</h3>
+                  <ul class="bullet-list">
+                    <li>描述模块能力可以写“已实现”。</li>
+                    <li>描述应用层闭环时必须写“尚未拼装完成”。</li>
+                    <li>架构页不再拿不存在的主链路做主体。</li>
+                  </ul>
+                </article>
+              </div>
+            </section>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div>
+        <strong>iFly_Ctrl Architecture</strong>
+        <p>当前按模块和层次描述结构，明确记录已落地实现与尚未拼装的边界。</p>
+      </div>
+      <div class="footer-links">
+        <a href="index.html">首页</a>
+        <a href="quickstart.html">快速上手</a>
+        <a href="implementation.html">底层实现</a>
+      </div>
+      <p class="footer-copy">Copyright © <span data-year></span> iFly_Ctrl Docs</p>
+    </footer>
+  </div>
+</body>
+</html>

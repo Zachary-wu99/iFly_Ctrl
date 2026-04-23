@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>iFly_Ctrl 文档站</title>
+  <meta
+    name="description"
+    content="面向 iFly_Ctrl 当前模块与驱动开发阶段的独立文档站，包含快速上手、架构说明、底层实现和文档协作指南。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;800&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="assets/styles.css?v=20260421-2">
+  <script defer src="assets/script.js?v=20260421-2"></script>
+</head>
+<body class="page-home">
+  <div class="scroll-progress" aria-hidden="true"></div>
+  <div class="site-shell">
+    <header class="topbar">
+      <a class="brand" href="index.html">
+        <span class="brand-mark">iF</span>
+        <span class="brand-copy">
+          <strong>iFly_Ctrl</strong>
+          <small>Documentation Site</small>
+        </span>
+      </a>
+      <nav class="topnav" aria-label="站点导航">
+        <a data-page-link href="index.html">首页</a>
+        <a data-page-link href="quickstart.html">快速上手</a>
+        <a data-page-link href="architecture.html">架构</a>
+        <a data-page-link href="implementation.html">底层实现</a>
+        <a data-page-link href="contributing.html">文档协作</a>
+        <a class="nav-external" href="https://github.com/Zachary-wu99/iFly_Ctrl" target="_blank" rel="noreferrer">GitHub</a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero section">
+        <div class="hero-copy reveal">
+          <p class="eyebrow">STM32F405 / STM32CubeMX + HAL / C11 + C++17</p>
+          <h1>iFly_Ctrl 文档站<br><span>聚焦驱动、模块和基础设施，暂不展开完整飞控业务闭环</span></h1>
+          <p class="hero-lead">
+            文档内容基于 <code>D:\personal\iFly_Ctrl</code> 当前代码状态整理。
+            当前工作重点包括驱动、通信、协议、调参和基础模块；应用层飞控逻辑尚未拼装为完整闭环，
+            因此文档重点放在模块用法、模块分层和底层实现。
+          </p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="quickstart.html">先看快速上手</a>
+            <a class="button button-secondary" href="architecture.html">先看模块架构</a>
+            <a class="button button-secondary" href="implementation.html">直接看底层实现</a>
+          </div>
+          <div class="facts-grid">
+            <article class="fact-card">
+              <span class="fact-label">当前阶段</span>
+              <strong>模块和驱动开发阶段</strong>
+              <p class="fact-copy">文档不再把它描述成完整飞控业务系统，而是模块化底座。</p>
+            </article>
+            <article class="fact-card">
+              <span class="fact-label">默认调试入口</span>
+              <strong>USB CDC CLI</strong>
+              <p class="fact-copy">当前最稳定的可交互入口仍是 CLI 调试控制台。</p>
+            </article>
+            <article class="fact-card">
+              <span class="fact-label">文档重点</span>
+              <strong>怎么用 + 怎么实现</strong>
+              <p class="fact-copy">快速上手负责模块用法，底层实现负责原理和代码入口。</p>
+            </article>
+          </div>
+        </div>
+
+        <aside class="hero-panel reveal">
+          <div class="panel-head">
+            <span class="panel-kicker">Read First</span>
+            <h2>推荐阅读顺序</h2>
+          </div>
+          <ul class="status-list">
+            <li>
+              <span class="status-tag status-live">第 1 步</span>
+              <strong>快速上手</strong>
+              <p>先看怎么构建、怎么验证、各个 app 模块怎么用，以及最小示例怎么写。</p>
+            </li>
+            <li>
+              <span class="status-tag status-live">第 2 步</span>
+              <strong>架构</strong>
+              <p>确认当前工程层次、模块边界、目录结构和“还没有拼装飞控业务层”这一现实边界。</p>
+            </li>
+            <li>
+              <span class="status-tag status-warm">第 3 步</span>
+              <strong>底层实现</strong>
+              <p>需要深挖时，再按模块进入实现说明页，看原理、技术点和代码入口。</p>
+            </li>
+            <li>
+              <span class="status-tag status-note">第 4 步</span>
+              <strong>文档协作</strong>
+              <p>后续继续补文档时，用协作页保证内容和代码状态一致。</p>
+            </li>
+          </ul>
+        </aside>
+      </section>
+
+      <section id="pages" class="section reveal">
+        <div class="section-head">
+          <p class="section-kicker">Documentation Pages</p>
+          <h2>文档现在按职责拆成四类页面</h2>
+          <p>
+            首页负责总览与导流，详细说明分别放在快速上手、架构、底层实现和文档协作页面中。
+          </p>
+        </div>
+        <div class="entry-grid">
+          <article class="entry-card">
+            <span class="path-meta">01</span>
+            <h3>快速上手</h3>
+            <p>按模块说明怎么用，并给出示例代码和最小使用场景。</p>
+            <a class="button button-tertiary" href="quickstart.html">进入页面</a>
+          </article>
+          <article class="entry-card">
+            <span class="path-meta">02</span>
+            <h3>架构说明</h3>
+            <p>只描述当前模块结构和分层关系，不虚构还没拼起来的飞控业务主链路。</p>
+            <a class="button button-tertiary" href="architecture.html">进入页面</a>
+          </article>
+          <article class="entry-card">
+            <span class="path-meta">03</span>
+            <h3>底层实现</h3>
+            <p>逐个模块讲职责、原理、技术点、代码入口和当前状态。</p>
+            <a class="button button-tertiary" href="implementation.html">进入页面</a>
+          </article>
+          <article class="entry-card">
+            <span class="path-meta">04</span>
+            <h3>文档协作</h3>
+            <p>说明以后怎么改文档、怎么维护跳转、怎么同步 README 和发布入口。</p>
+            <a class="button button-tertiary" href="contributing.html">进入页面</a>
+          </article>
+        </div>
+      </section>
+
+      <section id="app-modules" class="section reveal">
+        <div class="section-head">
+          <p class="section-kicker">App Modules</p>
+          <h2>app 目录的模块入口已经单独整理</h2>
+          <p>
+            快速上手页按 app 模块逐项提供用途说明、最小示例和实现入口。
+          </p>
+        </div>
+        <div class="module-grid">
+          <article class="module-card">
+            <span class="badge badge-live">app/cli</span>
+            <h3>FlightCtrlCli</h3>
+            <p>如何初始化终端、注册传输、切换通道、在主循环里轮询。</p>
+            <a class="button button-tertiary" href="quickstart.html#flightctrlcli-usage">看用法</a>
+          </article>
+          <article class="module-card">
+            <span class="badge badge-live">app/paramete</span>
+            <h3>ParameterManager</h3>
+            <p>如何注册 float / u32 / bool / callback 参数并挂到 Shell。</p>
+            <a class="button button-tertiary" href="quickstart.html#parameter-manager-usage">看用法</a>
+          </article>
+          <article class="module-card">
+            <span class="badge badge-live">app/ctrl</span>
+            <h3>Pid</h3>
+            <p>如何配置 PID、做单次更新、读取状态和重置积分。</p>
+            <a class="button button-tertiary" href="quickstart.html#pid-usage">看用法</a>
+          </article>
+          <article class="module-card">
+            <span class="badge badge-note">app/tick</span>
+            <h3>tick</h3>
+            <p>如何读取 ms/us/ns 时间，如何用阻塞和非阻塞延时工具。</p>
+            <a class="button button-tertiary" href="quickstart.html#tick-usage">看用法</a>
+          </article>
+          <article class="module-card">
+            <span class="badge badge-note">app/observer</span>
+            <h3>ObserverChannel</h3>
+            <p>如何发布快照、订阅最新值，以及怎样把它用成轻量观察者通道。</p>
+            <a class="button button-tertiary" href="quickstart.html#observer-channel-usage">看用法</a>
+          </article>
+          <article class="module-card">
+            <span class="badge badge-note">app/task_mage</span>
+            <h3>TaskManager</h3>
+            <p>如何基于 SoftTimer 创建周期任务、单次任务和手动重装任务。</p>
+            <a class="button button-tertiary" href="quickstart.html#task-manager-usage">看用法</a>
+          </article>
+          <article class="module-card">
+            <span class="badge badge-warm">app/proto/sbus</span>
+            <h3>SbusProtocol</h3>
+            <p>如何从串口字节流解析帧，如何编码一帧标准 SBUS 数据。</p>
+            <a class="button button-tertiary" href="quickstart.html#sbus-usage">看用法</a>
+          </article>
+          <article class="module-card">
+            <span class="badge badge-warm">app/proto/crsf</span>
+            <h3>CrsfProtocol</h3>
+            <p>如何解析 CRSF 帧，如何打包 RC Channels Packed 数据。</p>
+            <a class="button button-tertiary" href="quickstart.html#crsf-usage">看用法</a>
+          </article>
+          <article class="module-card">
+            <span class="badge badge-note">装配示例</span>
+            <h3>app_main</h3>
+            <p>如何把模块接起来，形成当前工程自己的装配入口。</p>
+            <a class="button button-tertiary" href="quickstart.html#app-main-usage">看示例</a>
+          </article>
+        </div>
+      </section>
+
+      <section id="notes" class="section reveal">
+        <div class="doc-banner">
+          <div>
+            <p class="section-kicker">Current Boundary</p>
+            <h2>当前文档统一遵守一个边界：不把“模块开发阶段”写成“完整飞控业务系统”</h2>
+            <p>
+              架构页采用模块与服务视角描述当前实现边界。
+              快速上手页则按 app 模块提供用法与示例，覆盖 CLI、参数、PID、时间、观察者、任务和协议模块。
+            </p>
+          </div>
+          <div class="doc-banner-actions">
+            <a class="button button-primary" href="architecture.html">查看新架构页</a>
+            <a class="button button-secondary" href="quickstart.html">查看模块用例页</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div>
+        <strong>iFly_Ctrl Documentation Site</strong>
+        <p>当前围绕模块、驱动、协议和基础设施整理的工程文档站。</p>
+      </div>
+      <div class="footer-links">
+        <a href="quickstart.html">快速上手</a>
+        <a href="architecture.html">架构</a>
+        <a href="implementation.html">底层实现</a>
+      </div>
+      <p class="footer-copy">Copyright © <span data-year></span> iFly_Ctrl Docs</p>
+    </footer>
+  </div>
+</body>
+</html>

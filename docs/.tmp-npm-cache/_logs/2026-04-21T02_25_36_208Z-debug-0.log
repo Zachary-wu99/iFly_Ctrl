@@ -1,0 +1,36 @@
+0 verbose cli D:\APP\node\app\node.exe D:\APP\node\app\node_modules\npm\bin\npm-cli.js
+1 info using npm@11.9.0
+2 info using node@v24.14.0
+3 silly config load:file:D:\APP\node\app\node_modules\npm\npmrc
+4 silly config load:file:D:\personal\site\.tmp-tools\.npmrc
+5 silly config load:file:C:\Users\HUAWEI\.npmrc
+6 silly config load:file:D:\personal\site\.tmp-tools\etc\npmrc
+7 verbose title npm install playwright-core
+8 verbose argv "install" "--cache" ".tmp-npm-cache" "--prefix" ".tmp-tools" "--no-save" "playwright-core"
+9 verbose logfile logs-max:10 dir:D:\personal\site\.tmp-npm-cache\_logs\2026-04-21T02_25_36_208Z-
+10 verbose logfile D:\personal\site\.tmp-npm-cache\_logs\2026-04-21T02_25_36_208Z-debug-0.log
+11 silly logfile done cleaning log files
+12 silly packumentCache heap:4496293888 maxSize:1124073472 maxEntrySize:562036736
+13 silly idealTree buildDeps
+14 silly fetch manifest playwright-core@*
+15 silly packumentCache full:https://registry.npmjs.org/playwright-core cache-miss
+16 http fetch GET 200 https://registry.npmjs.org/npm 4064ms
+17 http fetch GET 200 https://registry.npmjs.org/playwright-core 5878ms (cache miss)
+18 silly packumentCache full:https://registry.npmjs.org/playwright-core set size:undefined disposed:false
+19 silly placeDep ROOT playwright-core@1.59.1 OK for:  want: *
+20 silly reify moves {}
+21 http cache playwright-core@https://registry.npmjs.org/playwright-core/-/playwright-core-1.59.1.tgz 0ms (cache hit)
+22 silly tarball no local data for playwright-core@https://registry.npmjs.org/playwright-core/-/playwright-core-1.59.1.tgz. Extracting by manifest.
+23 http fetch GET 200 https://registry.npmjs.org/playwright-core/-/playwright-core-1.59.1.tgz 2220ms (cache miss)
+24 silly ADD node_modules/playwright-core
+25 verbose cwd D:\personal\site
+26 verbose os Windows_NT 10.0.26200
+27 verbose node v24.14.0
+28 verbose npm  v11.9.0
+29 notice
+29 notice New minor version of npm available! 11.9.0 -> 11.12.1
+29 notice Changelog: https://github.com/npm/cli/releases/tag/v11.12.1
+29 notice To update run: npm install -g npm@11.12.1
+29 notice  { force: true, Symbol(proc-log.meta): true }
+30 verbose exit 0
+31 info ok

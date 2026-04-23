@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>iFly_Ctrl 文档站 | 底层实现</title>
+  <meta
+    name="description"
+    content="iFly_Ctrl 底层实现页，按模块详细说明职责、原理、关键技术、代码阅读入口和当前接入状态。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;800&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="assets/styles.css?v=20260421-2">
+  <script defer src="assets/script.js?v=20260421-2"></script>
+</head>
+<body class="page-implementation">
+  <div class="scroll-progress" aria-hidden="true"></div>
+  <div class="site-shell">
+    <header class="topbar">
+      <a class="brand" href="index.html">
+        <span class="brand-mark">iF</span>
+        <span class="brand-copy">
+          <strong>iFly_Ctrl</strong>
+          <small>Implementation Notes</small>
+        </span>
+      </a>
+      <nav class="topnav" aria-label="站点导航">
+        <a data-page-link href="index.html">首页</a>
+        <a data-page-link href="quickstart.html">快速上手</a>
+        <a data-page-link href="architecture.html">架构</a>
+        <a data-page-link href="implementation.html">底层实现</a>
+        <a data-page-link href="contributing.html">文档协作</a>
+        <a class="nav-external" href="https://github.com/Zachary-wu99/iFly_Ctrl" target="_blank" rel="noreferrer">GitHub</a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero section hero-single hero-compact">
+        <div class="hero-copy reveal">
+          <p class="eyebrow">Implementation / Modules / Code Reading</p>
+          <h1>底层实现<br><span>按模块解释职责、原理、技术点和真实接入状态</span></h1>
+          <p class="hero-lead">
+            本页按当前已落地的驱动、模块、运行时服务和最小装配入口组织内容。
+            <code>app_main</code> 在文中表示当前接入入口，不代表完整应用层飞控逻辑。
+          </p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#module-index">先看阅读索引</a>
+            <a class="button button-secondary" href="#observer-channel">看 ObserverChannel</a>
+            <a class="button button-secondary" href="#task-manager">看 TaskManager</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section reveal">
+        <div class="docs-layout reverse">
+          <aside class="toc-card reveal" data-spy-nav>
+            <h3>模块目录</h3>
+            <p class="toc-note">按“已接入入口 → app 模块 → 传输抽象 → 协议与调度”阅读最顺手。</p>
+            <nav class="toc-nav" aria-label="底层实现目录">
+              <a href="#module-index">阅读索引</a>
+              <a href="#app-main">app_main</a>
+              <a href="#flightctrlcli">FlightCtrlCli</a>
+              <a href="#shell">Shell</a>
+              <a href="#parameter-manager">ParameterManager</a>
+              <a href="#pid">Pid</a>
+              <a href="#observer-channel">ObserverChannel</a>
+              <a href="#task-manager">TaskManager</a>
+              <a href="#tick-time">tick / systick_time</a>
+              <a href="#softtimer">SoftTimerService</a>
+              <a href="#serial-io-base">SerialIoBase</a>
+              <a href="#shared-primitives">基础件</a>
+              <a href="#hardware-uart">HardwareUart</a>
+              <a href="#uart-dma-service">UartDmaService</a>
+              <a href="#usb-uart">UsbUart</a>
+              <a href="#usb-cdc-acm">UsbCdcAcm</a>
+              <a href="#hardware-can">HardwareCan</a>
+              <a href="#can-service">CanService</a>
+              <a href="#sbus-protocol">SbusProtocol</a>
+              <a href="#crsf-protocol">CrsfProtocol</a>
+            </nav>
+          </aside>
+
+          <div class="content-stack">
+            <section id="module-index" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">Reading Index</p>
+                <h2>这页怎么读最快</h2>
+                <p>可按问题所在层级直接跳转到对应模块阅读。</p>
+              </div>
+              <div class="jump-grid">
+                <article class="inline-card">
+                  <span class="info-chip">当前已接入入口</span>
+                  <h3>从 <code>app_main</code> / <code>FlightCtrlCli</code> 开始</h3>
+                  <p>用于确认当前板上运行内容以及 CLI 的装配方式。</p>
+                  <div class="inline-actions">
+                    <a class="button button-tertiary" href="#app-main">看装配入口</a>
+                    <a class="button button-tertiary" href="#flightctrlcli">看 CLI 运行时</a>
+                  </div>
+                </article>
+                <article class="inline-card">
+                  <span class="info-chip">调参与控制</span>
+                  <h3>从 <code>Shell</code> / <code>ParameterManager</code> / <code>Pid</code> 开始</h3>
+                  <p>用于排查命令、参数注册、PID 在线调参和单次样例计算。</p>
+                  <div class="inline-actions">
+                    <a class="button button-tertiary" href="#shell">看 Shell</a>
+                    <a class="button button-tertiary" href="#pid">看 Pid</a>
+                  </div>
+                </article>
+                <article class="inline-card">
+                  <span class="info-chip">状态广播与任务</span>
+                  <h3>从 <code>ObserverChannel</code> / <code>TaskManager</code> / <code>SoftTimerService</code> 开始</h3>
+                  <p>用于梳理姿态、估计和任务化装配相关模块，并区分“已实现”和“已接入”。</p>
+                  <div class="inline-actions">
+                    <a class="button button-tertiary" href="#observer-channel">看 Observer</a>
+                    <a class="button button-tertiary" href="#task-manager">看 Task</a>
+                  </div>
+                </article>
+                <article class="inline-card">
+                  <span class="info-chip">传输与协议</span>
+                  <h3>从 <code>SerialIoBase</code> / <code>UsbCdcAcm</code> / <code>SbusProtocol</code> 开始</h3>
+                  <p>用于查看 USB、UART、CAN 和接收机协议模块的分层组织方式。</p>
+                  <div class="inline-actions">
+                    <a class="button button-tertiary" href="#serial-io-base">看传输抽象</a>
+                    <a class="button button-tertiary" href="#sbus-protocol">看接收机协议</a>
+                  </div>
+                </article>
+              </div>
+            </section>
+
+            <section id="app-main" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">Application Entry</p>
+                <h2>app_main</h2>
+                <p>这是当前 C++ 层真正已经接入的应用入口，但它现在只负责“把 CLI 调试链路接起来”，不代表完整飞控应用层已经组装完成。</p>
+              </div>
+              <div class="detail-grid">
+                <article class="detail-card">
+                  <h3>核心文件</h3>
+                  <ul>
+                    <li><code>iFly/app_main.cpp</code></li>
+                    <li><code>iFly/app_main.h</code></li>
+                    <li><code>Core/Src/main.c</code></li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>职责</h3>
+                  <p>初始化 <code>HardwareUart(UART5)</code>、<code>UsbUart</code> 和 <code>FlightCtrlCli</code>，注册两条 transport，默认切到 <code>usb</code>，然后进入一个极简轮询循环。</p>
+                </article>
+                <article class="detail-card">
+                  <h3>当前真实运行步骤</h3>
+                  <ul>
+                    <li><code>InitCliRuntime()</code> 里先初始化 USB/UART，再初始化 CLI，并注册 <code>uart5</code>、<code>usb</code> 两个通道。</li>
+                    <li>初始化完成后先 <code>DelayMs(20)</code>，再立即做一次 <code>Poll()</code>。</li>
+                    <li>随后启动一个 <code>tick::NonBlockingDelayMs</code>，每 50 ms 轮询一次 CLI。</li>
+                    <li>主循环底部仍保留 <code>DelayMs(1)</code>，所以现在没有任务派发器，也没有飞控业务闭环。</li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>代码阅读入口</h3>
+                  <ul>
+                    <li>先看 <code>InitCliRuntime()</code>，确认当前真正接入了哪些模块。</li>
+                    <li>再看 <code>kCliPollPeriodMs</code> 和 <code>cli_poll_delay</code>，理解 CLI 不是每圈都跑，而是 50 ms 一次。</li>
+                    <li>最后看 <code>while (1)</code>，明确当前主循环里还没有 <code>TaskManager::Dispatch()</code> 或控制链路。</li>
+                  </ul>
+                </article>
+              </div>
+              <div class="callout callout-accent">
+                <strong>当前状态</strong>
+                <p>已接入，定位为当前调试装配入口。</p>
+              </div>
+            </section>
+
+            <section id="flightctrlcli" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">CLI Runtime</p>
+                <h2>FlightCtrlCli</h2>
+                <p>它把 Shell、参数管理、PID 样例和 transport 选择绑成一个可直接用于板上调试的运行时壳层。</p>
+              </div>
+              <div class="detail-grid">
+                <article class="detail-card">
+                  <h3>核心文件</h3>
+                  <ul>
+                    <li><code>iFly/app/cli/flight_ctrl_cli.hpp</code></li>
+                    <li><code>iFly/app/cli/flight_ctrl_cli.cpp</code></li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>底层原理</h3>
+                  <p>本质上它不是再造一套 Shell，而是围绕飞控调试场景，给通用 Shell 叠加 transport 绑定、参数表、函数表、欢迎输出和运行时状态维护。</p>
+                </article>
+                <article class="detail-card">
+                  <h3>用到的技术</h3>
+                  <ul>
+                    <li>固定容量 transport 注册表，避免动态分配。</li>
+                    <li>通过 <code>RegisterParameters()</code> 把 PID、系统频率、锁定状态等统一暴露给 Shell。</li>
+                    <li>通过参数更新回调把 <code>pid.*</code> 变化即时同步到 <code>Pid</code> 实例。</li>
+                    <li>通过 <code>RegisterFunctions()</code> 注册 <code>status</code>、<code>pid.sample</code>、<code>transport.use</code> 等调试入口。</li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>代码阅读入口</h3>
+                  <ul>
+                    <li>先看 <code>Init()</code>，确认 Shell、参数和函数的装配顺序。</li>
+                    <li>再看 <code>RegisterTransport()</code> / <code>UseTransport()</code>，理解通路切换如何生效。</li>
+                    <li>最后看 <code>Poll()</code> 和命令回调，理解 CLI 运行时是怎么被主循环驱动的。</li>
+                  </ul>
+                </article>
+              </div>
+              <div class="callout callout-accent">
+                <strong>当前状态</strong>
+                <p>已接入。它是当前仓库里最完整、最真实、也最容易验证的 app 层装配模块。</p>
+              </div>
+            </section>
+
+            <section id="shell" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">Interactive Console</p>
+                <h2>Shell</h2>
+                <p>Shell 负责真正的会话状态机、命令分发、参数读写和函数调用，是 CLI 体验的底层核心。</p>
+              </div>
+              <div class="detail-grid">
+                <article class="detail-card">
+                  <h3>核心文件</h3>
+                  <ul>
+                    <li><code>iFly/lib/shell/shell.hpp</code></li>
+                    <li><code>iFly/lib/shell/shell.cpp</code></li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>底层原理</h3>
+                  <p>内部维护多阶段会话状态: 未连接、激活提示、会话动画、密码输入、可交互态。所有输入字节先经过状态机，再决定是回显、拼命令、执行命令还是忽略。</p>
+                </article>
+                <article class="detail-card">
+                  <h3>用到的技术</h3>
+                  <ul>
+                    <li>按字节处理输入，支持回车、退格、打印字符和激活键。</li>
+                    <li>固定容量命令表、函数表、参数表，适合嵌入式无堆或少堆场景。</li>
+                    <li>内建命令模型统一了 <code>help</code>、<code>func</code>、<code>param</code> 以及快捷别名。</li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>代码阅读入口</h3>
+                  <ul>
+                    <li>看 <code>Poll()</code>，了解 Shell 如何从 transport 中取字节并推进状态机。</li>
+                    <li>看 <code>ProcessByte()</code>，理解字符级输入解析。</li>
+                    <li>看 <code>ExecuteBuiltin()</code> 和参数命令处理路径，理解命令体系如何落地。</li>
+                  </ul>
+                </article>
+              </div>
+              <div class="callout">
+                <strong>当前状态</strong>
+                <p>已接入。当前 CLI 的登录、提示、参数命令和函数命令全部依赖它。</p>
+              </div>
+            </section>
+
+            <section id="parameter-manager" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">Parameter Registry</p>
+                <h2>ParameterManager</h2>
+                <p>它负责把业务变量直接映射成 Shell 参数，省掉每个变量手写 getter/setter 和命令胶水的重复劳动。</p>
+              </div>
+              <div class="detail-grid">
+                <article class="detail-card">
+                  <h3>核心文件</h3>
+                  <ul>
+                    <li><code>iFly/app/paramete/parameter_manager.hpp</code></li>
+                    <li><code>iFly/app/paramete/parameter_manager.cpp</code></li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>底层原理</h3>
+                  <p>内部把 <code>float</code>、<code>u32</code>、<code>bool</code> 等参数统一描述成表项，表项中直接保存业务变量地址，再由统一的解析/校验/写回路径处理。</p>
+                </article>
+                <article class="detail-card">
+                  <h3>用到的技术</h3>
+                  <ul>
+                    <li>固定容量数组管理参数项，避免运行时碎片化。</li>
+                    <li>参数项直连业务变量地址，改值路径短，回写开销低。</li>
+                    <li>支持 <code>on_updated</code> 回调，适合参数变更后立刻刷新运行时配置。</li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>代码阅读入口</h3>
+                  <ul>
+                    <li>看 <code>AddFloat()</code> / <code>AddU32()</code> / <code>AddBool()</code> 如何登记变量。</li>
+                    <li>看 <code>SetValue()</code> 如何做字符串解析、范围校验和回调通知。</li>
+                    <li>看 <code>RegisterToShell()</code> 如何批量挂载到 Shell。</li>
+                  </ul>
+                </article>
+              </div>
+              <div class="callout callout-accent">
+                <strong>当前状态</strong>
+                <p>已接入。当前 CLI 里的 <code>pid.*</code>、<code>sys.loop_hz</code>、<code>sys.arm_locked</code> 等参数都通过它暴露。</p>
+              </div>
+            </section>
+
+            <section id="pid" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">Controller Core</p>
+                <h2>Pid</h2>
+                <p>这是当前仓库里最成熟的控制基础件，也是已经和参数系统、CLI 样例计算打通的目标模块。</p>
+              </div>
+              <div class="detail-grid">
+                <article class="detail-card">
+                  <h3>核心文件</h3>
+                  <ul>
+                    <li><code>iFly/app/ctrl/pid.hpp</code></li>
+                    <li><code>iFly/app/ctrl/pid.cpp</code></li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>底层原理</h3>
+                  <p>每次更新都会先清洗输入和 <code>dt</code>，再按配置选择微分源，依次完成导数滤波、积分更新、抗积分饱和判断和输出限幅，最终给出完整分量结果。</p>
+                </article>
+                <article class="detail-card">
+                  <h3>用到的技术</h3>
+                  <ul>
+                    <li><code>P / I / D / FF</code> 各分量显式展开，便于调试和打印。</li>
+                    <li>支持多种微分模式，便于后续对测量值、误差或外部角速度建模。</li>
+                    <li>支持导数低通、积分限幅、输出限幅和异常数值回退。</li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>代码阅读入口</h3>
+                  <ul>
+                    <li>看 <code>Configure()</code>，了解配置清洗和边界矫正。</li>
+                    <li>看 <code>Update()</code>，理解完整单次控制更新路径。</li>
+                    <li>看导数滤波相关辅助函数，理解高频噪声如何被抑制。</li>
+                  </ul>
+                </article>
+              </div>
+              <div class="callout">
+                <strong>当前状态</strong>
+                <p>已接入，是当前最便于独立验证控制逻辑的模块之一。</p>
+              </div>
+            </section>
+
+            <section id="observer-channel" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">State Distribution</p>
+                <h2>ObserverChannel</h2>
+                <p>这是一个面向“单发布者、多消费者”的无锁快照通道，可用于将姿态、估计值、遥控输入或状态快照安全分发给多个读取方。</p>
+              </div>
+              <div class="detail-grid">
+                <article class="detail-card">
+                  <h3>核心文件</h3>
+                  <ul>
+                    <li><code>iFly/app/observer/observer_channel.hpp</code></li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>底层原理</h3>
+                  <p>通道内部维护固定数量历史槽位和全局发布序号。发布时先把槽位标记成“写入中”，写入消息后再写入稳定戳；消费者只维护自己的 <code>nextSequence</code>，读取时自动判断是正常读取、无数据还是历史被覆盖。</p>
+                </article>
+                <article class="detail-card">
+                  <h3>用到的技术</h3>
+                  <ul>
+                    <li>历史深度和最大消费者数量都通过模板参数固定，容量边界清晰。</li>
+                    <li><code>Consumer</code> 句柄自动占用/释放订阅位，避免额外注册表管理。</li>
+                    <li><code>TryRead()</code> 和 <code>TryReadLatest()</code> 区分“按序消费”和“直接取最新快照”。</li>
+                    <li>同一头文件里还提供了 <code>CallbackConsumer</code> 和 <code>ObserverHub</code>，方便把多个消息类型统一组织成观察总线。</li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>代码阅读入口</h3>
+                  <ul>
+                    <li>先看 <code>Publish()</code> / <code>Emplace()</code>，理解发布侧如何写稳定戳。</li>
+                    <li>再看 <code>SubscribeLatest()</code> / <code>SubscribeFromNext()</code>，理解消费者起始位置。</li>
+                    <li>然后看 <code>TryReadImpl()</code>，这是溢出检测和快照读取的核心。</li>
+                    <li>最后看 <code>ObserverHub::BindLatest()</code> / <code>BindFromNext()</code>，理解类型路由和回调封装。</li>
+                  </ul>
+                </article>
+              </div>
+              <div class="callout callout-warm">
+                <strong>当前状态</strong>
+                <p>已实现但未接入当前 <code>app_main()</code>。它已经能独立使用，但还没有被串成真实应用层数据流。</p>
+              </div>
+            </section>
+
+            <section id="task-manager" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">Task Abstraction</p>
+                <h2>TaskManager</h2>
+                <p>它位于 <code>SoftTimerService</code> 之上，用“任务”而不是“底层软定时器句柄”来组织业务层定时逻辑。</p>
+              </div>
+              <div class="detail-grid">
+                <article class="detail-card">
+                  <h3>核心文件</h3>
+                  <ul>
+                    <li><code>iFly/app/task_mage/task.hpp</code></li>
+                    <li><code>iFly/app/task_mage/task.cpp</code></li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>底层原理</h3>
+                  <p>每个上层任务槽位最终都会映射成一个底层 <code>SoftTimerService</code> 任务。触发后统一进入 <code>TaskEntry()</code>，再根据任务配置决定是周期重装、延后执行、挂起等待手动恢复，还是执行一次后删除。</p>
+                </article>
+                <article class="detail-card">
+                  <h3>用到的技术</h3>
+                  <ul>
+                    <li>任务句柄由“槽位索引 + generation”编码，防止旧句柄误操作复用后的新任务。</li>
+                    <li>支持 <code>CreatePeriodicTask()</code>、<code>CreateOneShotTask()</code> 和完整 <code>CreateTask()</code> 配置入口。</li>
+                    <li>支持 <code>DelayTask()</code>、<code>DelayCurrentTask()</code>、<code>SuspendTask()</code>、<code>ResumeTask()</code> 等生命周期控制。</li>
+                    <li>运行中的任务如果请求删除或延时，都会延后到回调退出后统一处理，避免直接破坏当前执行栈。</li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>代码阅读入口</h3>
+                  <ul>
+                    <li>先看 <code>CreateTask()</code>，理解上层任务如何落成槽位和底层 timer。</li>
+                    <li>再看 <code>TaskEntry()</code>，这里是运行中删除、挂起、自动重装的核心汇合点。</li>
+                    <li>然后看 <code>DelayCurrentTask()</code> / <code>ResumeTask()</code>，理解任务生命周期控制。</li>
+                    <li>最后看 <code>Dispatch()</code> 和 <code>Now()</code>，确认它本质上仍依赖 SoftTimerService 驱动。</li>
+                  </ul>
+                </article>
+              </div>
+              <div class="callout callout-warm">
+                <strong>当前状态</strong>
+                <p>已实现但未接入当前主循环。也就是说，任务抽象层已经具备，但 <code>app_main()</code> 还没有开始调 <code>TaskManager::Dispatch()</code>。</p>
+              </div>
+            </section>
+
+            <section id="tick-time" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">Time Base</p>
+                <h2>tick / systick_time</h2>
+                <p>时间系统分为两层: <code>tick</code> 提供面向 app 的统一接口，<code>systick_time</code> 负责真正的 HAL Tick 与 DWT 读时实现。</p>
+              </div>
+              <div class="detail-grid">
+                <article class="detail-card">
+                  <h3>核心文件</h3>
+                  <ul>
+                    <li><code>iFly/app/tick/tick.hpp</code></li>
+                    <li><code>iFly/app/tick/tick.cpp</code></li>
+                    <li><code>iFly/lib/systick_timer/systick_time.hpp</code></li>
+                    <li><code>iFly/lib/systick_timer/systick_time.cpp</code></li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>底层原理</h3>
+                  <p><code>NowMs()</code> 走 <code>HAL_GetTick()</code>；更高精度的 <code>NowUs()</code> / <code>NowNs()</code> 基于 <code>DWT-&gt;CYCCNT</code>；SysTick 中断还额外维护了 DWT 回绕的高位扩展。</p>
+                </article>
+                <article class="detail-card">
+                  <h3>用到的技术</h3>
+                  <ul>
+                    <li>同时提供阻塞式 <code>DelayMs()</code> / <code>DelayUs()</code> 与非阻塞式 <code>NonBlockingDelayMs</code> / <code>NonBlockingDelayUs</code>。</li>
+                    <li>C / C++ 双接口导出，便于和 HAL 生成代码一起工作。</li>
+                    <li>是当前 CLI 轮询、欢迎动画和各种时间统计的共同基础。</li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>代码阅读入口</h3>
+                  <ul>
+                    <li>看 <code>NowMs()</code> / <code>NowUs()</code>，理解不同精度的时间源。</li>
+                    <li>看 <code>NonBlockingDelayMs::ConsumeIfExpired()</code>，这是当前 <code>app_main</code> 50 ms 轮询的直接基础。</li>
+                    <li>看底层 DWT 相关代码，理解高精度时间的来源。</li>
+                  </ul>
+                </article>
+              </div>
+              <div class="callout callout-accent">
+                <strong>当前状态</strong>
+                <p>已接入。当前已经跑起来的模块里，凡是涉及时间、延时和非阻塞轮询，基本都要经过它。</p>
+              </div>
+            </section>
+
+            <section id="softtimer" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">Software Scheduler</p>
+                <h2>SoftTimerService</h2>
+                <p>这是一个基于 SysTick 的轻量非抢占式软件定时调度器，也是 <code>TaskManager</code> 的直接底座。</p>
+              </div>
+              <div class="detail-grid">
+                <article class="detail-card">
+                  <h3>核心文件</h3>
+                  <ul>
+                    <li><code>iFly/lib/soft_timer/soft_timer.hpp</code></li>
+                    <li><code>iFly/lib/soft_timer/soft_timer.cpp</code></li>
+                    <li><code>Core/Src/stm32f4xx_it.c</code></li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>底层原理</h3>
+                  <p>SysTick 中断层只做 1 ms tick 递增，不直接执行任务；真正的任务执行要等主循环调用 <code>Dispatch()</code>，并按“已到期 + 优先级 + 创建顺序”选择任务，因此它是非抢占式调度器。</p>
+                </article>
+                <article class="detail-card">
+                  <h3>用到的技术</h3>
+                  <ul>
+                    <li>固定 16 个任务槽位，不依赖运行期动态内存。</li>
+                    <li>支持 <code>CreateTask()</code>、<code>DeleteTask()</code>、<code>DeleteAllTasks()</code>、<code>DelayCurrentTask()</code>。</li>
+                    <li>保留了 C 接口 <code>ifly_soft_timer_systick_tick()</code>，方便直接从中断文件桥接。</li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>代码阅读入口</h3>
+                  <ul>
+                    <li>看 <code>CreateTask()</code>，理解底层任务槽位如何初始化。</li>
+                    <li>看 <code>FindReadyTaskIndex()</code> 和 <code>Dispatch()</code>，理解调度规则。</li>
+                    <li>看 <code>DelayCurrentTask()</code> 和删除逻辑，理解运行中任务如何安全改期或回收。</li>
+                  </ul>
+                </article>
+              </div>
+              <div class="callout callout-warm">
+                <strong>当前状态</strong>
+                <p>已实现，但当前主循环没有派发它。所以它现在是“底座已就绪”，不是“已被应用层调度使用”。</p>
+              </div>
+            </section>
+
+            <section id="serial-io-base" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">Transport Abstraction</p>
+                <h2>SerialIoBase</h2>
+                <p>这是统一 USB、UART、CAN 上层使用方式的关键抽象层，也是 transport 能被 <code>FlightCtrlCli</code> 统一切换的前提。</p>
+              </div>
+              <div class="detail-grid">
+                <article class="detail-card">
+                  <h3>核心文件</h3>
+                  <ul>
+                    <li><code>iFly/dev/serial_io_base.hpp</code></li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>底层原理</h3>
+                  <p>它直接继承 <code>DynamicLockFreeQueue</code>，也就是说设备对象自己就是统一 RX 队列。<code>Read()</code> 会先调用 <code>BeforeRead()</code>，给派生类机会把底层暂存继续上抛，再真正出队。</p>
+                </article>
+                <article class="detail-card">
+                  <h3>用到的技术</h3>
+                  <ul>
+                    <li>把统一 RX 队列直接塞进基类，减少层层封装。</li>
+                    <li><code>EnsureRxQueueCreated()</code> 允许在 <code>Init()</code> 阶段兜底创建动态队列。</li>
+                    <li>通过统一接口屏蔽了 USB/UART/CAN 底层差异，使上层只关心字节流读写与链路状态。</li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>代码阅读入口</h3>
+                  <ul>
+                    <li>看 <code>Read()</code> 的顺序: 先 <code>BeforeRead()</code>，后 <code>Dequeue()</code>。</li>
+                    <li>看 <code>RxQueue()</code>，理解底层服务为什么只拿一个 <code>LockFreeQueueBase*</code> 就能回灌数据。</li>
+                    <li>再回头看各个派生类如何复用这套抽象。</li>
+                  </ul>
+                </article>
+              </div>
+            </section>
+
+            <section id="shared-primitives" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">Reusable Primitives</p>
+                <h2>double_buffer / freelock_queue</h2>
+                <p>这些模块不直接暴露业务语义，但 USB、UART、CAN 等运行时服务能稳定工作，靠的就是它们。</p>
+              </div>
+              <div class="detail-grid">
+                <article class="detail-card">
+                  <h3>核心文件</h3>
+                  <ul>
+                    <li><code>iFly/lib/double_buffer/double_buffer.hpp</code></li>
+                    <li><code>iFly/lib/freelock_queue/lock_free_queue.hpp</code></li>
+                    <li><code>iFly/lib/freelock_queue/lock_free_queue.cpp</code></li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>职责</h3>
+                  <p><code>freelock_queue</code> 提供静态/动态无锁环形队列；<code>double_buffer</code> 提供字节双缓冲和对象双缓冲，方便 DMA 或端点收发在“装载下一包”和“发送当前包”之间切换。</p>
+                </article>
+                <article class="detail-card">
+                  <h3>用到的技术</h3>
+                  <ul>
+                    <li><code>StaticLockFreeQueue</code> / <code>DynamicLockFreeQueue</code> 共用同一个基础环形队列实现。</li>
+                    <li><code>StaticByteDoubleBuffer</code> 适合 UART DMA / USB 端点，<code>StaticObjectDoubleBuffer</code> 适合 CAN 帧这类定长对象。</li>
+                    <li>这些基础件是运行时服务层的共享依赖，不应该被写成某个单独模块的私有技巧。</li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>代码阅读入口</h3>
+                  <ul>
+                    <li>看队列的 <code>Create()</code> / <code>Enqueue()</code> / <code>Dequeue()</code>，理解统一收发缓存行为。</li>
+                    <li>看双缓冲的切换接口，理解为什么 DMA/端点发送路径没有直接拿业务缓冲裸跑。</li>
+                    <li>再回头看 UART / USB / CAN 服务如何组合使用它们。</li>
+                  </ul>
+                </article>
+              </div>
+            </section>
+
+            <section id="hardware-uart" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">UART Wrapper</p>
+                <h2>HardwareUart</h2>
+                <p>这是给上层使用的 UART 设备包装器，把逻辑串口号和统一 RX 队列对接到 <code>UartDmaService</code>。</p>
+              </div>
+              <div class="detail-grid">
+                <article class="detail-card">
+                  <h3>核心文件</h3>
+                  <ul>
+                    <li><code>iFly/dev/uart_dev/hardware_uart.hpp</code></li>
+                    <li><code>iFly/dev/uart_dev/hardware_uart.cpp</code></li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>职责</h3>
+                  <p>对上暴露统一的串行 IO 接口，对下把当前对象自己的 RX 队列挂给指定 UART 端口，并把写请求转交给 DMA 发送服务。</p>
+                </article>
+                <article class="detail-card">
+                  <h3>实现要点</h3>
+                  <ul>
+                    <li>初始化时先确保统一 RX 队列存在，再调用底层服务初始化端口。</li>
+                    <li>写入并不等待同步发送完成，而是进入底层 TX 队列。</li>
+                    <li>这层的价值在于把“哪个串口”变成构造参数，而不是让上层直接依赖 HAL 句柄。</li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>当前状态</h3>
+                  <p>已接入，当前明确接上的只有 <code>UART5</code> 这条 CLI 备用通路。</p>
+                </article>
+              </div>
+            </section>
+
+            <section id="uart-dma-service" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">UART Runtime Service</p>
+                <h2>UartDmaService</h2>
+                <p>这是真正处理多串口 DMA 收发、回调桥接、双缓冲装载和上层 RX 队列灌入的核心服务。</p>
+              </div>
+              <div class="detail-grid">
+                <article class="detail-card">
+                  <h3>核心文件</h3>
+                  <ul>
+                    <li><code>iFly/lib/uart/uart_dma.hpp</code></li>
+                    <li><code>iFly/lib/uart/uart_dma.cpp</code></li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>底层原理</h3>
+                  <p>TX 路径是“上层写入 → TX 队列 → TX 双缓冲 → <code>HAL_UART_Transmit_DMA()</code>”；RX 路径是“DMA 缓冲 → 空闲中断回调 → 上层统一 RX 队列”。</p>
+                </article>
+                <article class="detail-card">
+                  <h3>用到的技术</h3>
+                  <ul>
+                    <li>逻辑端口号到 <code>UART_HandleTypeDef</code> 的映射。</li>
+                    <li><code>HAL_UARTEx_ReceiveToIdle_DMA()</code> 用于接收到空闲事件的 DMA 读取。</li>
+                    <li>队列 + 双缓冲组合，降低连续发送时的阻塞和拷贝风险。</li>
+                    <li>HAL 回调统一桥接到服务层，避免业务层接触中断细节。</li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>代码阅读入口</h3>
+                  <ul>
+                    <li>看 <code>InitPort()</code>，理解端口初始化和 DMA 接收启动流程。</li>
+                    <li>看 <code>ServiceTxPath()</code>，理解 TX 队列如何装载到 DMA。</li>
+                    <li>看 <code>OnRxEvent()</code>，理解新接收数据如何上抛给统一 RX 队列。</li>
+                  </ul>
+                </article>
+              </div>
+              <div class="callout callout-accent">
+                <strong>当前状态</strong>
+                <p>已接入。它现在不仅服务 UART5，也已经是一套可扩展到多串口的通用运行时服务。</p>
+              </div>
+            </section>
+
+            <section id="usb-uart" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">USB Wrapper</p>
+                <h2>UsbUart</h2>
+                <p>它和 <code>HardwareUart</code> 的定位类似，只不过底层介质换成了 USB CDC ACM。</p>
+              </div>
+              <div class="detail-grid">
+                <article class="detail-card">
+                  <h3>核心文件</h3>
+                  <ul>
+                    <li><code>iFly/dev/usb_dev/usb_uart.hpp</code></li>
+                    <li><code>iFly/dev/usb_dev/usb_uart.cpp</code></li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>职责</h3>
+                  <p>把统一 RX 队列挂到 <code>UsbCdcAcm</code>，并向上提供和 UART 一致的串行字节流接口。</p>
+                </article>
+                <article class="detail-card">
+                  <h3>实现要点</h3>
+                  <ul>
+                    <li><code>Init()</code> 时先创建 RX 队列，再将其附着到底层 USB 设备。</li>
+                    <li><code>BeforeRead()</code> 会主动调用底层 <code>Service()</code>，把设备暂存数据继续泵到上层队列。</li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>当前状态</h3>
+                  <p>已接入，而且是当前默认 CLI 通道的上层包装入口。</p>
+                </article>
+              </div>
+            </section>
+
+            <section id="usb-cdc-acm" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">USB Device Stack</p>
+                <h2>UsbCdcAcm</h2>
+                <p>这是当前仓库里最值得细看的底层模块之一。它不是简单套用一层现成中间件，而是自己实现了轻量 CDC ACM 设备层。</p>
+              </div>
+              <div class="detail-grid">
+                <article class="detail-card">
+                  <h3>核心文件</h3>
+                  <ul>
+                    <li><code>iFly/lib/usb_cdc/usb_cdc.hpp</code></li>
+                    <li><code>iFly/lib/usb_cdc/usb_cdc.cpp</code></li>
+                    <li><code>Core/Src/usb_otg.c</code></li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>底层原理</h3>
+                  <p>模块自己处理描述符、EP0 控制请求、CDC 类请求、IN/OUT 端点数据收发，以及与上层 RX 队列、TX 队列的衔接。</p>
+                </article>
+                <article class="detail-card">
+                  <h3>用到的技术</h3>
+                  <ul>
+                    <li>基于 HAL PCD 的轻量设备适配层。</li>
+                    <li>端点双缓冲，提升持续收发稳定性。</li>
+                    <li>发送队列 + 端点缓冲 + HAL 回调桥接的组合。</li>
+                    <li>标准请求和 CDC 类请求的解析路径都在模块内部闭合。</li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>代码阅读入口</h3>
+                  <ul>
+                    <li>看 <code>Init()</code>，理解端点、缓冲和队列的初始化。</li>
+                    <li>看 <code>OnSetupStage()</code> / <code>HandleGetDescriptor()</code>，理解控制请求解析。</li>
+                    <li>看 <code>ServiceTxPath()</code> 和接收上抛路径，理解数据如何接到 app 层。</li>
+                  </ul>
+                </article>
+              </div>
+              <div class="callout callout-accent">
+                <strong>当前状态</strong>
+                <p>已接入，而且是当前默认 CLI 通路真正工作的底层实现。</p>
+              </div>
+            </section>
+
+            <section id="hardware-can" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">CAN Wrapper</p>
+                <h2>HardwareCan</h2>
+                <p>它的角色和 <code>HardwareUart</code> 相似，但同时保留了 CAN 按帧通信的语义，不把一切都伪装成普通串口。</p>
+              </div>
+              <div class="detail-grid">
+                <article class="detail-card">
+                  <h3>核心文件</h3>
+                  <ul>
+                    <li><code>iFly/dev/can_dev/hardware_can.hpp</code></li>
+                    <li><code>iFly/dev/can_dev/hardware_can.cpp</code></li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>职责</h3>
+                  <p>对上仍兼容统一 IO 接口，对下则保留 <code>WriteFrame()</code> / <code>ReadFrame()</code> 这类更符合 CAN 使用直觉的接口。</p>
+                </article>
+                <article class="detail-card">
+                  <h3>实现要点</h3>
+                  <ul>
+                    <li>仍复用统一 RX 队列，但数据单位是 <code>CanFramePacket</code>。</li>
+                    <li>兼容基类风格的 <code>Write(data, len)</code>，方便统一 transport 抽象。</li>
+                    <li>推荐上层真正使用时优先走帧语义接口，而不是手搓字节流。</li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>当前状态</h3>
+                  <p>已实现但未接入当前主业务，是后续 CAN 链路装配的接口入口。</p>
+                </article>
+              </div>
+            </section>
+
+            <section id="can-service" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">CAN Runtime Service</p>
+                <h2>CanService</h2>
+                <p>它负责把 CAN 的“按帧通信”适配进当前统一 IO 架构，同时桥接 HAL 接收 FIFO 和发送邮箱。</p>
+              </div>
+              <div class="detail-grid">
+                <article class="detail-card">
+                  <h3>核心文件</h3>
+                  <ul>
+                    <li><code>iFly/lib/can/can.hpp</code></li>
+                    <li><code>iFly/lib/can/can.cpp</code></li>
+                    <li><code>Core/Src/can.c</code></li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>底层原理</h3>
+                  <p>模块定义固定大小的 <code>CanFramePacket</code> 作为统一软件封包，这样上层虽可沿用统一读写风格，但底层不会丢掉 CAN 帧边界。</p>
+                </article>
+                <article class="detail-card">
+                  <h3>用到的技术</h3>
+                  <ul>
+                    <li>HAL CAN 回调桥接。</li>
+                    <li>固定帧封包、TX 队列和对象双缓冲。</li>
+                    <li>把标准帧、扩展帧、RTR、FIFO 来源等信息编码进 <code>flags</code>。</li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>代码阅读入口</h3>
+                  <ul>
+                    <li>看 <code>CanFramePacket</code> 定义，理解统一封包格式。</li>
+                    <li>看 <code>InitPort()</code>，理解过滤器和通知的启动流程。</li>
+                    <li>看收发回调桥接函数，理解 HAL 如何被抽离在服务层内。</li>
+                  </ul>
+                </article>
+              </div>
+              <div class="callout callout-warm">
+                <strong>当前状态</strong>
+                <p>已实现但未接入主业务，而且当前硬件模式仍是 <code>CAN_MODE_LOOPBACK</code>，当前状态更接近“框架已准备好”。</p>
+              </div>
+            </section>
+
+            <section id="sbus-protocol" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">Receiver Protocol</p>
+                <h2>SbusProtocol</h2>
+                <p>它负责从串口字节流中同步 SBUS 帧边界，并完成 16 路 11 bit 通道的解包与编码。</p>
+              </div>
+              <div class="detail-grid">
+                <article class="detail-card">
+                  <h3>核心文件</h3>
+                  <ul>
+                    <li><code>iFly/app/proto/sbus/sbus_protocol.hpp</code></li>
+                    <li><code>iFly/app/proto/sbus/sbus_protocol.cpp</code></li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>底层原理</h3>
+                  <p>内部维护固定长度帧缓冲，持续从流式字节中找头字节和尾字节，重同步成功后再按 11 bit 布局解析出各通道值和标志位。</p>
+                </article>
+                <article class="detail-card">
+                  <h3>用到的技术</h3>
+                  <ul>
+                    <li>流式缓冲与重同步统计。</li>
+                    <li>11 bit 通道的位级读写。</li>
+                    <li><code>Parse()</code> 与 <code>Encode()</code> 双向能力，便于独立测试协议栈。</li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>代码阅读入口</h3>
+                  <ul>
+                    <li>先看 <code>Parse()</code>，理解帧同步和多帧输出。</li>
+                    <li>再看通道位打包/解包逻辑，理解 11 bit 紧凑布局。</li>
+                    <li>最后看统计字段，理解后续如何做链路诊断。</li>
+                  </ul>
+                </article>
+              </div>
+              <div class="callout callout-warm">
+                <strong>当前状态</strong>
+                <p>已实现但未接入主业务。协议能力已经具备，缺的是把它接到真实串口数据源和上层控制流程。</p>
+              </div>
+            </section>
+
+            <section id="crsf-protocol" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">Receiver Protocol</p>
+                <h2>CrsfProtocol</h2>
+                <p>它负责 CRSF 串流拆包、CRC 校验、普通帧与扩展帧解析，以及 RC Channels Packed 的辅助编解码。</p>
+              </div>
+              <div class="detail-grid">
+                <article class="detail-card">
+                  <h3>核心文件</h3>
+                  <ul>
+                    <li><code>iFly/app/proto/crsf/crsf_protocol.hpp</code></li>
+                    <li><code>iFly/app/proto/crsf/crsf_protocol.cpp</code></li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>底层原理</h3>
+                  <p>模块维护流式接收缓冲和预期包长，根据 <code>length</code> 字段决定当前帧完整长度，再做 CRC 校验和扩展字段解析。</p>
+                </article>
+                <article class="detail-card">
+                  <h3>用到的技术</h3>
+                  <ul>
+                    <li>CRC8 多项式 <code>0xD5</code> 校验。</li>
+                    <li>普通帧与扩展帧统一解析框架。</li>
+                    <li><code>DecodeRcChannelsPacked()</code> / <code>EncodeRcChannelsPacked()</code> 支持 RC 紧凑通道编解码。</li>
+                    <li>重同步和 CRC 错误统计，方便后续链路诊断。</li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>代码阅读入口</h3>
+                  <ul>
+                    <li>先看 <code>Parse()</code>，理解包长判断和 CRC 校验流程。</li>
+                    <li>再看 RC Packed 辅助函数，理解 16 路通道的紧凑打包方式。</li>
+                    <li>最后看统计字段和错误处理逻辑，理解协议栈健壮性设计。</li>
+                  </ul>
+                </article>
+              </div>
+              <div class="callout callout-warm">
+                <strong>当前状态</strong>
+                <p>已实现但未接入主业务。和 SBUS 一样，它现在是协议模块完成态，不是整条接收机控制链路完成态。</p>
+              </div>
+            </section>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div>
+        <strong>iFly_Ctrl Implementation Notes</strong>
+        <p>逐模块解释职责、原理、技术点和当前状态，方便继续扩展而不误判边界。</p>
+      </div>
+      <div class="footer-links">
+        <a href="index.html">首页</a>
+        <a href="quickstart.html">快速上手</a>
+        <a href="architecture.html">架构</a>
+      </div>
+      <p class="footer-copy">Copyright © <span data-year></span> iFly_Ctrl Docs</p>
+    </footer>
+  </div>
+</body>
+</html>

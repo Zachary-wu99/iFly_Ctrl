@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>iFly_Ctrl 文档站 | 快速上手</title>
+  <meta
+    name="description"
+    content="iFly_Ctrl 快速上手页，逐个说明 app 目录模块的用法，并给出最小示例代码。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;800&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="assets/styles.css?v=20260421-2">
+  <script defer src="assets/script.js?v=20260421-2"></script>
+</head>
+<body class="page-quickstart">
+  <div class="scroll-progress" aria-hidden="true"></div>
+  <div class="site-shell">
+    <header class="topbar">
+      <a class="brand" href="index.html">
+        <span class="brand-mark">iF</span>
+        <span class="brand-copy">
+          <strong>iFly_Ctrl</strong>
+          <small>Quick Start</small>
+        </span>
+      </a>
+      <nav class="topnav" aria-label="站点导航">
+        <a data-page-link href="index.html">首页</a>
+        <a data-page-link href="quickstart.html">快速上手</a>
+        <a data-page-link href="architecture.html">架构</a>
+        <a data-page-link href="implementation.html">底层实现</a>
+        <a data-page-link href="contributing.html">文档协作</a>
+        <a class="nav-external" href="https://github.com/Zachary-wu99/iFly_Ctrl" target="_blank" rel="noreferrer">GitHub</a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero section hero-single hero-compact">
+        <div class="hero-copy reveal">
+          <p class="eyebrow">Quick Start / App Modules / Usage Examples</p>
+          <h1>快速上手<br><span>按 app 模块逐个说明怎么用，并给最小例子</span></h1>
+          <p class="hero-lead">
+            本页按 <code>iFly/app/</code> 中的模块组织内容，逐项说明用途、典型使用方式和示例代码。
+            应用层飞控逻辑尚未拼装为完整闭环，因此“快速上手”聚焦于模块与基础设施的实际用法。
+          </p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#build">先看构建与验证</a>
+            <a class="button button-secondary" href="#module-map">直接看模块目录</a>
+            <a class="button button-secondary" href="#app-main-usage">从装配示例开始</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section reveal">
+        <div class="docs-layout reverse">
+          <aside class="toc-card reveal" data-spy-nav>
+            <h3>本页目录</h3>
+            <p class="toc-note">先确认构建，再按模块看用法。</p>
+            <nav class="toc-nav" aria-label="快速上手目录">
+              <a href="#build">构建与验证</a>
+              <a href="#module-map">模块目录</a>
+              <a href="#app-main-usage">app_main</a>
+              <a href="#flightctrlcli-usage">FlightCtrlCli</a>
+              <a href="#parameter-manager-usage">ParameterManager</a>
+              <a href="#pid-usage">Pid</a>
+              <a href="#tick-usage">tick</a>
+              <a href="#observer-channel-usage">ObserverChannel</a>
+              <a href="#task-manager-usage">TaskManager</a>
+              <a href="#sbus-usage">SbusProtocol</a>
+              <a href="#crsf-usage">CrsfProtocol</a>
+              <a href="#notes">当前边界</a>
+            </nav>
+          </aside>
+
+          <div class="content-stack">
+            <section id="build" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">Build &amp; Verify</p>
+                <h2>先把工程编过，并确认基础环境没问题</h2>
+                <p>这一步只解决“工程是否能构建、基础工具链是否齐全”。后续模块示例默认基础构建环境已就绪。</p>
+              </div>
+              <div class="detail-grid">
+                <article class="detail-card">
+                  <h3>环境要求</h3>
+                  <ul>
+                    <li><code>CMake 3.22+</code></li>
+                    <li><code>Ninja</code></li>
+                    <li>GNU Arm Embedded Toolchain</li>
+                    <li><code>arm-none-eabi-gcc</code> 等工具已进入 <code>PATH</code></li>
+                  </ul>
+                </article>
+                <article class="detail-card">
+                  <h3>构建命令</h3>
+                  <pre class="code-block"><code>cmake --preset Debug
+cmake --build --preset Debug</code></pre>
+                  <p style="margin-top: 10px;">产物默认在 <code>build/Debug/</code>，核心输出是 <code>iFly_Ctrl.elf</code>。</p>
+                </article>
+                <article class="detail-card">
+                  <h3>当前推荐验证方式</h3>
+                  <p>完成固件烧录后，可优先通过 USB CDC 连接 CLI，并执行下列命令确认调试环境可用。</p>
+                  <pre class="code-block"><code>help
+params
+call status
+get sys.transport
+call pid.sample 100 92 1</code></pre>
+                </article>
+                <article class="detail-card">
+                  <h3>为什么只做这个验证</h3>
+                  <p>因为当前仓库已经稳定接好的仍是模块和调试基础设施，不是完整飞控应用层。先把 CLI、参数和 PID 验证通，比去假设闭环业务已经存在更可靠。</p>
+                </article>
+              </div>
+            </section>
+
+            <section id="module-map" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">App Module Map</p>
+                <h2>app 目录模块总览</h2>
+                <p>下面这些模块全部来自 <code>iFly/app/</code>。每个模块都对应一个“怎么用”的章节和一个“怎么看实现”的入口。</p>
+              </div>
+              <div class="jump-grid">
+                <article class="inline-card">
+                  <span class="info-chip">app/cli</span>
+                  <h3>FlightCtrlCli</h3>
+                  <p>负责把 Shell、参数和 transport 绑起来。</p>
+                  <div class="inline-actions">
+                    <a class="button button-tertiary" href="#flightctrlcli-usage">看用法</a>
+                    <a class="button button-tertiary" href="implementation.html#flightctrlcli">看实现</a>
+                  </div>
+                </article>
+                <article class="inline-card">
+                  <span class="info-chip">app/paramete</span>
+                  <h3>ParameterManager</h3>
+                  <p>负责把业务变量映射成 Shell 参数。</p>
+                  <div class="inline-actions">
+                    <a class="button button-tertiary" href="#parameter-manager-usage">看用法</a>
+                    <a class="button button-tertiary" href="implementation.html#parameter-manager">看实现</a>
+                  </div>
+                </article>
+                <article class="inline-card">
+                  <span class="info-chip">app/ctrl</span>
+                  <h3>Pid</h3>
+                  <p>负责通用 PID 控制更新和状态维护。</p>
+                  <div class="inline-actions">
+                    <a class="button button-tertiary" href="#pid-usage">看用法</a>
+                    <a class="button button-tertiary" href="implementation.html#pid">看实现</a>
+                  </div>
+                </article>
+                <article class="inline-card">
+                  <span class="info-chip">app/tick</span>
+                  <h3>tick</h3>
+                  <p>负责提供统一时间和非阻塞延时接口。</p>
+                  <div class="inline-actions">
+                    <a class="button button-tertiary" href="#tick-usage">看用法</a>
+                    <a class="button button-tertiary" href="implementation.html#tick-time">看实现</a>
+                  </div>
+                </article>
+                <article class="inline-card">
+                  <span class="info-chip">app/observer</span>
+                  <h3>ObserverChannel</h3>
+                  <p>负责单发布者、多消费者的快照分发。</p>
+                  <div class="inline-actions">
+                    <a class="button button-tertiary" href="#observer-channel-usage">看用法</a>
+                    <a class="button button-tertiary" href="implementation.html#observer-channel">看实现</a>
+                  </div>
+                </article>
+                <article class="inline-card">
+                  <span class="info-chip">app/task_mage</span>
+                  <h3>TaskManager</h3>
+                  <p>负责基于 SoftTimer 提供更上层的任务抽象。</p>
+                  <div class="inline-actions">
+                    <a class="button button-tertiary" href="#task-manager-usage">看用法</a>
+                    <a class="button button-tertiary" href="implementation.html#task-manager">看实现</a>
+                  </div>
+                </article>
+                <article class="inline-card">
+                  <span class="info-chip">app/proto/sbus</span>
+                  <h3>SbusProtocol</h3>
+                  <p>负责 SBUS 字节流解析和帧编码。</p>
+                  <div class="inline-actions">
+                    <a class="button button-tertiary" href="#sbus-usage">看用法</a>
+                    <a class="button button-tertiary" href="implementation.html#sbus-protocol">看实现</a>
+                  </div>
+                </article>
+                <article class="inline-card">
+                  <span class="info-chip">app/proto/crsf</span>
+                  <h3>CrsfProtocol</h3>
+                  <p>负责 CRSF 解析、CRC 校验和 RC Packed 编解码。</p>
+                  <div class="inline-actions">
+                    <a class="button button-tertiary" href="#crsf-usage">看用法</a>
+                    <a class="button button-tertiary" href="implementation.html#crsf-protocol">看实现</a>
+                  </div>
+                </article>
+              </div>
+            </section>
+
+            <section id="app-main-usage" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">Usage Example</p>
+                <h2>app_main：模块装配示例</h2>
+                <p><code>app_main.cpp</code> 给出了当前模块组合为最小应用入口的参考装配方式。</p>
+              </div>
+              <div class="snippet-grid">
+                <article class="code-card">
+                  <h3>怎么用</h3>
+                  <p>用于当前工程的上层装配：初始化 IO、初始化 CLI、绑定 transport，并进入主循环轮询。</p>
+                </article>
+                <article class="code-card">
+                  <h3>最小示例</h3>
+                  <pre class="code-block"><code>#include "flight_ctrl_cli.hpp"
+#include "hardware_uart.hpp"
+#include "tick.hpp"
+#include "usb_uart.hpp"
+
+namespace {
+constexpr uint32_t kCliRxQueueSize = 1024U;
+
+iFly::HardwareUart g_uart5(iFly::UartPortId::kUart5, kCliRxQueueSize);
+iFly::UsbUart g_usb(kCliRxQueueSize);
+iFly::FlightCtrlCli g_cli;
+}
+
+extern "C" void app_main(void) {
+  g_uart5.Init();
+  g_usb.Init();
+  g_cli.Init();
+  g_cli.RegisterTransport("uart5", &g_uart5);
+  g_cli.RegisterTransport("usb", &g_usb);
+  g_cli.UseTransport("usb");
+
+  while (1) {
+    g_cli.Poll();
+    iFly::tick::DelayMs(1U);
+  }
+}</code></pre>
+                </article>
+              </div>
+            </section>
+
+            <section id="flightctrlcli-usage" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">Usage Example</p>
+                <h2>FlightCtrlCli：怎么用</h2>
+                <p>用于快速构建支持登录、调参与通信通道切换的控制台。</p>
+              </div>
+              <div class="snippet-grid">
+                <article class="code-card">
+                  <h3>典型用法</h3>
+                  <ul class="bullet-list">
+                    <li>先构造底层 transport 对象。</li>
+                    <li>再构造 <code>FlightCtrlCli</code>。</li>
+                    <li>调用 <code>Init()</code>。</li>
+                    <li>注册 transport 并选择当前通道。</li>
+                    <li>在主循环持续调用 <code>Poll()</code>。</li>
+                  </ul>
+                </article>
+                <article class="code-card">
+                  <h3>最小示例</h3>
+                  <pre class="code-block"><code>iFly::HardwareUart uart5(iFly::UartPortId::kUart5, 1024U);
+iFly::UsbUart usb(1024U);
+iFly::FlightCtrlCli cli;
+
+uart5.Init();
+usb.Init();
+
+cli.Init();
+cli.RegisterTransport("uart5", &uart5);
+cli.RegisterTransport("usb", &usb);
+cli.UseTransport("usb");
+
+for (;;) {
+  cli.Poll();
+}</code></pre>
+                </article>
+              </div>
+            </section>
+
+            <section id="parameter-manager-usage" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">Usage Example</p>
+                <h2>ParameterManager：怎么用</h2>
+                <p>用于将运行时变量暴露给 Shell，并通过 <code>get</code> / <code>set</code> 统一管理。</p>
+              </div>
+              <div class="snippet-grid">
+                <article class="code-card">
+                  <h3>典型用法</h3>
+                  <ul class="bullet-list">
+                    <li>先准备一个 <code>Shell</code> 对象。</li>
+                    <li>再构造 <code>ParameterManager</code>。</li>
+                    <li>按类型添加参数描述。</li>
+                    <li>最后调用 <code>RegisterToShell()</code>。</li>
+                  </ul>
+                </article>
+                <article class="code-card">
+                  <h3>最小示例</h3>
+                  <pre class="code-block"><code>float kp = 0.8f;
+uint32_t loop_hz = 1000U;
+bool arm_locked = true;
+
+iFly::Shell shell;
+iFly::ParameterManager params;
+
+params.AddFloat({"pid.kp", "proportional gain", &kp, 0.0f, 100.0f, true, nullptr, nullptr});
+params.AddU32({"sys.loop_hz", "loop frequency", &loop_hz, 50U, 4000U, true, nullptr, nullptr});
+params.AddBool({"sys.arm_locked", "arming lock", &arm_locked, nullptr, nullptr});
+params.RegisterToShell(&shell);</code></pre>
+                </article>
+              </div>
+            </section>
+
+            <section id="pid-usage" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">Usage Example</p>
+                <h2>Pid：怎么用</h2>
+                <p>用于单独验证控制器基础件，可直接完成单次更新和状态检查。</p>
+              </div>
+              <div class="snippet-grid">
+                <article class="code-card">
+                  <h3>典型用法</h3>
+                  <ul class="bullet-list">
+                    <li>先定义 <code>Pid::Config</code>。</li>
+                    <li>用配置构造或调用 <code>Configure()</code>。</li>
+                    <li>准备 <code>Pid::UpdateInput</code>。</li>
+                    <li>调用 <code>Update()</code> 获得输出和分量。</li>
+                  </ul>
+                </article>
+                <article class="code-card">
+                  <h3>最小示例</h3>
+                  <pre class="code-block"><code>iFly::Pid::Config cfg {};
+cfg.kp = 0.8f;
+cfg.ki = 0.1f;
+cfg.kd = 0.02f;
+cfg.output_min = -500.0f;
+cfg.output_max = 500.0f;
+
+iFly::Pid pid(cfg);
+
+iFly::Pid::UpdateInput input {};
+input.setpoint = 100.0f;
+input.measurement = 92.0f;
+input.dt_s = 0.001f;
+
+const iFly::Pid::UpdateResult out = pid.Update(input);</code></pre>
+                </article>
+              </div>
+            </section>
+
+            <section id="tick-usage" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">Usage Example</p>
+                <h2>tick：怎么用</h2>
+                <p>用于统一时间戳、阻塞延时和非阻塞定时器操作。</p>
+              </div>
+              <div class="snippet-grid">
+                <article class="code-card">
+                  <h3>典型用法</h3>
+                  <ul class="bullet-list">
+                    <li><code>NowMs()</code> / <code>NowUs()</code> / <code>NowNs()</code> 读取当前时间。</li>
+                    <li><code>DelayMs()</code> / <code>DelayUs()</code> 做阻塞延时。</li>
+                    <li><code>NonBlockingDelayMs</code> 做轮询式非阻塞延时。</li>
+                  </ul>
+                </article>
+                <article class="code-card">
+                  <h3>最小示例</h3>
+                  <pre class="code-block"><code>const uint32_t start_ms = iFly::tick::NowMs();
+iFly::tick::DelayMs(10U);
+
+iFly::tick::NonBlockingDelayMs delay;
+delay.Start(50U);
+
+while (!delay.ConsumeIfExpired()) {
+  // do something else
+}</code></pre>
+                </article>
+              </div>
+            </section>
+
+            <section id="observer-channel-usage" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">Usage Example</p>
+                <h2>ObserverChannel：怎么用</h2>
+                <p>用于构建轻量、无锁、单发布者多消费者的状态快照通道。</p>
+              </div>
+              <div class="snippet-grid">
+                <article class="code-card">
+                  <h3>典型用法</h3>
+                  <ul class="bullet-list">
+                    <li>定义消息结构体。</li>
+                    <li>定义一个 <code>ObserverChannel&lt;Message&gt;</code>。</li>
+                    <li>发布侧调用 <code>Publish()</code> 或 <code>Emplace()</code>。</li>
+                    <li>消费者调用 <code>SubscribeLatest()</code> 或 <code>SubscribeFromNext()</code>。</li>
+                  </ul>
+                </article>
+                <article class="code-card">
+                  <h3>最小示例</h3>
+                  <pre class="code-block"><code>struct AttitudeSample {
+  float roll;
+  float pitch;
+  float yaw;
+};
+
+iFly::ObserverChannel&lt;AttitudeSample, 8U, 2U&gt; attitude_channel;
+auto consumer = attitude_channel.SubscribeLatest();
+
+attitude_channel.Publish({1.0f, 2.0f, 3.0f});
+
+AttitudeSample latest {};
+if (consumer.TryReadLatest(latest) == iFly::ConsumeStatus::kOk) {
+  // use latest
+}</code></pre>
+                </article>
+              </div>
+            </section>
+
+            <section id="task-manager-usage" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">Usage Example</p>
+                <h2>TaskManager：怎么用</h2>
+                <p>用于在业务层以“任务”而不是“底层软定时器句柄”的方式组织定时逻辑。</p>
+              </div>
+              <div class="snippet-grid">
+                <article class="code-card">
+                  <h3>典型用法</h3>
+                  <ul class="bullet-list">
+                    <li>通过 <code>CreatePeriodicTask()</code> 创建周期任务。</li>
+                    <li>通过 <code>CreateOneShotTask()</code> 创建单次任务。</li>
+                    <li>主循环持续调用 <code>Dispatch()</code>。</li>
+                    <li>任务内部可以调用 <code>DelayCurrentTask()</code> 重装下一次执行时间。</li>
+                  </ul>
+                </article>
+                <article class="code-card">
+                  <h3>最小示例</h3>
+                  <pre class="code-block"><code>void HeartbeatTask(void *context) {
+  (void)context;
+  // heartbeat logic
+}
+
+auto &task_mgr = iFly::task::TaskManager::Instance();
+task_mgr.CreatePeriodicTask(&HeartbeatTask, nullptr, 10U);
+
+for (;;) {
+  task_mgr.Dispatch();
+}</code></pre>
+                </article>
+              </div>
+            </section>
+
+            <section id="sbus-usage" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">Usage Example</p>
+                <h2>SbusProtocol：怎么用</h2>
+                <p>用于从串口原始字节流中解析 SBUS 帧。</p>
+              </div>
+              <div class="snippet-grid">
+                <article class="code-card">
+                  <h3>典型用法</h3>
+                  <ul class="bullet-list">
+                    <li>持续把串口收到的字节块喂给 <code>Parse()</code>。</li>
+                    <li>从输出数组中拿到成功解码的帧。</li>
+                    <li>如果需要反向打包，则调用 <code>Encode()</code>。</li>
+                  </ul>
+                </article>
+                <article class="code-card">
+                  <h3>最小示例</h3>
+                  <pre class="code-block"><code>iFly::SbusProtocol sbus;
+uint8_t rx_bytes[64] {};
+iFly::SbusFrame frames[2] {};
+
+const uint32_t decoded = sbus.Parse(rx_bytes, sizeof(rx_bytes), frames, 2U);
+if (decoded &gt; 0U) {
+  const uint16_t ch0 = frames[0].channels[0];
+}</code></pre>
+                </article>
+              </div>
+            </section>
+
+            <section id="crsf-usage" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">Usage Example</p>
+                <h2>CrsfProtocol：怎么用</h2>
+                <p>用于处理 CRSF 串流、CRC 校验和 RC Channels Packed 帧构造。</p>
+              </div>
+              <div class="snippet-grid">
+                <article class="code-card">
+                  <h3>典型用法</h3>
+                  <ul class="bullet-list">
+                    <li>把原始字节流喂给 <code>Parse()</code>。</li>
+                    <li>如果帧类型是 <code>kRcChannelsPackedType</code>，再进一步解码 RC 通道。</li>
+                    <li>如果需要发包，可用 <code>Encode()</code> 或 <code>EncodeRcChannelsPacked()</code>。</li>
+                  </ul>
+                </article>
+                <article class="code-card">
+                  <h3>最小示例</h3>
+                  <pre class="code-block"><code>iFly::CrsfProtocol crsf;
+iFly::CrsfFrame frames[2] {};
+uint8_t rx_bytes[64] {};
+
+const uint32_t decoded = crsf.Parse(rx_bytes, sizeof(rx_bytes), frames, 2U);
+if (decoded &gt; 0U &amp;&amp; frames[0].type == iFly::CrsfProtocol::kRcChannelsPackedType) {
+  iFly::CrsfRcChannelsPacked rc {};
+  iFly::CrsfProtocol::DecodeRcChannelsPacked(frames[0], &rc);
+}</code></pre>
+                </article>
+              </div>
+            </section>
+
+            <section id="notes" class="doc-section reveal">
+              <div class="doc-section-head">
+                <p class="section-kicker">Current Boundary</p>
+                <h2>当前范围内不展开的内容</h2>
+              </div>
+              <div class="detail-grid">
+                <article class="detail-card">
+                  <h3>不假设完整飞控业务层已经存在</h3>
+                  <p>当前没有把姿态、遥控、控制分配和执行器输出拼成完整业务闭环，所以这页只讲模块和基础设施怎么用。</p>
+                </article>
+                <article class="detail-card">
+                  <h3>不把“已实现”写成“已接入主循环”</h3>
+                  <p>Observer、Task、SBUS、CRSF 这些模块已经可以独立使用，但当前是否进入主业务，要以架构页和实现页的状态说明为准。</p>
+                </article>
+                <article class="detail-card">
+                  <h3>不把 CLI 当成唯一目标</h3>
+                  <p>CLI 目前只是最好验证的入口，不代表整个工程的未来只能围绕 CLI 展开。</p>
+                </article>
+                <article class="detail-card">
+                  <h3>后续阅读入口</h3>
+                  <p>如需继续查看原理、技术细节和代码组织，可转到底层实现页对应章节。</p>
+                </article>
+              </div>
+            </section>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div>
+        <strong>iFly_Ctrl Quick Start</strong>
+        <p>面向 app 模块使用方式的快速手册，不把当前仓库写成尚未完成的飞控业务系统。</p>
+      </div>
+      <div class="footer-links">
+        <a href="index.html">首页</a>
+        <a href="architecture.html">架构</a>
+        <a href="implementation.html">底层实现</a>
+      </div>
+      <p class="footer-copy">Copyright © <span data-year></span> iFly_Ctrl Docs</p>
+    </footer>
+  </div>
+</body>
+</html>
