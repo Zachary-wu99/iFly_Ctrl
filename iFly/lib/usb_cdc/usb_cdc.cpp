@@ -161,23 +161,97 @@ const uint8_t kSerialStringDescriptor[] = {
 
 namespace iFly {
 
+bool UsbEndpointDoubleBufferBase::Create(uint8_t *buffer0,
+                                         uint8_t *buffer1,
+                                         uint16_t bufferSize,
+                                         uint16_t packetSize) {
+  if ((buffer0 == nullptr) || (buffer1 == nullptr) ||
+      (bufferSize == 0U) || (packetSize == 0U) || (packetSize > bufferSize)) {
+    Delete();
+    return false;
+  }
+
+  buffers_[0] = buffer0;
+  buffers_[1] = buffer1;
+  bufferSize_ = bufferSize;
+  packetSize_ = packetSize;
+  ResetLengths();
+  return true;
+}
+
+void UsbEndpointDoubleBufferBase::Delete() {
+  buffers_[0] = nullptr;
+  buffers_[1] = nullptr;
+  bufferSize_ = 0U;
+  packetSize_ = 0U;
+  ResetLengths();
+}
+
+void UsbEndpointDoubleBufferBase::Clear() {
+  ResetLengths();
+}
+
+bool UsbEndpointDoubleBufferBase::IsCreated() const {
+  return (buffers_[0] != nullptr) && (buffers_[1] != nullptr) && (packetSize_ > 0U);
+}
+
+uint16_t UsbEndpointDoubleBufferBase::PacketSize() const {
+  return packetSize_;
+}
+
+uint8_t *UsbEndpointDoubleBufferBase::ActiveBuffer() {
+  return IsCreated() ? buffers_[activeSlot_] : nullptr;
+}
+
+void UsbEndpointDoubleBufferBase::SetActiveLength(uint16_t length) {
+  lengths_[activeSlot_] = length;
+}
+
+void UsbEndpointDoubleBufferBase::ClearActive() {
+  lengths_[activeSlot_] = 0U;
+}
+
+uint8_t *UsbEndpointDoubleBufferBase::InactiveBuffer() {
+  return IsCreated() ? buffers_[InactiveSlotIndex()] : nullptr;
+}
+
+uint16_t UsbEndpointDoubleBufferBase::InactiveLength() const {
+  return lengths_[InactiveSlotIndex()];
+}
+
+void UsbEndpointDoubleBufferBase::SetInactiveLength(uint16_t length) {
+  lengths_[InactiveSlotIndex()] = length;
+}
+
+bool UsbEndpointDoubleBufferBase::HasInactiveData() const {
+  return InactiveLength() != 0U;
+}
+
+void UsbEndpointDoubleBufferBase::SwapBuffers() {
+  activeSlot_ ^= 0x01U;
+}
+
+void UsbEndpointDoubleBufferBase::ResetLengths() {
+  lengths_[0] = 0U;
+  lengths_[1] = 0U;
+  activeSlot_ = 0U;
+}
+
+uint8_t UsbEndpointDoubleBufferBase::InactiveSlotIndex() const {
+  return static_cast<uint8_t>(activeSlot_ ^ 0x01U);
+}
+
 UsbCdcAcm &UsbCdcAcm::Instance() {
   static UsbCdcAcm instance;
   return instance;
 }
 
-UsbCdcAcm::UsbCdcAcm()
-  : rxEndpointBuffer_(kEpDataMps),
-    txQueue_(),
-    txEndpointBuffer_(kEpDataMps) {
+UsbCdcAcm::UsbCdcAcm() {
 }
 
 void UsbCdcAcm::Init() {
-  txQueue_.Recreate();
-  (void)rxEndpointBuffer_.Recreate(kEpDataMps);
-  (void)txEndpointBuffer_.Recreate(kEpDataMps);
-
-  if ((!txQueue_.IsCreated()) || (!rxEndpointBuffer_.IsCreated()) || (!txEndpointBuffer_.IsCreated())) {
+  if ((txQueue_ == nullptr) || (rxEndpointBuffer_ == nullptr) || (txEndpointBuffer_ == nullptr) ||
+      (!txQueue_->IsCreated()) || (!rxEndpointBuffer_->IsCreated()) || (!txEndpointBuffer_->IsCreated())) {
     return;
   }
 
@@ -200,16 +274,24 @@ void UsbCdcAcm::AttachRxQueue(LockFreeQueueBase *queue) {
   }
 }
 
+void UsbCdcAcm::AttachStorage(LockFreeQueueBase *txQueue,
+                              UsbEndpointDoubleBufferBase *rxEndpointBuffer,
+                              UsbEndpointDoubleBufferBase *txEndpointBuffer) {
+  txQueue_ = txQueue;
+  rxEndpointBuffer_ = rxEndpointBuffer;
+  txEndpointBuffer_ = txEndpointBuffer;
+}
+
 void UsbCdcAcm::Service() {
   ServiceTxPath();
 }
 
 uint32_t UsbCdcAcm::Write(const uint8_t *data, uint32_t len) {
-  if ((data == nullptr) || (len == 0U) || (!txQueue_.IsCreated())) {
+  if ((data == nullptr) || (len == 0U) || (txQueue_ == nullptr) || (!txQueue_->IsCreated())) {
     return 0U;
   }
 
-  const uint32_t accepted = txQueue_.Enqueue(data, len);
+  const uint32_t accepted = txQueue_->Enqueue(data, len);
   ServiceTxPath();
   return accepted;
 }
@@ -227,11 +309,11 @@ uint32_t UsbCdcAcm::Available() const {
 }
 
 uint32_t UsbCdcAcm::TxUsed() const {
-  return txQueue_.UsedSize();
+  return ((txQueue_ != nullptr) && txQueue_->IsCreated()) ? txQueue_->UsedSize() : 0U;
 }
 
 uint32_t UsbCdcAcm::TxFree() const {
-  return txQueue_.FreeSize();
+  return ((txQueue_ != nullptr) && txQueue_->IsCreated()) ? txQueue_->FreeSize() : 0U;
 }
 
 uint32_t UsbCdcAcm::RxUsed() const {
@@ -268,9 +350,15 @@ void UsbCdcAcm::ResetRuntimeState() {
   ep0ZlpDummy_ = 0U;
   (void)memset(lineCodingBuffer_, 0, sizeof(lineCodingBuffer_));
 
-  rxEndpointBuffer_.Clear();
-  txQueue_.Clear();
-  txEndpointBuffer_.Clear();
+  if (rxEndpointBuffer_ != nullptr) {
+    rxEndpointBuffer_->Clear();
+  }
+  if (txQueue_ != nullptr) {
+    txQueue_->Clear();
+  }
+  if (txEndpointBuffer_ != nullptr) {
+    txEndpointBuffer_->Clear();
+  }
 
   if ((appRxQueue_ != nullptr) && appRxQueue_->IsCreated()) {
     appRxQueue_->Clear();
@@ -299,12 +387,20 @@ void UsbCdcAcm::CloseDataEndpoints() {
   (void)UsbPcd().CloseEndpoint(kEpCdcDataOut);
   (void)UsbPcd().CloseEndpoint(kEpCdcDataIn);
   txBusy_.store(false, std::memory_order_release);
-  rxEndpointBuffer_.Clear();
-  txEndpointBuffer_.Clear();
+  if (rxEndpointBuffer_ != nullptr) {
+    rxEndpointBuffer_->Clear();
+  }
+  if (txEndpointBuffer_ != nullptr) {
+    txEndpointBuffer_->Clear();
+  }
 }
 
 void UsbCdcAcm::PrimeOutEndpoint() {
-  uint8_t *buffer = rxEndpointBuffer_.ActiveBuffer();
+  if (rxEndpointBuffer_ == nullptr) {
+    return;
+  }
+
+  uint8_t *buffer = rxEndpointBuffer_->ActiveBuffer();
   if (buffer != nullptr) {
     (void)UsbPcd().Receive(kEpCdcDataOut, buffer, kEpDataMps);
   }
@@ -352,7 +448,9 @@ void UsbCdcAcm::OnDataInStage(uint8_t epnum) {
 
   if (epnum == (kEpCdcDataIn & 0x7FU)) {
     txBusy_.store(false, std::memory_order_release);
-    txEndpointBuffer_.ClearActive();
+    if (txEndpointBuffer_ != nullptr) {
+      txEndpointBuffer_->ClearActive();
+    }
     ServiceTxPath();
   }
 }
@@ -381,12 +479,16 @@ void UsbCdcAcm::OnDataOutStage(uint8_t epnum) {
   }
 
   if (epnum == (kEpCdcDataOut & 0x7FU)) {
-    const uint8_t *completedBuffer = rxEndpointBuffer_.ActiveBuffer();
+    if (rxEndpointBuffer_ == nullptr) {
+      return;
+    }
+
+    const uint8_t *completedBuffer = rxEndpointBuffer_->ActiveBuffer();
     const uint32_t rxLen = iFly::usermath::Min<uint32_t>(UsbPcd().GetRxCount(kEpCdcDataOut),
                                                          kEpDataMps);
-    rxEndpointBuffer_.SetActiveLength(static_cast<uint16_t>(rxLen));
-    rxEndpointBuffer_.SwapBuffers();
-    rxEndpointBuffer_.ClearActive();
+    rxEndpointBuffer_->SetActiveLength(static_cast<uint16_t>(rxLen));
+    rxEndpointBuffer_->SwapBuffers();
+    rxEndpointBuffer_->ClearActive();
     PrimeOutEndpoint();
     PushReceivedPacket(completedBuffer, rxLen);
   }
@@ -645,7 +747,8 @@ void UsbCdcAcm::ServiceTxPath() {
       if ((!initialized_.load(std::memory_order_acquire)) ||
           (!configured_.load(std::memory_order_acquire)) ||
           suspended_.load(std::memory_order_acquire) ||
-          (!txQueue_.IsCreated()) || (!txEndpointBuffer_.IsCreated())) {
+          (txQueue_ == nullptr) || (txEndpointBuffer_ == nullptr) ||
+          (!txQueue_->IsCreated()) || (!txEndpointBuffer_->IsCreated())) {
         continue;
       }
 
@@ -654,12 +757,12 @@ void UsbCdcAcm::ServiceTxPath() {
         continue;
       }
 
-      if (!txEndpointBuffer_.HasInactiveData()) {
+      if (!txEndpointBuffer_->HasInactiveData()) {
         continue;
       }
 
-      uint8_t *data = txEndpointBuffer_.InactiveBuffer();
-      const uint16_t length = txEndpointBuffer_.InactiveLength();
+      uint8_t *data = txEndpointBuffer_->InactiveBuffer();
+      const uint16_t length = txEndpointBuffer_->InactiveLength();
       if ((data == nullptr) || (length == 0U)) {
         continue;
       }
@@ -672,7 +775,7 @@ void UsbCdcAcm::ServiceTxPath() {
       }
 
       if (UsbPcd().Transmit(kEpCdcDataIn, data, length) == HAL_OK) {
-        txEndpointBuffer_.SwapBuffers();
+        txEndpointBuffer_->SwapBuffers();
         (void)LoadTxPacketToInactiveBuffer();
         continue;
       }
@@ -692,18 +795,20 @@ void UsbCdcAcm::ServiceTxPath() {
 }
 
 uint32_t UsbCdcAcm::LoadTxPacketToInactiveBuffer() {
-  if ((!txQueue_.IsCreated()) || (!txEndpointBuffer_.IsCreated()) || txEndpointBuffer_.HasInactiveData()) {
+  if ((txQueue_ == nullptr) || (txEndpointBuffer_ == nullptr) ||
+      (!txQueue_->IsCreated()) || (!txEndpointBuffer_->IsCreated()) ||
+      txEndpointBuffer_->HasInactiveData()) {
     return 0U;
   }
 
-  uint8_t *buffer = txEndpointBuffer_.InactiveBuffer();
+  uint8_t *buffer = txEndpointBuffer_->InactiveBuffer();
   if (buffer == nullptr) {
     return 0U;
   }
 
-  const uint32_t pulled = txQueue_.Dequeue(buffer, txEndpointBuffer_.PacketSize());
+  const uint32_t pulled = txQueue_->Dequeue(buffer, txEndpointBuffer_->PacketSize());
   if (pulled > 0U) {
-    txEndpointBuffer_.SetInactiveLength(static_cast<uint16_t>(pulled));
+    txEndpointBuffer_->SetInactiveLength(static_cast<uint16_t>(pulled));
   }
   return pulled;
 }

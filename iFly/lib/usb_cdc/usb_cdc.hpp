@@ -13,24 +13,157 @@
 
 namespace iFly {
 
+static constexpr uint16_t kDefaultUsbEndpointPacketSize = 64U; /**< 默认 USB CDC 数据端点包长。 */
+static constexpr uint16_t kDefaultUsbEndpointBufferSize = 200U; /**< 默认 USB CDC 端点双缓冲区大小。 */
+static constexpr uint32_t kDefaultUsbTxQueueStorageSize = 200U; /**< 默认 USB CDC 发送队列容量。 */
+
 /**
  * @brief USB 数据端点使用的双缓冲区。
  */
-class UsbEndpointDoubleBuffer final : public StaticByteDoubleBuffer<200U> {
+class UsbEndpointDoubleBufferBase {
 public:
-  UsbEndpointDoubleBuffer() = default;
+  UsbEndpointDoubleBufferBase() = default;
+
+  UsbEndpointDoubleBufferBase(const UsbEndpointDoubleBufferBase &) = delete;
+  UsbEndpointDoubleBufferBase &operator=(const UsbEndpointDoubleBufferBase &) = delete;
 
   /**
-   * @brief 使用指定包长直接构造双缓冲区。
+   * @brief 使用外部存储区创建双缓冲区。
+   *
+   * @param buffer0 第 0 个缓冲槽首地址。
+   * @param buffer1 第 1 个缓冲槽首地址。
+   * @param bufferSize 单个缓冲槽大小。
+   * @param packetSize 单个端点包的大小。
+   * @return 创建成功返回 `true`。
+   */
+  bool Create(uint8_t *buffer0, uint8_t *buffer1, uint16_t bufferSize, uint16_t packetSize);
+
+  /**
+   * @brief 解除双缓冲区与外部存储区的绑定。
+   */
+  void Delete();
+
+  /**
+   * @brief 清空缓冲区状态。
+   */
+  void Clear();
+
+  /**
+   * @brief 判断双缓冲区是否已经创建成功。
+   *
+   * @return 已创建返回 `true`。
+   */
+  bool IsCreated() const;
+
+  /**
+   * @brief 获取当前有效包长。
+   *
+   * @return 当前包长。
+   */
+  uint16_t PacketSize() const;
+
+  /**
+   * @brief 获取活动缓冲槽的可写指针。
+   *
+   * @return 活动缓冲区首地址。
+   */
+  uint8_t *ActiveBuffer();
+
+  /**
+   * @brief 设置当前活动缓冲槽的长度。
+   *
+   * @param length 新的活动长度。
+   */
+  void SetActiveLength(uint16_t length);
+
+  /**
+   * @brief 清空当前活动缓冲槽的长度。
+   */
+  void ClearActive();
+
+  /**
+   * @brief 获取备用缓冲槽的可写指针。
+   *
+   * @return 备用缓冲区首地址。
+   */
+  uint8_t *InactiveBuffer();
+
+  /**
+   * @brief 获取当前备用缓冲槽的长度。
+   *
+   * @return 当前备用长度。
+   */
+  uint16_t InactiveLength() const;
+
+  /**
+   * @brief 设置当前备用缓冲槽的长度。
+   *
+   * @param length 新的备用长度。
+   */
+  void SetInactiveLength(uint16_t length);
+
+  /**
+   * @brief 判断当前备用缓冲槽是否存在有效数据。
+   *
+   * @return 存在有效数据返回 `true`。
+   */
+  bool HasInactiveData() const;
+
+  /**
+   * @brief 交换活动缓冲槽与备用缓冲槽。
+   */
+  void SwapBuffers();
+
+private:
+  /**
+   * @brief 重置两个缓冲槽的长度状态。
+   */
+  void ResetLengths();
+
+  /**
+   * @brief 获取当前备用缓冲槽索引。
+   *
+   * @return 备用缓冲槽索引。
+   */
+  uint8_t InactiveSlotIndex() const;
+
+  uint8_t *buffers_[2] {}; /**< 两个外部缓冲槽首地址。 */
+  uint16_t bufferSize_ = 0U; /**< 单个缓冲槽大小。 */
+  uint16_t packetSize_ = 0U; /**< 当前有效包长。 */
+  uint16_t lengths_[2] {}; /**< 两个缓冲槽各自的长度信息。 */
+  uint8_t activeSlot_ = 0U; /**< 当前活动缓冲槽索引。 */
+};
+
+/**
+ * @brief 带静态存储区的 USB 数据端点双缓冲区。
+ *
+ * @tparam kBufferSize 单个缓冲槽的固定容量。
+ */
+template <uint16_t kBufferSize = kDefaultUsbEndpointBufferSize>
+class UsbEndpointDoubleBuffer final : public UsbEndpointDoubleBufferBase {
+public:
+  static_assert(kBufferSize >= kDefaultUsbEndpointPacketSize,
+                "kBufferSize must hold at least one endpoint packet.");
+
+  /**
+   * @brief 构造时自动绑定内部静态缓冲区。
+   */
+  UsbEndpointDoubleBuffer() {
+    Recreate();
+  }
+
+  /**
+   * @brief 使用指定包长重新绑定内部静态缓冲区。
    *
    * @param packetSize 单个端点包的大小。
+   * @return 绑定成功返回 `true`。
    */
-  explicit UsbEndpointDoubleBuffer(uint16_t packetSize)
-      : StaticByteDoubleBuffer<200U>(packetSize) {
+  bool Recreate(uint16_t packetSize = kDefaultUsbEndpointPacketSize) {
+    return Create(storage_[0], storage_[1], kBufferSize, packetSize);
   }
 
 private:
-  using StaticByteDoubleBuffer<200U>::StaticByteDoubleBuffer;
+  uint8_t storage_[2][kBufferSize] {}; /**< 两个固定大小的端点缓冲槽。 */
 };
 
 /**
@@ -56,6 +189,17 @@ public:
    * @param queue 上层统一接收队列。
    */
   void AttachRxQueue(LockFreeQueueBase *queue);
+
+  /**
+   * @brief 绑定底层发送队列和端点双缓冲区。
+   *
+   * @param txQueue 发送方向字节队列。
+   * @param rxEndpointBuffer OUT 端点双缓冲区。
+   * @param txEndpointBuffer IN 端点双缓冲区。
+   */
+  void AttachStorage(LockFreeQueueBase *txQueue,
+                     UsbEndpointDoubleBufferBase *rxEndpointBuffer,
+                     UsbEndpointDoubleBufferBase *txEndpointBuffer);
 
   /**
    * @brief 驱动后台服务逻辑。
@@ -202,9 +346,8 @@ private:
   static constexpr uint8_t kEpCdcDataIn = 0x81U; /**< CDC 数据 IN 端点地址。 */
   static constexpr uint8_t kEpCdcDataOut = 0x01U; /**< CDC 数据 OUT 端点地址。 */
   static constexpr uint8_t kEpCdcCmdIn = 0x82U; /**< CDC 命令 IN 端点地址。 */
-  static constexpr uint16_t kEpDataMps = 64U; /**< 数据端点最大包长。 */
+  static constexpr uint16_t kEpDataMps = kDefaultUsbEndpointPacketSize; /**< 数据端点最大包长。 */
   static constexpr uint16_t kEpCmdMps = 8U; /**< 命令端点最大包长。 */
-  static constexpr uint32_t kTxQueueStorageSize = 200U; /**< 发送队列容量。 */
 
   /**
    * @brief 重置运行时状态。
@@ -330,9 +473,9 @@ private:
   uint8_t ep0ZlpDummy_ = 0U; /**< 零长度包占位字节。 */
   uint8_t lineCodingBuffer_[7] {}; /**< LineCoding 临时编码缓冲区。 */
 
-  UsbEndpointDoubleBuffer rxEndpointBuffer_ {}; /**< OUT 端点双缓冲区。 */
-  StaticLockFreeQueue<kTxQueueStorageSize> txQueue_ {}; /**< 发送队列。 */
-  UsbEndpointDoubleBuffer txEndpointBuffer_ {}; /**< IN 端点双缓冲区。 */
+  UsbEndpointDoubleBufferBase *rxEndpointBuffer_ = nullptr; /**< OUT 端点双缓冲区。 */
+  LockFreeQueueBase *txQueue_ = nullptr; /**< 发送队列。 */
+  UsbEndpointDoubleBufferBase *txEndpointBuffer_ = nullptr; /**< IN 端点双缓冲区。 */
 
   std::atomic<bool> txBusy_ {false}; /**< 当前是否正在发送数据。 */
   std::atomic<uint32_t> rxDropped_ {0U}; /**< 接收链路累计丢字节数。 */

@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 
+#include "double_buffer.hpp"
 #include "lock_free_queue.hpp"
 
 namespace iFly {
@@ -53,6 +54,50 @@ static_assert(sizeof(CanFramePacket) == 16U,
               "CanFramePacket size must stay fixed at 16 bytes.");
 
 /**
+ * @brief CAN 发送方向单帧双缓冲区。
+ */
+class CanTxDoubleBuffer final : public StaticObjectDoubleBuffer<CanFramePacket> {
+public:
+  using StaticObjectDoubleBuffer<CanFramePacket>::StaticObjectDoubleBuffer;
+
+  /**
+   * @brief 获取活动缓冲槽中的 CAN 报文。
+   *
+   * @return 活动 CAN 报文引用。
+   */
+  CanFramePacket &ActivePacket() {
+    return ActiveObject();
+  }
+
+  /**
+   * @brief 获取备用缓冲槽中的 CAN 报文。
+   *
+   * @return 备用 CAN 报文引用。
+   */
+  CanFramePacket &InactivePacket() {
+    return InactiveObject();
+  }
+
+  /**
+   * @brief 获取备用缓冲槽中的只读 CAN 报文。
+   *
+   * @return 备用 CAN 报文只读引用。
+   */
+  const CanFramePacket &InactivePacket() const {
+    return InactiveObject();
+  }
+
+  /**
+   * @brief 设置备用缓冲槽中的 CAN 报文。
+   *
+   * @param packet 待写入的 CAN 报文。
+   */
+  void SetInactivePacket(const CanFramePacket &packet) {
+    SetInactiveObject(packet);
+  }
+};
+
+/**
  * @brief CAN 运行时服务。
  */
 class CanService final {
@@ -60,9 +105,9 @@ public:
   static constexpr uint8_t kMaxPorts = 2U; /**< 最大逻辑端口数。 */
   static constexpr uint32_t kCanFramePacketSize =
       sizeof(CanFramePacket); /**< 单帧软件封包大小。 */
-  static constexpr uint32_t kFixedTxQueueFrameCount = 64U; /**< 固定发送队列最大帧数。 */
-  static constexpr uint32_t kFixedTxQueueStorageSize =
-      (kFixedTxQueueFrameCount * kCanFramePacketSize) + 1U; /**< 固定发送队列总容量。 */
+  static constexpr uint32_t kDefaultTxQueueFrameCount = 64U; /**< 默认发送队列最大帧数。 */
+  static constexpr uint32_t kDefaultTxQueueStorageSize =
+      (kDefaultTxQueueFrameCount * kCanFramePacketSize) + 1U; /**< 默认发送队列总容量。 */
 
   /**
    * @brief 获取 CAN 服务单例。
@@ -84,9 +129,14 @@ public:
    *
    * @param port 逻辑 CAN 端口编号。
    * @param rxQueue 上层统一接收队列。
+   * @param txQueue 发送方向字节队列。
+   * @param txBuffers 发送方向单帧双缓冲区。
    * @return 初始化成功返回 `true`。
    */
-  bool InitPort(CanPortId port, LockFreeQueueBase *rxQueue);
+  bool InitPort(CanPortId port,
+                LockFreeQueueBase *rxQueue,
+                LockFreeQueueBase *txQueue,
+                CanTxDoubleBuffer *txBuffers);
 
   /**
    * @brief 反初始化指定 CAN 端口。

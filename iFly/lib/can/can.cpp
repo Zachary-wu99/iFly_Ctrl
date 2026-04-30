@@ -3,7 +3,6 @@
 #include <atomic>
 #include <string.h>
 
-#include "double_buffer.hpp"
 #include "platform_handle.hpp"
 #include "usermath.hpp"
 
@@ -21,32 +20,11 @@ constexpr uint8_t PortIndex(iFly::CanPortId port) {
   return static_cast<uint8_t>(port);
 }
 
-class CanTxDoubleBuffer final : public iFly::StaticObjectDoubleBuffer<iFly::CanFramePacket> {
-public:
-  using iFly::StaticObjectDoubleBuffer<iFly::CanFramePacket>::StaticObjectDoubleBuffer;
-
-  iFly::CanFramePacket &ActivePacket() {
-    return ActiveObject();
-  }
-
-  iFly::CanFramePacket &InactivePacket() {
-    return InactiveObject();
-  }
-
-  const iFly::CanFramePacket &InactivePacket() const {
-    return InactiveObject();
-  }
-
-  void SetInactivePacket(const iFly::CanFramePacket &packet) {
-    SetInactiveObject(packet);
-  }
-};
-
 struct CanPortSlot final {
   void *hcan = nullptr;
   iFly::LockFreeQueueBase *appRxQueue = nullptr;
-  iFly::StaticLockFreeQueue<iFly::CanService::kFixedTxQueueStorageSize> txQueue {};
-  CanTxDoubleBuffer txBuffers {};
+  iFly::LockFreeQueueBase *txQueue = nullptr;
+  iFly::CanTxDoubleBuffer *txBuffers = nullptr;
   std::atomic<uint32_t> rxDropped {0U};
   std::atomic<bool> initialized {false};
   std::atomic<uint32_t> txServiceRequests {0U};
@@ -200,19 +178,20 @@ iFly::CanFramePacket BuildRxPacket(const CAN_RxHeaderTypeDef &header,
 }
 
 uint32_t LoadTxPacketToInactiveBuffer(CanPortSlot &slot) {
-  if (!slot.txQueue.IsCreated() || slot.txBuffers.HasInactiveData()) {
+  if ((slot.txQueue == nullptr) || (slot.txBuffers == nullptr) ||
+      !slot.txQueue->IsCreated() || slot.txBuffers->HasInactiveData()) {
     return 0U;
   }
 
-  if (slot.txQueue.UsedSize() < iFly::CanService::kCanFramePacketSize) {
+  if (slot.txQueue->UsedSize() < iFly::CanService::kCanFramePacketSize) {
     return 0U;
   }
 
   iFly::CanFramePacket packet {};
-  const uint32_t pulled = slot.txQueue.Dequeue(reinterpret_cast<uint8_t *>(&packet),
-                                               iFly::CanService::kCanFramePacketSize);
+  const uint32_t pulled = slot.txQueue->Dequeue(reinterpret_cast<uint8_t *>(&packet),
+                                                iFly::CanService::kCanFramePacketSize);
   if (pulled == iFly::CanService::kCanFramePacketSize) {
-    slot.txBuffers.SetInactivePacket(packet);
+    slot.txBuffers->SetInactivePacket(packet);
     return pulled;
   }
 
@@ -220,19 +199,23 @@ uint32_t LoadTxPacketToInactiveBuffer(CanPortSlot &slot) {
 }
 
 bool PromoteInactiveToActive(CanPortSlot &slot) {
-  if (slot.txBuffers.HasActiveData()) {
-    return true;
-  }
-
-  if (!slot.txBuffers.HasInactiveData()) {
-    (void)LoadTxPacketToInactiveBuffer(slot);
-  }
-
-  if (!slot.txBuffers.HasInactiveData()) {
+  if (slot.txBuffers == nullptr) {
     return false;
   }
 
-  slot.txBuffers.SwapBuffers();
+  if (slot.txBuffers->HasActiveData()) {
+    return true;
+  }
+
+  if (!slot.txBuffers->HasInactiveData()) {
+    (void)LoadTxPacketToInactiveBuffer(slot);
+  }
+
+  if (!slot.txBuffers->HasInactiveData()) {
+    return false;
+  }
+
+  slot.txBuffers->SwapBuffers();
   return true;
 }
 
@@ -249,17 +232,17 @@ bool TryQueueOneTxPacket(CanPortSlot &slot) {
   }
 
   CAN_TxHeaderTypeDef header {};
-  FillTxHeader(slot.txBuffers.ActivePacket(), &header);
+  FillTxHeader(slot.txBuffers->ActivePacket(), &header);
 
   uint32_t txMailbox = 0U;
   if (HAL_CAN_AddTxMessage(hcan,
                            &header,
-                           slot.txBuffers.ActivePacket().data,
+                           slot.txBuffers->ActivePacket().data,
                            &txMailbox) != HAL_OK) {
     return false;
   }
 
-  slot.txBuffers.ClearActive();
+  slot.txBuffers->ClearActive();
   (void)LoadTxPacketToInactiveBuffer(slot);
   return true;
 }
@@ -374,20 +357,31 @@ void CanService::AttachHardware(CanPortId port, void *hcan) {
   slot.txServiceRunning.store(false, std::memory_order_release);
 }
 
-bool CanService::InitPort(CanPortId port, LockFreeQueueBase *rxQueue) {
+bool CanService::InitPort(CanPortId port,
+                          LockFreeQueueBase *rxQueue,
+                          LockFreeQueueBase *txQueue,
+                          CanTxDoubleBuffer *txBuffers) {
   CanPortSlot &slot = Storage().slots[PortIndex(port)];
   if (slot.hcan == nullptr) {
     slot.hcan = DefaultHandleForPort(port);
   }
 
+  slot.initialized.store(false, std::memory_order_release);
   slot.appRxQueue = rxQueue;
+  slot.txQueue = txQueue;
+  slot.txBuffers = txBuffers;
+
+  if ((slot.txQueue == nullptr) || (slot.txBuffers == nullptr) ||
+      !slot.txQueue->IsCreated()) {
+    return false;
+  }
+
   if ((slot.appRxQueue != nullptr) && slot.appRxQueue->IsCreated()) {
     slot.appRxQueue->Clear();
   }
 
-  slot.txQueue.Recreate();
-  slot.txQueue.Clear();
-  slot.txBuffers.Recreate();
+  slot.txQueue->Clear();
+  slot.txBuffers->Recreate();
   slot.rxDropped.store(0U, std::memory_order_release);
   slot.txServiceRequests.store(0U, std::memory_order_release);
   slot.txServiceRunning.store(false, std::memory_order_release);
@@ -409,9 +403,14 @@ void CanService::DeinitPort(CanPortId port) {
   }
 
   slot.appRxQueue = nullptr;
-  slot.txQueue.Recreate();
-  slot.txQueue.Clear();
-  slot.txBuffers.Clear();
+  if (slot.txQueue != nullptr) {
+    slot.txQueue->Clear();
+  }
+  if (slot.txBuffers != nullptr) {
+    slot.txBuffers->Clear();
+  }
+  slot.txQueue = nullptr;
+  slot.txBuffers = nullptr;
   slot.rxDropped.store(0U, std::memory_order_release);
   slot.txServiceRequests.store(0U, std::memory_order_release);
   slot.txServiceRunning.store(false, std::memory_order_release);
@@ -423,12 +422,13 @@ uint32_t CanService::Write(CanPortId port, const uint8_t *data, uint32_t len) {
   }
 
   CanPortSlot &slot = Storage().slots[PortIndex(port)];
-  if (!slot.initialized.load(std::memory_order_acquire) || !slot.txQueue.IsCreated()) {
+  if (!slot.initialized.load(std::memory_order_acquire) ||
+      (slot.txQueue == nullptr) || !slot.txQueue->IsCreated()) {
     return 0U;
   }
 
   const uint32_t frameCountRequested = len / kCanFramePacketSize;
-  const uint32_t frameCountFree = slot.txQueue.FreeSize() / kCanFramePacketSize;
+  const uint32_t frameCountFree = slot.txQueue->FreeSize() / kCanFramePacketSize;
   const uint32_t frameCountAccepted =
       iFly::usermath::Min<uint32_t>(frameCountRequested, frameCountFree);
   const uint32_t acceptedBytes = frameCountAccepted * kCanFramePacketSize;
@@ -436,7 +436,7 @@ uint32_t CanService::Write(CanPortId port, const uint8_t *data, uint32_t len) {
     return 0U;
   }
 
-  const uint32_t queued = slot.txQueue.Enqueue(data, acceptedBytes);
+  const uint32_t queued = slot.txQueue->Enqueue(data, acceptedBytes);
   ServiceTxPath(slot);
   return queued - (queued % kCanFramePacketSize);
 }
@@ -449,12 +449,12 @@ bool CanService::WriteFrame(CanPortId port, const CanFramePacket &frame) {
 
 uint32_t CanService::TxFree(CanPortId port) const {
   const CanPortSlot &slot = Storage().slots[PortIndex(port)];
-  return slot.txQueue.IsCreated() ? slot.txQueue.FreeSize() : 0U;
+  return ((slot.txQueue != nullptr) && slot.txQueue->IsCreated()) ? slot.txQueue->FreeSize() : 0U;
 }
 
 uint32_t CanService::TxUsed(CanPortId port) const {
   const CanPortSlot &slot = Storage().slots[PortIndex(port)];
-  return slot.txQueue.IsCreated() ? slot.txQueue.UsedSize() : 0U;
+  return ((slot.txQueue != nullptr) && slot.txQueue->IsCreated()) ? slot.txQueue->UsedSize() : 0U;
 }
 
 uint32_t CanService::RxDropped(CanPortId port) const {
