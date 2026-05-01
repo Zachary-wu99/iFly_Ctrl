@@ -3,17 +3,17 @@
 #include <atomic>
 #include <string.h>
 
-#include "platform_handle.hpp"
+#include "can.h"
 #include "usermath.hpp"
 
 namespace {
 
 CAN_HandleTypeDef *CanHandle(void *handle) {
-  return iFly::platform::AsCanHandle(handle);
+  return static_cast<CAN_HandleTypeDef *>(handle);
 }
 
 const CAN_HandleTypeDef *CanHandle(const void *handle) {
-  return iFly::platform::AsCanHandle(handle);
+  return static_cast<const CAN_HandleTypeDef *>(handle);
 }
 
 constexpr uint8_t PortIndex(iFly::CanPortId port) {

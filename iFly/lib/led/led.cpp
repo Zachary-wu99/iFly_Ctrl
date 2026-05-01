@@ -1,23 +1,79 @@
 #include "led.hpp"
 
-#include "platform_handle.hpp"
+#include "gpio.h"
 #include "usermath.hpp"
 
 namespace {
 
-GPIO_TypeDef *GpioPort(void *handle) {
-  return iFly::platform::AsGpioPort(handle);
+constexpr GPIO_TypeDef *GpioPort(iFly::GpioPortId port) {
+  switch (port) {
+    case iFly::GpioPortId::kA:
+      return GPIOA;
+    case iFly::GpioPortId::kB:
+      return GPIOB;
+    case iFly::GpioPortId::kC:
+      return GPIOC;
+    case iFly::GpioPortId::kD:
+      return GPIOD;
+    case iFly::GpioPortId::kE:
+      return GPIOE;
+    case iFly::GpioPortId::kF:
+      return GPIOF;
+    case iFly::GpioPortId::kG:
+      return GPIOG;
+    case iFly::GpioPortId::kH:
+      return GPIOH;
+    case iFly::GpioPortId::kI:
+      return GPIOI;
+    default:
+      return nullptr;
+  }
 }
 
-const GPIO_TypeDef *GpioPort(const void *handle) {
-  return iFly::platform::AsGpioPort(handle);
+constexpr uint16_t GpioPin(iFly::GpioPinId pin) {
+  switch (pin) {
+    case iFly::GpioPinId::kPin0:
+      return GPIO_PIN_0;
+    case iFly::GpioPinId::kPin1:
+      return GPIO_PIN_1;
+    case iFly::GpioPinId::kPin2:
+      return GPIO_PIN_2;
+    case iFly::GpioPinId::kPin3:
+      return GPIO_PIN_3;
+    case iFly::GpioPinId::kPin4:
+      return GPIO_PIN_4;
+    case iFly::GpioPinId::kPin5:
+      return GPIO_PIN_5;
+    case iFly::GpioPinId::kPin6:
+      return GPIO_PIN_6;
+    case iFly::GpioPinId::kPin7:
+      return GPIO_PIN_7;
+    case iFly::GpioPinId::kPin8:
+      return GPIO_PIN_8;
+    case iFly::GpioPinId::kPin9:
+      return GPIO_PIN_9;
+    case iFly::GpioPinId::kPin10:
+      return GPIO_PIN_10;
+    case iFly::GpioPinId::kPin11:
+      return GPIO_PIN_11;
+    case iFly::GpioPinId::kPin12:
+      return GPIO_PIN_12;
+    case iFly::GpioPinId::kPin13:
+      return GPIO_PIN_13;
+    case iFly::GpioPinId::kPin14:
+      return GPIO_PIN_14;
+    case iFly::GpioPinId::kPin15:
+      return GPIO_PIN_15;
+    default:
+      return 0U;
+  }
 }
 
-GPIO_PinState ToHalPinState(iFly::LedPinState state) {
+constexpr GPIO_PinState ToHalPinState(iFly::LedPinState state) {
   return (state == iFly::LedPinState::kSet) ? GPIO_PIN_SET : GPIO_PIN_RESET;
 }
 
-iFly::LedPinState FromHalPinState(GPIO_PinState state) {
+constexpr iFly::LedPinState FromHalPinState(GPIO_PinState state) {
   return (state == GPIO_PIN_SET) ? iFly::LedPinState::kSet : iFly::LedPinState::kReset;
 }
 
@@ -57,17 +113,17 @@ const LedConfig *Led::GetConfig() const {
   return initialized_ ? &config_ : nullptr;
 }
 
-void Led::AttachHardware(void *port, uint16_t pin) {
+void Led::AttachHardware(GpioPortId port, GpioPinId pin) {
   config_.port = port;
   config_.pin = pin;
   initialized_ = IsConfigValid();
 }
 
-void *Led::Handle() const {
+GpioPortId Led::Handle() const {
   return config_.port;
 }
 
-uint16_t Led::Pin() const {
+GpioPinId Led::Pin() const {
   return config_.pin;
 }
 
@@ -76,7 +132,7 @@ bool Led::Set(bool on) const {
     return false;
   }
 
-  HAL_GPIO_WritePin(GpioPort(config_.port), config_.pin, ToHalPinState(LogicalToPhysical(on)));
+  HAL_GPIO_WritePin(GpioPort(config_.port), GpioPin(config_.pin), ToHalPinState(LogicalToPhysical(on)));
   return true;
 }
 
@@ -109,7 +165,7 @@ LedPinState Led::ReadPin() const {
     return LedPinState::kReset;
   }
 
-  return FromHalPinState(HAL_GPIO_ReadPin(GpioPort(config_.port), config_.pin));
+  return FromHalPinState(HAL_GPIO_ReadPin(GpioPort(config_.port), GpioPin(config_.pin)));
 }
 
 LedPinState Led::LogicalToPhysical(bool on) const {
@@ -121,8 +177,8 @@ LedPinState Led::LogicalToPhysical(bool on) const {
 }
 
 bool Led::IsConfigValid() const {
-  const GPIO_TypeDef *port = GpioPort(static_cast<const void *>(config_.port));
-  return (port != nullptr) && (config_.pin != 0U);
+  const GPIO_TypeDef *port = GpioPort(config_.port);
+  return (port != nullptr) && (GpioPin(config_.pin) != 0U);
 }
 
 bool LedController::Init(Led *leds,

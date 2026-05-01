@@ -1,6 +1,6 @@
 #include "pwm.hpp"
 
-#include "platform_handle.hpp"
+#include "tim.h"
 #include "usermath.hpp"
 
 namespace iFly {
@@ -8,11 +8,11 @@ namespace iFly {
 namespace {
 
 TIM_HandleTypeDef *TimHandle(void *handle) {
-  return iFly::platform::AsTimHandle(handle);
+  return static_cast<TIM_HandleTypeDef *>(handle);
 }
 
 const TIM_HandleTypeDef *TimHandle(const void *handle) {
-  return iFly::platform::AsTimHandle(handle);
+  return static_cast<const TIM_HandleTypeDef *>(handle);
 }
 
 } // namespace

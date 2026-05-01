@@ -10,6 +10,45 @@
 namespace iFly {
 
 /**
+ * @brief 软件层统一定义的 GPIO 逻辑端口编号。
+ */
+enum class GpioPortId : uint8_t {
+  kA = 0U, /**< 逻辑 GPIOA 端口。 */
+  kB = 1U, /**< 逻辑 GPIOB 端口。 */
+  kC = 2U, /**< 逻辑 GPIOC 端口。 */
+  kD = 3U, /**< 逻辑 GPIOD 端口。 */
+  kE = 4U, /**< 逻辑 GPIOE 端口。 */
+  kF = 5U, /**< 逻辑 GPIOF 端口。 */
+  kG = 6U, /**< 逻辑 GPIOG 端口。 */
+  kH = 7U, /**< 逻辑 GPIOH 端口。 */
+  kI = 8U, /**< 逻辑 GPIOI 端口。 */
+  kNone = 0xFFU /**< 未绑定 GPIO 端口。 */
+};
+
+/**
+ * @brief 软件层统一定义的 GPIO 逻辑引脚编号。
+ */
+enum class GpioPinId : uint8_t {
+  kPin0 = 0U, /**< 逻辑 GPIO 引脚 0。 */
+  kPin1 = 1U, /**< 逻辑 GPIO 引脚 1。 */
+  kPin2 = 2U, /**< 逻辑 GPIO 引脚 2。 */
+  kPin3 = 3U, /**< 逻辑 GPIO 引脚 3。 */
+  kPin4 = 4U, /**< 逻辑 GPIO 引脚 4。 */
+  kPin5 = 5U, /**< 逻辑 GPIO 引脚 5。 */
+  kPin6 = 6U, /**< 逻辑 GPIO 引脚 6。 */
+  kPin7 = 7U, /**< 逻辑 GPIO 引脚 7。 */
+  kPin8 = 8U, /**< 逻辑 GPIO 引脚 8。 */
+  kPin9 = 9U, /**< 逻辑 GPIO 引脚 9。 */
+  kPin10 = 10U, /**< 逻辑 GPIO 引脚 10。 */
+  kPin11 = 11U, /**< 逻辑 GPIO 引脚 11。 */
+  kPin12 = 12U, /**< 逻辑 GPIO 引脚 12。 */
+  kPin13 = 13U, /**< 逻辑 GPIO 引脚 13。 */
+  kPin14 = 14U, /**< 逻辑 GPIO 引脚 14。 */
+  kPin15 = 15U, /**< 逻辑 GPIO 引脚 15。 */
+  kNone = 0xFFU /**< 未绑定 GPIO 引脚。 */
+};
+
+/**
  * @brief LED 点亮有效电平。
  */
 enum class LedActiveLevel : uint8_t {
@@ -29,8 +68,8 @@ enum class LedPinState : uint8_t {
  * @brief 单个 LED 的硬件绑定配置。
  */
 struct LedConfig final {
-  void *port = nullptr; /**< 目标 GPIO 端口句柄，例如 `GPIOA`。 */
-  uint16_t pin = 0U; /**< 目标 GPIO 引脚掩码，例如 `GPIO_PIN_8`。 */
+  GpioPortId port = GpioPortId::kNone; /**< 目标 GPIO 逻辑端口，例如 `GpioPortId::kA`。 */
+  GpioPinId pin = GpioPinId::kNone; /**< 目标 GPIO 逻辑引脚，例如 `GpioPinId::kPin8`。 */
   LedActiveLevel activeLevel = LedActiveLevel::kHigh; /**< LED 的有效电平配置。 */
   bool defaultOn = false; /**< 初始化后是否立即点亮。 */
 };
@@ -80,24 +119,24 @@ public:
   /**
    * @brief 重新绑定 GPIO 端口和引脚。
    *
-   * @param port GPIO 端口句柄。
-   * @param pin GPIO 引脚掩码。
+   * @param port GPIO 逻辑端口。
+   * @param pin GPIO 逻辑引脚。
    */
-  void AttachHardware(void *port, uint16_t pin);
+  void AttachHardware(GpioPortId port, GpioPinId pin);
 
   /**
-   * @brief 获取当前绑定的 GPIO 端口句柄。
+   * @brief 获取当前绑定的 GPIO 逻辑端口。
    *
-   * @return 端口句柄。
+   * @return GPIO 逻辑端口。
    */
-  void *Handle() const;
+  GpioPortId Handle() const;
 
   /**
-   * @brief 获取当前绑定的 GPIO 引脚掩码。
+   * @brief 获取当前绑定的 GPIO 逻辑引脚。
    *
-   * @return 引脚掩码。
+   * @return GPIO 逻辑引脚。
    */
-  uint16_t Pin() const;
+  GpioPinId Pin() const;
 
   /**
    * @brief 按逻辑亮灭状态设置 LED。

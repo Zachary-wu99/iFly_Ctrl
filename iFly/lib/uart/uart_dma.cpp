@@ -2,16 +2,16 @@
 
 #include <string.h>
 
-#include "platform_handle.hpp"
+#include "usart.h"
 
 namespace {
 
 UART_HandleTypeDef *UartHandle(void *handle) {
-  return iFly::platform::AsUartHandle(handle);
+  return static_cast<UART_HandleTypeDef *>(handle);
 }
 
 const UART_HandleTypeDef *UartHandle(const void *handle) {
-  return iFly::platform::AsUartHandle(handle);
+  return static_cast<const UART_HandleTypeDef *>(handle);
 }
 
 constexpr uint8_t PortIndex(iFly::UartPortId port) {

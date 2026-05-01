@@ -58,6 +58,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/app/tick/tick.cpp
     iFly/app/proto/crsf/crsf_protocol.cpp
     iFly/app/proto/sbus/sbus_protocol.cpp
+    iFly/app/lampctrl/lamp.cpp
     iFly/lib/freelock_queue/lock_free_queue.cpp
     iFly/lib/shell/shell.cpp
     iFly/lib/soft_timer/soft_timer.cpp
@@ -84,6 +85,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/app/tick
     iFly/app/proto/crsf
     iFly/app/proto/sbus
+    iFly/app/lampctrl
     iFly/dev
     iFly/lib/double_buffer
     iFly/dev/can_dev

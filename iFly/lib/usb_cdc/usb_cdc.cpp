@@ -3,11 +3,14 @@
 #include <string.h>
 
 #include "main.h"
-#include "platform_handle.hpp"
 #include "usermath.hpp"
 #include "usb_otg.h"
 
 namespace {
+
+PCD_HandleTypeDef *PcdHandle(void *handle) {
+  return static_cast<PCD_HandleTypeDef *>(handle);
+}
 
 constexpr uint8_t kReqTypeMask = 0x60U;
 constexpr uint8_t kReqTypeStandard = 0x00U;
@@ -51,7 +54,7 @@ public:
   }
 
   void ConfigureFifos() const {
-    PCD_HandleTypeDef *hpcd = iFly::platform::AsPcdHandle(Handle());
+    PCD_HandleTypeDef *hpcd = PcdHandle(Handle());
     (void)HAL_PCDEx_SetRxFiFo(hpcd, 128U);
     (void)HAL_PCDEx_SetTxFiFo(hpcd, 0U, 64U);
     (void)HAL_PCDEx_SetTxFiFo(hpcd, 1U, 64U);
@@ -59,43 +62,43 @@ public:
   }
 
   HAL_StatusTypeDef Start() const {
-    return HAL_PCD_Start(iFly::platform::AsPcdHandle(Handle()));
+    return HAL_PCD_Start(PcdHandle(Handle()));
   }
 
   HAL_StatusTypeDef OpenEndpoint(uint8_t epAddr, uint16_t mps, uint8_t epType) const {
-    return HAL_PCD_EP_Open(iFly::platform::AsPcdHandle(Handle()), epAddr, mps, epType);
+    return HAL_PCD_EP_Open(PcdHandle(Handle()), epAddr, mps, epType);
   }
 
   HAL_StatusTypeDef CloseEndpoint(uint8_t epAddr) const {
-    return HAL_PCD_EP_Close(iFly::platform::AsPcdHandle(Handle()), epAddr);
+    return HAL_PCD_EP_Close(PcdHandle(Handle()), epAddr);
   }
 
   HAL_StatusTypeDef Receive(uint8_t epAddr, uint8_t *buffer, uint32_t length) const {
-    return HAL_PCD_EP_Receive(iFly::platform::AsPcdHandle(Handle()), epAddr, buffer, length);
+    return HAL_PCD_EP_Receive(PcdHandle(Handle()), epAddr, buffer, length);
   }
 
   HAL_StatusTypeDef Transmit(uint8_t epAddr, uint8_t *buffer, uint32_t length) const {
-    return HAL_PCD_EP_Transmit(iFly::platform::AsPcdHandle(Handle()), epAddr, buffer, length);
+    return HAL_PCD_EP_Transmit(PcdHandle(Handle()), epAddr, buffer, length);
   }
 
   uint32_t GetRxCount(uint8_t epAddr) const {
-    return HAL_PCD_EP_GetRxCount(iFly::platform::AsPcdHandle(Handle()), epAddr);
+    return HAL_PCD_EP_GetRxCount(PcdHandle(Handle()), epAddr);
   }
 
   void SetAddress(uint8_t address) const {
-    (void)HAL_PCD_SetAddress(iFly::platform::AsPcdHandle(Handle()), address);
+    (void)HAL_PCD_SetAddress(PcdHandle(Handle()), address);
   }
 
   void SetStall(uint8_t epAddr) const {
-    (void)HAL_PCD_EP_SetStall(iFly::platform::AsPcdHandle(Handle()), epAddr);
+    (void)HAL_PCD_EP_SetStall(PcdHandle(Handle()), epAddr);
   }
 
   void ClearStall(uint8_t epAddr) const {
-    (void)HAL_PCD_EP_ClrStall(iFly::platform::AsPcdHandle(Handle()), epAddr);
+    (void)HAL_PCD_EP_ClrStall(PcdHandle(Handle()), epAddr);
   }
 
   const uint8_t *SetupBuffer() const {
-    return reinterpret_cast<const uint8_t *>(iFly::platform::AsPcdHandle(Handle())->Setup);
+    return reinterpret_cast<const uint8_t *>(PcdHandle(Handle())->Setup);
   }
 };
 
