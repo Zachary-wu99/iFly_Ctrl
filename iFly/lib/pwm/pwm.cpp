@@ -5,18 +5,6 @@
 
 namespace iFly {
 
-namespace {
-
-TIM_HandleTypeDef *TimHandle(void *handle) {
-  return static_cast<TIM_HandleTypeDef *>(handle);
-}
-
-const TIM_HandleTypeDef *TimHandle(const void *handle) {
-  return static_cast<const TIM_HandleTypeDef *>(handle);
-}
-
-} // namespace
-
 const char *ToString(PwmChannelId channel) {
   switch (channel) {
     case PwmChannelId::kChannel1:
@@ -57,12 +45,12 @@ void PwmChannel::Deinit() {
   compare_ = 0U;
 }
 
-void PwmChannel::AttachHardware(void *htim, PwmChannelId channel) {
+void PwmChannel::AttachHardware(TIM_HandleTypeDef *htim, PwmChannelId channel) {
   AttachHardware(htim, ToHalChannel(channel));
 }
 
-void PwmChannel::AttachHardware(void *htim, uint32_t hal_channel) {
-  TIM_HandleTypeDef *old_tim = TimHandle(htim_);
+void PwmChannel::AttachHardware(TIM_HandleTypeDef *htim, uint32_t hal_channel) {
+  TIM_HandleTypeDef *old_tim = htim_;
   if ((old_tim != nullptr) && (old_tim->Instance != nullptr) &&
       IsSupportedChannel(channel_) &&
       (HAL_TIM_GetChannelState(old_tim, channel_) == HAL_TIM_CHANNEL_STATE_BUSY)) {
@@ -75,7 +63,7 @@ void PwmChannel::AttachHardware(void *htim, uint32_t hal_channel) {
     return;
   }
 
-  TIM_HandleTypeDef *tim = TimHandle(htim_);
+  TIM_HandleTypeDef *tim = htim_;
   compare_ = ClampCompare(compare_);
   __HAL_TIM_SET_COMPARE(tim, channel_, compare_);
 }
@@ -89,7 +77,7 @@ bool PwmChannel::Start() {
     return true;
   }
 
-  return HAL_TIM_PWM_Start(TimHandle(htim_), channel_) == HAL_OK;
+  return HAL_TIM_PWM_Start(htim_, channel_) == HAL_OK;
 }
 
 void PwmChannel::Stop() {
@@ -97,7 +85,7 @@ void PwmChannel::Stop() {
     return;
   }
 
-  (void)HAL_TIM_PWM_Stop(TimHandle(htim_), channel_);
+  (void)HAL_TIM_PWM_Stop(htim_, channel_);
 }
 
 bool PwmChannel::SetCompare(uint32_t compare) {
@@ -105,7 +93,7 @@ bool PwmChannel::SetCompare(uint32_t compare) {
     return false;
   }
 
-  TIM_HandleTypeDef *tim = TimHandle(htim_);
+  TIM_HandleTypeDef *tim = htim_;
   compare_ = ClampCompare(compare);
   __HAL_TIM_SET_COMPARE(tim, channel_, compare_);
   return true;
@@ -127,7 +115,7 @@ bool PwmChannel::SetDutyCycle(float duty_cycle) {
 }
 
 bool PwmChannel::IsReady() const {
-  const TIM_HandleTypeDef *tim = TimHandle(static_cast<const void *>(htim_));
+  const TIM_HandleTypeDef *tim = htim_;
   return (tim != nullptr) && (tim->Instance != nullptr) &&
          IsSupportedChannel(channel_);
 }
@@ -137,11 +125,11 @@ bool PwmChannel::IsStarted() const {
     return false;
   }
 
-  return HAL_TIM_GetChannelState(TimHandle(static_cast<const void *>(htim_)), channel_) ==
+  return HAL_TIM_GetChannelState(htim_, channel_) ==
          HAL_TIM_CHANNEL_STATE_BUSY;
 }
 
-void *PwmChannel::Handle() const {
+TIM_HandleTypeDef *PwmChannel::Handle() const {
   return htim_;
 }
 
@@ -154,7 +142,7 @@ uint32_t PwmChannel::Compare() const {
     return compare_;
   }
 
-  return __HAL_TIM_GET_COMPARE(TimHandle(static_cast<const void *>(htim_)), channel_);
+  return __HAL_TIM_GET_COMPARE(htim_, channel_);
 }
 
 uint32_t PwmChannel::Period() const {
@@ -162,7 +150,7 @@ uint32_t PwmChannel::Period() const {
     return 0U;
   }
 
-  return __HAL_TIM_GET_AUTORELOAD(TimHandle(static_cast<const void *>(htim_)));
+  return __HAL_TIM_GET_AUTORELOAD(htim_);
 }
 
 uint32_t PwmChannel::MinCompare() const {

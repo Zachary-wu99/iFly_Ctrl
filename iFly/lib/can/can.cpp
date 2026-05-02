@@ -8,20 +8,12 @@
 
 namespace {
 
-CAN_HandleTypeDef *CanHandle(void *handle) {
-  return static_cast<CAN_HandleTypeDef *>(handle);
-}
-
-const CAN_HandleTypeDef *CanHandle(const void *handle) {
-  return static_cast<const CAN_HandleTypeDef *>(handle);
-}
-
 constexpr uint8_t PortIndex(iFly::CanPortId port) {
   return static_cast<uint8_t>(port);
 }
 
 struct CanPortSlot final {
-  void *hcan = nullptr;
+  CAN_HandleTypeDef *hcan = nullptr;
   iFly::LockFreeQueueBase *appRxQueue = nullptr;
   iFly::LockFreeQueueBase *txQueue = nullptr;
   iFly::CanTxDoubleBuffer *txBuffers = nullptr;
@@ -41,7 +33,7 @@ CanServiceStorage &Storage() {
   return storage;
 }
 
-void *DefaultHandleForPort(iFly::CanPortId port) {
+constexpr CAN_HandleTypeDef *DefaultHandleForPort(iFly::CanPortId port) {
   switch (port) {
     case iFly::CanPortId::kCan1:
       return &hcan1;
@@ -52,7 +44,7 @@ void *DefaultHandleForPort(iFly::CanPortId port) {
   }
 }
 
-CanPortSlot *FindSlot(void *hcan) {
+CanPortSlot *FindSlot(CAN_HandleTypeDef *hcan) {
   if (hcan == nullptr) {
     return nullptr;
   }
@@ -82,7 +74,7 @@ uint32_t FilterBankForPort(iFly::CanPortId port) {
 }
 
 void ConfigureTransmitRequestOrder(CanPortSlot &slot) {
-  CAN_HandleTypeDef *hcan = CanHandle(slot.hcan);
+  CAN_HandleTypeDef *hcan = slot.hcan;
   if (hcan == nullptr) {
     return;
   }
@@ -94,7 +86,7 @@ void ConfigureTransmitRequestOrder(CanPortSlot &slot) {
 }
 
 bool StartPort(iFly::CanPortId port, CanPortSlot &slot) {
-  CAN_HandleTypeDef *hcan = CanHandle(slot.hcan);
+  CAN_HandleTypeDef *hcan = slot.hcan;
   if (hcan == nullptr) {
     return false;
   }
@@ -220,7 +212,7 @@ bool PromoteInactiveToActive(CanPortSlot &slot) {
 }
 
 bool TryQueueOneTxPacket(CanPortSlot &slot) {
-  CAN_HandleTypeDef *hcan = CanHandle(slot.hcan);
+  CAN_HandleTypeDef *hcan = slot.hcan;
   if ((hcan == nullptr) ||
       !slot.initialized.load(std::memory_order_acquire) ||
       (HAL_CAN_GetTxMailboxesFreeLevel(hcan) == 0U)) {
@@ -300,7 +292,7 @@ bool PushRxPacketToAppQueue(CanPortSlot &slot, const iFly::CanFramePacket &packe
 }
 
 void DrainHardwareRxFifoToAppQueue(CanPortSlot &slot, uint32_t fifo) {
-  CAN_HandleTypeDef *hcan = CanHandle(slot.hcan);
+  CAN_HandleTypeDef *hcan = slot.hcan;
   if (hcan == nullptr) {
     return;
   }
@@ -349,7 +341,7 @@ CanService &CanService::Instance() {
   return instance;
 }
 
-void CanService::AttachHardware(CanPortId port, void *hcan) {
+void CanService::AttachHardware(CanPortId port, CAN_HandleTypeDef *hcan) {
   CanPortSlot &slot = Storage().slots[PortIndex(port)];
   slot.hcan = hcan;
   slot.initialized.store(false, std::memory_order_release);
@@ -397,7 +389,7 @@ bool CanService::InitPort(CanPortId port,
 void CanService::DeinitPort(CanPortId port) {
   CanPortSlot &slot = Storage().slots[PortIndex(port)];
   slot.initialized.store(false, std::memory_order_release);
-  CAN_HandleTypeDef *hcan = CanHandle(slot.hcan);
+  CAN_HandleTypeDef *hcan = slot.hcan;
   if (hcan != nullptr) {
     (void)HAL_CAN_Stop(hcan);
   }
@@ -463,7 +455,7 @@ uint32_t CanService::RxDropped(CanPortId port) const {
 
 bool CanService::IsReady(CanPortId port) const {
   const CanPortSlot &slot = Storage().slots[PortIndex(port)];
-  const CAN_HandleTypeDef *hcan = CanHandle(static_cast<const void *>(slot.hcan));
+  const CAN_HandleTypeDef *hcan = slot.hcan;
   return slot.initialized.load(std::memory_order_acquire) && (hcan != nullptr) &&
          (hcan->Instance != nullptr);
 }
@@ -472,7 +464,7 @@ void CanService::ServiceRxPath(CanPortId port) {
   (void)port;
 }
 
-void CanService::OnRxFifoPending(void *hcan, uint32_t fifo) {
+void CanService::OnRxFifoPending(CAN_HandleTypeDef *hcan, uint32_t fifo) {
   CanPortSlot *slot = FindSlot(hcan);
   if ((slot == nullptr) || !slot->initialized.load(std::memory_order_acquire) || (slot->hcan == nullptr)) {
     return;
@@ -481,11 +473,11 @@ void CanService::OnRxFifoPending(void *hcan, uint32_t fifo) {
   DrainHardwareRxFifoToAppQueue(*slot, fifo);
 }
 
-void CanService::OnRxFifoFull(void *hcan, uint32_t fifo) {
+void CanService::OnRxFifoFull(CAN_HandleTypeDef *hcan, uint32_t fifo) {
   OnRxFifoPending(hcan, fifo);
 }
 
-void CanService::OnTxComplete(void *hcan) {
+void CanService::OnTxComplete(CAN_HandleTypeDef *hcan) {
   CanPortSlot *slot = FindSlot(hcan);
   if ((slot == nullptr) || !slot->initialized.load(std::memory_order_acquire)) {
     return;
@@ -494,7 +486,7 @@ void CanService::OnTxComplete(void *hcan) {
   HandleTxFinished(*slot);
 }
 
-void CanService::OnTxAbort(void *hcan) {
+void CanService::OnTxAbort(CAN_HandleTypeDef *hcan) {
   CanPortSlot *slot = FindSlot(hcan);
   if ((slot == nullptr) || !slot->initialized.load(std::memory_order_acquire)) {
     return;
@@ -503,7 +495,7 @@ void CanService::OnTxAbort(void *hcan) {
   HandleTxFinished(*slot);
 }
 
-void CanService::OnError(void *hcan) {
+void CanService::OnError(CAN_HandleTypeDef *hcan) {
   CanPortSlot *slot = FindSlot(hcan);
   if ((slot == nullptr) || (slot->hcan == nullptr)) {
     return;
@@ -515,45 +507,45 @@ void CanService::OnError(void *hcan) {
 } // namespace iFly
 
 extern "C" void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) {
-  iFly::CanService::Instance().OnRxFifoPending(static_cast<void *>(hcan), CAN_RX_FIFO0);
+  iFly::CanService::Instance().OnRxFifoPending(hcan, CAN_RX_FIFO0);
 }
 
 extern "C" void HAL_CAN_RxFifo0FullCallback(CAN_HandleTypeDef *hcan) {
-  iFly::CanService::Instance().OnRxFifoFull(static_cast<void *>(hcan), CAN_RX_FIFO0);
+  iFly::CanService::Instance().OnRxFifoFull(hcan, CAN_RX_FIFO0);
 }
 
 extern "C" void HAL_CAN_RxFifo1MsgPendingCallback(CAN_HandleTypeDef *hcan) {
-  iFly::CanService::Instance().OnRxFifoPending(static_cast<void *>(hcan), CAN_RX_FIFO1);
+  iFly::CanService::Instance().OnRxFifoPending(hcan, CAN_RX_FIFO1);
 }
 
 extern "C" void HAL_CAN_RxFifo1FullCallback(CAN_HandleTypeDef *hcan) {
-  iFly::CanService::Instance().OnRxFifoFull(static_cast<void *>(hcan), CAN_RX_FIFO1);
+  iFly::CanService::Instance().OnRxFifoFull(hcan, CAN_RX_FIFO1);
 }
 
 extern "C" void HAL_CAN_TxMailbox0CompleteCallback(CAN_HandleTypeDef *hcan) {
-  iFly::CanService::Instance().OnTxComplete(static_cast<void *>(hcan));
+  iFly::CanService::Instance().OnTxComplete(hcan);
 }
 
 extern "C" void HAL_CAN_TxMailbox1CompleteCallback(CAN_HandleTypeDef *hcan) {
-  iFly::CanService::Instance().OnTxComplete(static_cast<void *>(hcan));
+  iFly::CanService::Instance().OnTxComplete(hcan);
 }
 
 extern "C" void HAL_CAN_TxMailbox2CompleteCallback(CAN_HandleTypeDef *hcan) {
-  iFly::CanService::Instance().OnTxComplete(static_cast<void *>(hcan));
+  iFly::CanService::Instance().OnTxComplete(hcan);
 }
 
 extern "C" void HAL_CAN_TxMailbox0AbortCallback(CAN_HandleTypeDef *hcan) {
-  iFly::CanService::Instance().OnTxAbort(static_cast<void *>(hcan));
+  iFly::CanService::Instance().OnTxAbort(hcan);
 }
 
 extern "C" void HAL_CAN_TxMailbox1AbortCallback(CAN_HandleTypeDef *hcan) {
-  iFly::CanService::Instance().OnTxAbort(static_cast<void *>(hcan));
+  iFly::CanService::Instance().OnTxAbort(hcan);
 }
 
 extern "C" void HAL_CAN_TxMailbox2AbortCallback(CAN_HandleTypeDef *hcan) {
-  iFly::CanService::Instance().OnTxAbort(static_cast<void *>(hcan));
+  iFly::CanService::Instance().OnTxAbort(hcan);
 }
 
 extern "C" void HAL_CAN_ErrorCallback(CAN_HandleTypeDef *hcan) {
-  iFly::CanService::Instance().OnError(static_cast<void *>(hcan));
+  iFly::CanService::Instance().OnError(hcan);
 }

@@ -8,10 +8,6 @@
 
 namespace {
 
-PCD_HandleTypeDef *PcdHandle(void *handle) {
-  return static_cast<PCD_HandleTypeDef *>(handle);
-}
-
 constexpr uint8_t kReqTypeMask = 0x60U;
 constexpr uint8_t kReqTypeStandard = 0x00U;
 constexpr uint8_t kReqTypeClass = 0x20U;
@@ -45,16 +41,16 @@ constexpr uint16_t kCdcConfigValue = 0x0001U;
 
 class Stm32FsPcdAdapter final {
 public:
-  void *Handle() const {
-    return static_cast<void *>(&hpcd_USB_OTG_FS);
+  PCD_HandleTypeDef *Handle() const {
+    return &hpcd_USB_OTG_FS;
   }
 
-  bool Matches(void *hpcd) const {
+  bool Matches(PCD_HandleTypeDef *hpcd) const {
     return hpcd == Handle();
   }
 
   void ConfigureFifos() const {
-    PCD_HandleTypeDef *hpcd = PcdHandle(Handle());
+    PCD_HandleTypeDef *hpcd = Handle();
     (void)HAL_PCDEx_SetRxFiFo(hpcd, 128U);
     (void)HAL_PCDEx_SetTxFiFo(hpcd, 0U, 64U);
     (void)HAL_PCDEx_SetTxFiFo(hpcd, 1U, 64U);
@@ -62,43 +58,43 @@ public:
   }
 
   HAL_StatusTypeDef Start() const {
-    return HAL_PCD_Start(PcdHandle(Handle()));
+    return HAL_PCD_Start(Handle());
   }
 
   HAL_StatusTypeDef OpenEndpoint(uint8_t epAddr, uint16_t mps, uint8_t epType) const {
-    return HAL_PCD_EP_Open(PcdHandle(Handle()), epAddr, mps, epType);
+    return HAL_PCD_EP_Open(Handle(), epAddr, mps, epType);
   }
 
   HAL_StatusTypeDef CloseEndpoint(uint8_t epAddr) const {
-    return HAL_PCD_EP_Close(PcdHandle(Handle()), epAddr);
+    return HAL_PCD_EP_Close(Handle(), epAddr);
   }
 
   HAL_StatusTypeDef Receive(uint8_t epAddr, uint8_t *buffer, uint32_t length) const {
-    return HAL_PCD_EP_Receive(PcdHandle(Handle()), epAddr, buffer, length);
+    return HAL_PCD_EP_Receive(Handle(), epAddr, buffer, length);
   }
 
   HAL_StatusTypeDef Transmit(uint8_t epAddr, uint8_t *buffer, uint32_t length) const {
-    return HAL_PCD_EP_Transmit(PcdHandle(Handle()), epAddr, buffer, length);
+    return HAL_PCD_EP_Transmit(Handle(), epAddr, buffer, length);
   }
 
   uint32_t GetRxCount(uint8_t epAddr) const {
-    return HAL_PCD_EP_GetRxCount(PcdHandle(Handle()), epAddr);
+    return HAL_PCD_EP_GetRxCount(Handle(), epAddr);
   }
 
   void SetAddress(uint8_t address) const {
-    (void)HAL_PCD_SetAddress(PcdHandle(Handle()), address);
+    (void)HAL_PCD_SetAddress(Handle(), address);
   }
 
   void SetStall(uint8_t epAddr) const {
-    (void)HAL_PCD_EP_SetStall(PcdHandle(Handle()), epAddr);
+    (void)HAL_PCD_EP_SetStall(Handle(), epAddr);
   }
 
   void ClearStall(uint8_t epAddr) const {
-    (void)HAL_PCD_EP_ClrStall(PcdHandle(Handle()), epAddr);
+    (void)HAL_PCD_EP_ClrStall(Handle(), epAddr);
   }
 
   const uint8_t *SetupBuffer() const {
-    return reinterpret_cast<const uint8_t *>(PcdHandle(Handle())->Setup);
+    return reinterpret_cast<const uint8_t *>(Handle()->Setup);
   }
 };
 
@@ -837,37 +833,37 @@ uint32_t UsbCdcAcm::UpperRxFree() const {
 extern "C" {
 
 void HAL_PCD_ResetCallback(PCD_HandleTypeDef *hpcd) {
-  if (UsbPcd().Matches(static_cast<void *>(hpcd))) {
+  if (UsbPcd().Matches(hpcd)) {
     iFly::UsbCdcAcm::Instance().OnReset();
   }
 }
 
 void HAL_PCD_SetupStageCallback(PCD_HandleTypeDef *hpcd) {
-  if (UsbPcd().Matches(static_cast<void *>(hpcd))) {
+  if (UsbPcd().Matches(hpcd)) {
     iFly::UsbCdcAcm::Instance().OnSetupStage();
   }
 }
 
 void HAL_PCD_DataInStageCallback(PCD_HandleTypeDef *hpcd, uint8_t epnum) {
-  if (UsbPcd().Matches(static_cast<void *>(hpcd))) {
+  if (UsbPcd().Matches(hpcd)) {
     iFly::UsbCdcAcm::Instance().OnDataInStage(epnum);
   }
 }
 
 void HAL_PCD_DataOutStageCallback(PCD_HandleTypeDef *hpcd, uint8_t epnum) {
-  if (UsbPcd().Matches(static_cast<void *>(hpcd))) {
+  if (UsbPcd().Matches(hpcd)) {
     iFly::UsbCdcAcm::Instance().OnDataOutStage(epnum);
   }
 }
 
 void HAL_PCD_SuspendCallback(PCD_HandleTypeDef *hpcd) {
-  if (UsbPcd().Matches(static_cast<void *>(hpcd))) {
+  if (UsbPcd().Matches(hpcd)) {
     iFly::UsbCdcAcm::Instance().OnSuspend();
   }
 }
 
 void HAL_PCD_ResumeCallback(PCD_HandleTypeDef *hpcd) {
-  if (UsbPcd().Matches(static_cast<void *>(hpcd))) {
+  if (UsbPcd().Matches(hpcd)) {
     iFly::UsbCdcAcm::Instance().OnResume();
   }
 }

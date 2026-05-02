@@ -13,8 +13,8 @@ namespace {
   constexpr uint16_t kUsbRxQueueSize = 120U;
   constexpr char kDefaultCliTransport[] = "usb";
 
-  iFly::FlightCtrlCli cli;
-  iFly::UsbUart usb_cdc(kUsbRxQueueSize);
+  iFly::FlightCtrlCli CLI;
+  iFly::UsbUart Usb_Cdc(kUsbRxQueueSize);
 
 }
 
@@ -26,12 +26,12 @@ namespace iFly {
 
   bool InitAllTasks(void)
   {
-    cli.Init();
-    cli.RegisterTransport("usb",&usb_cdc);
-    cli.UseTransport("usb");
-    usb_cdc.Init();
+    CLI.Init();
+    CLI.RegisterTransport("usb",&Usb_Cdc);
+    CLI.UseTransport("usb");
+    Usb_Cdc.Init();
 
-    bool init_sta = InitCliPollTask(&cli);
+    bool init_sta = InitCliPollTask(&CLI);
     init_sta = InitLedCtrlTask() && init_sta;
     init_sta = InitPidCtrlTask() && init_sta;
     return init_sta;

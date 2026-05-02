@@ -58,7 +58,6 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/app/tick/tick.cpp
     iFly/app/proto/crsf/crsf_protocol.cpp
     iFly/app/proto/sbus/sbus_protocol.cpp
-    iFly/app/lampctrl/lamp.cpp
     iFly/lib/freelock_queue/lock_free_queue.cpp
     iFly/lib/shell/shell.cpp
     iFly/lib/soft_timer/soft_timer.cpp
@@ -67,7 +66,6 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/lib/usb_cdc/usb_cdc.cpp
     iFly/lib/can/can.cpp
     iFly/lib/pwm/pwm.cpp
-    iFly/lib/led/led.cpp
     iFly/task/task_all_init.cpp
     iFly/task/task_cli_poll.cpp
     iFly/task/task_led_ctrl.cpp
@@ -85,7 +83,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/app/tick
     iFly/app/proto/crsf
     iFly/app/proto/sbus
-    iFly/app/lampctrl
+    iFly/app/ledctrl
     iFly/dev
     iFly/lib/double_buffer
     iFly/dev/can_dev
@@ -99,7 +97,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/lib/usb_cdc
     iFly/lib/can
     iFly/lib/pwm
-    iFly/lib/led
+    iFly/lib/gpio
     iFly/lib/double_buffer
     iFly/lib
     iFly/lib/platform

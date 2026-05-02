@@ -6,21 +6,13 @@
 
 namespace {
 
-UART_HandleTypeDef *UartHandle(void *handle) {
-  return static_cast<UART_HandleTypeDef *>(handle);
-}
-
-const UART_HandleTypeDef *UartHandle(const void *handle) {
-  return static_cast<const UART_HandleTypeDef *>(handle);
-}
-
 constexpr uint8_t PortIndex(iFly::UartPortId port) {
   return static_cast<uint8_t>(port);
 }
 
 struct UartPortSlot final {
   /** 该端口绑定到哪个 HAL UART 句柄。 */
-  void *huart = nullptr;
+  UART_HandleTypeDef *huart = nullptr;
   /** 上层统一 RX 无锁队列，收到数据后最终写入这里。 */
   iFly::LockFreeQueueBase *appRxQueue = nullptr;
   /** 发送方向的字节无锁队列。 */
@@ -55,7 +47,7 @@ UartDmaServiceStorage &Storage() {
   return storage;
 }
 
-void *DefaultHandleForPort(iFly::UartPortId port) {
+constexpr UART_HandleTypeDef *DefaultHandleForPort(iFly::UartPortId port) {
   switch (port) {
     case iFly::UartPortId::kUart1:
       return &huart1;
@@ -77,7 +69,7 @@ void *DefaultHandleForPort(iFly::UartPortId port) {
   }
 }
 
-UartPortSlot *FindSlot(void *huart) {
+UartPortSlot *FindSlot(UART_HandleTypeDef *huart) {
   if (huart == nullptr) {
     return nullptr;
   }
@@ -93,7 +85,7 @@ UartPortSlot *FindSlot(void *huart) {
 }
 
 bool StartRx(UartPortSlot &slot) {
-  UART_HandleTypeDef *huart = UartHandle(slot.huart);
+  UART_HandleTypeDef *huart = slot.huart;
   if ((huart == nullptr) || (huart->hdmarx == nullptr) ||
       (slot.rxDmaBuffer == nullptr) || (slot.rxDmaBufferSize == 0U)) {
     return false;
@@ -168,7 +160,7 @@ uint32_t LoadTxPacketToInactiveBuffer(UartPortSlot &slot) {
 }
 
 void ServiceTxPathOnce(UartPortSlot &slot) {
-  UART_HandleTypeDef *huart = UartHandle(slot.huart);
+  UART_HandleTypeDef *huart = slot.huart;
   if ((huart == nullptr) || (huart->hdmatx == nullptr) ||
       !slot.initialized.load(std::memory_order_acquire) ||
       (slot.txQueue == nullptr) || (slot.txBuffers == nullptr) ||
@@ -324,7 +316,7 @@ UartDmaService &UartDmaService::Instance() {
   return instance;
 }
 
-void UartDmaService::AttachHardware(UartPortId port, void *huart) {
+void UartDmaService::AttachHardware(UartPortId port, UART_HandleTypeDef *huart) {
   UartPortSlot &slot = Storage().slots[PortIndex(port)];
   slot.huart = huart;
   slot.initialized.store(false, std::memory_order_release);
@@ -381,7 +373,7 @@ bool UartDmaService::InitPort(UartPortId port,
 void UartDmaService::DeinitPort(UartPortId port) {
   UartPortSlot &slot = Storage().slots[PortIndex(port)];
   slot.initialized.store(false, std::memory_order_release);
-  UART_HandleTypeDef *huart = UartHandle(slot.huart);
+  UART_HandleTypeDef *huart = slot.huart;
   if (huart != nullptr) {
     (void)HAL_UART_AbortReceive(huart);
   }
@@ -439,14 +431,14 @@ uint32_t UartDmaService::RxDropped(UartPortId port) const {
 
 bool UartDmaService::IsReady(UartPortId port) const {
   const UartPortSlot &slot = Storage().slots[PortIndex(port)];
-  const UART_HandleTypeDef *huart = UartHandle(static_cast<const void *>(slot.huart));
+  const UART_HandleTypeDef *huart = slot.huart;
   return slot.initialized.load(std::memory_order_acquire) && (huart != nullptr) &&
          (huart->Instance != nullptr) &&
          (huart->hdmarx != nullptr) &&
          (huart->hdmatx != nullptr);
 }
 
-void UartDmaService::OnRxEvent(void *huart, uint16_t size) {
+void UartDmaService::OnRxEvent(UART_HandleTypeDef *huart, uint16_t size) {
   UartPortSlot *slot = FindSlot(huart);
   if ((slot == nullptr) || !slot->initialized.load(std::memory_order_acquire)) {
     return;
@@ -455,7 +447,7 @@ void UartDmaService::OnRxEvent(void *huart, uint16_t size) {
   ProcessRxDelta(*slot, size);
 }
 
-void UartDmaService::OnTxComplete(void *huart) {
+void UartDmaService::OnTxComplete(UART_HandleTypeDef *huart) {
   UartPortSlot *slot = FindSlot(huart);
   if ((slot == nullptr) || !slot->initialized.load(std::memory_order_acquire)) {
     return;
@@ -468,7 +460,7 @@ void UartDmaService::OnTxComplete(void *huart) {
   ServiceTxPath(*slot);
 }
 
-void UartDmaService::OnError(void *huart) {
+void UartDmaService::OnError(UART_HandleTypeDef *huart) {
   UartPortSlot *slot = FindSlot(huart);
   if ((slot == nullptr) || (slot->huart == nullptr)) {
     return;
@@ -483,13 +475,13 @@ void UartDmaService::OnError(void *huart) {
 } // namespace iFly
 
 extern "C" void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
-  iFly::UartDmaService::Instance().OnRxEvent(static_cast<void *>(huart), Size);
+  iFly::UartDmaService::Instance().OnRxEvent(huart, Size);
 }
 
 extern "C" void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
-  iFly::UartDmaService::Instance().OnTxComplete(static_cast<void *>(huart));
+  iFly::UartDmaService::Instance().OnTxComplete(huart);
 }
 
 extern "C" void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
-  iFly::UartDmaService::Instance().OnError(static_cast<void *>(huart));
+  iFly::UartDmaService::Instance().OnError(huart);
 }

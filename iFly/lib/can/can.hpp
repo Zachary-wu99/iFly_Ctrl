@@ -9,6 +9,7 @@
 
 #include "double_buffer.hpp"
 #include "lock_free_queue.hpp"
+#include "stm32f4xx_hal.h"
 
 namespace iFly {
 
@@ -122,7 +123,7 @@ public:
    * @param port 逻辑 CAN 端口编号。
    * @param hcan HAL CAN 句柄。
    */
-  void AttachHardware(CanPortId port, void *hcan);
+  void AttachHardware(CanPortId port, CAN_HandleTypeDef *hcan);
 
   /**
    * @brief 初始化指定 CAN 端口。
@@ -209,7 +210,7 @@ public:
    * @param hcan HAL CAN 句柄。
    * @param fifo FIFO 编号。
    */
-  void OnRxFifoPending(void *hcan, uint32_t fifo);
+  void OnRxFifoPending(CAN_HandleTypeDef *hcan, uint32_t fifo);
 
   /**
    * @brief 处理 HAL 接收 FIFO 满事件。
@@ -217,28 +218,28 @@ public:
    * @param hcan HAL CAN 句柄。
    * @param fifo FIFO 编号。
    */
-  void OnRxFifoFull(void *hcan, uint32_t fifo);
+  void OnRxFifoFull(CAN_HandleTypeDef *hcan, uint32_t fifo);
 
   /**
    * @brief 处理 HAL 发送完成事件。
    *
    * @param hcan HAL CAN 句柄。
    */
-  void OnTxComplete(void *hcan);
+  void OnTxComplete(CAN_HandleTypeDef *hcan);
 
   /**
    * @brief 处理 HAL 发送中止事件。
    *
    * @param hcan HAL CAN 句柄。
    */
-  void OnTxAbort(void *hcan);
+  void OnTxAbort(CAN_HandleTypeDef *hcan);
 
   /**
    * @brief 处理 HAL 错误事件。
    *
    * @param hcan HAL CAN 句柄。
    */
-  void OnError(void *hcan);
+  void OnError(CAN_HandleTypeDef *hcan);
 
 private:
   CanService() = default;

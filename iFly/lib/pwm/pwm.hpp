@@ -7,6 +7,8 @@
 
 #include <stdint.h>
 
+#include "stm32f4xx_hal.h"
+
 namespace iFly {
 
 /**
@@ -36,7 +38,7 @@ public:
    * @brief PWM 通道初始化配置。
    */
   struct Config final {
-    void *htim = nullptr; /**< 已完成初始化的 HAL 定时器句柄。 */
+    TIM_HandleTypeDef *htim = nullptr; /**< 已完成初始化的 HAL 定时器句柄。 */
     PwmChannelId channel = PwmChannelId::kChannel1; /**< 逻辑 PWM 通道编号。 */
     uint32_t min_compare = 0U; /**< 允许输出的最小比较值。 */
     uint32_t max_compare = 0U; /**< 允许输出的最大比较值。 */
@@ -72,7 +74,7 @@ public:
    * @param htim HAL 定时器句柄。
    * @param channel 逻辑 PWM 通道编号。
    */
-  void AttachHardware(void *htim, PwmChannelId channel);
+  void AttachHardware(TIM_HandleTypeDef *htim, PwmChannelId channel);
 
   /**
    * @brief 按 HAL 原生通道值重新绑定底层定时器。
@@ -80,7 +82,7 @@ public:
    * @param htim HAL 定时器句柄。
    * @param hal_channel HAL 原生通道值。
    */
-  void AttachHardware(void *htim, uint32_t hal_channel);
+  void AttachHardware(TIM_HandleTypeDef *htim, uint32_t hal_channel);
 
   /**
    * @brief 启动当前 PWM 通道输出。
@@ -129,7 +131,7 @@ public:
    *
    * @return HAL 定时器句柄。
    */
-  void *Handle() const;
+  TIM_HandleTypeDef *Handle() const;
 
   /**
    * @brief 获取当前绑定的 HAL 原生通道值。
@@ -212,7 +214,7 @@ private:
    */
   uint32_t ClampCompare(uint32_t compare) const;
 
-  void *htim_ = nullptr; /**< 当前绑定的 HAL 定时器句柄。 */
+  TIM_HandleTypeDef *htim_ = nullptr; /**< 当前绑定的 HAL 定时器句柄。 */
   uint32_t channel_ = 0U; /**< 当前绑定的 HAL 原生通道值。 */
   uint32_t min_compare_ = 0U; /**< 配置的最小比较值。 */
   uint32_t max_compare_ = 0U; /**< 配置的最大比较值。 */

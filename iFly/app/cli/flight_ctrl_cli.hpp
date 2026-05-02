@@ -7,7 +7,6 @@
 
 #include <stdint.h>
 
-#include "pid.hpp"
 #include "project_parameter_manager.hpp"
 #include "shell.hpp"
 #include "tick.hpp"
@@ -72,7 +71,7 @@ public:
   }
 
 private:
-  static constexpr uint8_t kManagedParameterCount = 11U; /**< 受管参数数量。 */
+  static constexpr uint8_t kManagedParameterCount = 29U; /**< 受管参数数量。 */
 
   /**
    * @brief 传输通道绑定信息。
@@ -142,11 +141,6 @@ private:
    * @brief 根据当前状态刷新 Shell 横幅。
    */
   void UpdateShellBanner();
-
-  /**
-   * @brief 将参数中心中的 PID 配置同步到本地控制器。
-   */
-  void ApplyPidConfiguration();
 
   /**
    * @brief 重置开机动画状态。
@@ -270,18 +264,6 @@ private:
                              const char *const *argv);
 
   /**
-   * @brief `pid_reset` 功能实现。
-   */
-  static bool PidResetFunction(Shell *shell, void *context, uint8_t argc,
-                               const char *const *argv);
-
-  /**
-   * @brief `pid_sample` 功能实现。
-   */
-  static bool PidSampleFunction(Shell *shell, void *context, uint8_t argc,
-                                const char *const *argv);
-
-  /**
    * @brief `transport_list` 功能实现。
    */
   static bool TransportListFunction(Shell *shell, void *context, uint8_t argc,
@@ -304,7 +286,6 @@ private:
   static void OnProjectParameterUpdated(const char *name, void *context);
 
   ProjectParameterManager &parameter_manager_; /**< 工程参数中心引用。 */
-  Pid rate_pid_; /**< CLI 内部使用的 PID 控制器。 */
   Shell shell_ {}; /**< 命令行 Shell 实例。 */
   ManagedParameterContext managed_parameter_contexts_[kManagedParameterCount] {}; /**< 受管参数上下文表。 */
 

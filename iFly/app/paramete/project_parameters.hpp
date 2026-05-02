@@ -40,7 +40,7 @@ struct CliParameters final {
  * @brief 控制器参数分组。
  */
 struct ControlParameters final {
-  Pid::Config rate_pid {
+  Pid::Config speed_pid {
       0.8f,
       0.1f,
       0.02f,
@@ -52,7 +52,33 @@ struct ControlParameters final {
       30.0f,
       5.0e-4f,
       2.0e-2f,
-      Pid::DerivativeMode::kOnMeasurement}; /**< 角速度环 PID 配置。 */
+      Pid::DerivativeMode::kOnMeasurement}; /**< 速度环 PID 配置。 */
+  Pid::Config angle_pid {
+      0.8f,
+      0.1f,
+      0.02f,
+      0.0f,
+      -100.0f,
+      100.0f,
+      -500.0f,
+      500.0f,
+      30.0f,
+      5.0e-4f,
+      2.0e-2f,
+      Pid::DerivativeMode::kOnMeasurement}; /**< 角度环 PID 配置。 */
+  Pid::Config position_pid {
+      0.8f,
+      0.1f,
+      0.02f,
+      0.0f,
+      -100.0f,
+      100.0f,
+      -500.0f,
+      500.0f,
+      30.0f,
+      5.0e-4f,
+      2.0e-2f,
+      Pid::DerivativeMode::kOnMeasurement}; /**< 位置环 PID 配置。 */
 };
 
 /**
@@ -88,7 +114,7 @@ struct ProjectParameters final {
  * @brief 单个工程参数的静态绑定描述。
  */
 struct ProjectParameterBinding final {
-  const char *name = nullptr; /**< 参数名，例如 `control.rate_pid.kp`。 */
+  const char *name = nullptr; /**< 参数名，例如 `control.speed_pid.kp`。 */
   const char *help = nullptr; /**< 参数说明文本。 */
   uint32_t offset = 0U; /**< 参数在 `ProjectParameters` 中的字节偏移。 */
   uint32_t size = 0U; /**< 参数占用的字节数。 */
@@ -101,6 +127,34 @@ struct ProjectParameterBinding final {
  * @return 默认参数树对象。
  */
 ProjectParameters MakeDefaultProjectParameters();
+
+/**
+ * @brief 获取工程参数树中的参数分组。
+ *
+ * @param parameters 工程参数树。
+ * @param group 参数分组成员指针。
+ * @return 参数分组只读引用。
+ */
+template <typename Group>
+const Group &GetProjectParameter(const ProjectParameters &parameters,
+                                 Group ProjectParameters::*group) {
+  return parameters.*group;
+}
+
+/**
+ * @brief 获取工程参数树中的指定参数。
+ *
+ * @param parameters 工程参数树。
+ * @param group 参数分组成员指针。
+ * @param member 分组内参数成员指针。
+ * @return 指定参数只读引用。
+ */
+template <typename Group, typename Member>
+const Member &GetProjectParameter(const ProjectParameters &parameters,
+                                  Group ProjectParameters::*group,
+                                  Member Group::*member) {
+  return (parameters.*group).*member;
+}
 
 /**
  * @brief 获取工程参数绑定表。

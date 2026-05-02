@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include "lock_free_queue.hpp"
+#include "stm32f4xx_hal.h"
 
 namespace iFly {
 
@@ -158,7 +159,7 @@ public:
    * @param port 逻辑 UART 端口编号。
    * @param huart HAL UART 句柄。
    */
-  void AttachHardware(UartPortId port, void *huart);
+  void AttachHardware(UartPortId port, UART_HandleTypeDef *huart);
 
   /**
    * @brief 初始化指定串口。
@@ -233,21 +234,21 @@ public:
    * @param huart HAL UART 句柄。
    * @param size 本次接收事件报告的字节数。
    */
-  void OnRxEvent(void *huart, uint16_t size);
+  void OnRxEvent(UART_HandleTypeDef *huart, uint16_t size);
 
   /**
    * @brief 处理 HAL 发送完成事件。
    *
    * @param huart HAL UART 句柄。
    */
-  void OnTxComplete(void *huart);
+  void OnTxComplete(UART_HandleTypeDef *huart);
 
   /**
    * @brief 处理 HAL 错误事件。
    *
    * @param huart HAL UART 句柄。
    */
-  void OnError(void *huart);
+  void OnError(UART_HandleTypeDef *huart);
 
 private:
   UartDmaService() = default;
