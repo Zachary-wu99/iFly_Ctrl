@@ -147,45 +147,25 @@ void FlightCtrlCli::Init()
   shell_.SetPassword(ConfiguredCliPassword(parameter_manager_.Data()));
   shell_.SetActivationKey(' ', kActivationPrompt);
   shell_.SetSessionAnimation(&FlightCtrlCli::IntroAnimation, this);
-  active_transport_name_ = "unbound";
+  active_transport_name_ = "mavlink";
   UpdateShellBanner();
   RegisterParameters();
   RegisterFunctions();
 }
 
-bool FlightCtrlCli::RegisterTransport(const char *name, SerialIoBase *io)
+void FlightCtrlCli::SetOutput(Shell::OutputHandler output, void *context)
 {
-  if ((name == nullptr) || (io == nullptr) ||
-      (transport_count_ >= kMaxTransportCount)) {
-    return false;
-  }
-
-  if (FindTransport(name) != nullptr) {
-    return false;
-  }
-
-  transports_[transport_count_].name = name;
-  transports_[transport_count_].io = io;
-  ++transport_count_;
-  return true;
+  shell_.SetOutput(output, context);
 }
 
-bool FlightCtrlCli::UseTransport(const char *name)
+void FlightCtrlCli::SetConnected(bool connected)
 {
-  const TransportBinding *binding = FindTransport(name);
-  if (binding == nullptr) {
-    return false;
-  }
-
-  active_transport_name_ = binding->name;
-  UpdateShellBanner();
-  shell_.BindIo(binding->io);
-  return true;
+  shell_.SetConnected(connected);
 }
 
-void FlightCtrlCli::Poll()
+void FlightCtrlCli::ProcessInput(const uint8_t *data, uint32_t length)
 {
-  shell_.Poll();
+  shell_.ProcessInput(data, length);
 }
 
 void FlightCtrlCli::RegisterParameters()
@@ -345,12 +325,6 @@ void FlightCtrlCli::RegisterFunctions()
   (void)shell_.RegisterFunction(
       {"sys.reboot", "trigger MCU software reset",
        &FlightCtrlCli::RebootFunction, this});
-  (void)shell_.RegisterFunction(
-      {"transport.list", "list registered CLI transports",
-       &FlightCtrlCli::TransportListFunction, this});
-  (void)shell_.RegisterFunction(
-      {"transport.use", "switch CLI transport: <name>",
-       &FlightCtrlCli::TransportUseFunction, this});
 }
 
 void FlightCtrlCli::UpdateShellBanner()
@@ -538,23 +512,6 @@ bool FlightCtrlCli::UpdateIntroAnimation(Shell *shell, bool start)
   return true;
 }
 
-const FlightCtrlCli::TransportBinding *FlightCtrlCli::FindTransport(
-    const char *name) const
-{
-  if (name == nullptr) {
-    return nullptr;
-  }
-
-  for (uint8_t index = 0U; index < transport_count_; ++index) {
-    if ((transports_[index].name != nullptr) &&
-        (strcmp(transports_[index].name, name) == 0)) {
-      return &transports_[index];
-    }
-  }
-
-  return nullptr;
-}
-
 bool FlightCtrlCli::GetTransportParameter(void *context, char *buffer,
                                           uint32_t bufferSize)
 {
@@ -721,58 +678,6 @@ bool FlightCtrlCli::RebootFunction(Shell *shell, void *context, uint8_t argc,
   shell->WriteLine("System reboot requested.");
   NVIC_SystemReset();
   return true;
-}
-
-bool FlightCtrlCli::TransportListFunction(Shell *shell, void *context,
-                                          uint8_t argc,
-                                          const char *const *argv)
-{
-  (void)argv;
-
-  FlightCtrlCli *cli = reinterpret_cast<FlightCtrlCli *>(context);
-  if ((shell == nullptr) || (cli == nullptr) || (argc != 0U)) {
-    if (shell != nullptr) {
-      shell->WriteLine("Usage: call transport.list");
-    }
-    return false;
-  }
-
-  shell->WriteLine("Registered transports:");
-  if (cli->transport_count_ == 0U) {
-    shell->WriteLine("  (none)");
-    return true;
-  }
-
-  for (uint8_t index = 0U; index < cli->transport_count_; ++index) {
-    const bool is_active =
-        (cli->active_transport_name_ != nullptr) &&
-        (strcmp(cli->active_transport_name_, cli->transports_[index].name) == 0);
-    shell->Printf("  %s%s\r\n", cli->transports_[index].name,
-                  is_active ? " [active]" : "");
-  }
-  return true;
-}
-
-bool FlightCtrlCli::TransportUseFunction(Shell *shell, void *context,
-                                         uint8_t argc,
-                                         const char *const *argv)
-{
-  FlightCtrlCli *cli = reinterpret_cast<FlightCtrlCli *>(context);
-  if ((shell == nullptr) || (cli == nullptr) || (argc != 1U)) {
-    if (shell != nullptr) {
-      shell->WriteLine("Usage: call transport.use <name>");
-    }
-    return false;
-  }
-
-  if (cli->FindTransport(argv[0]) == nullptr) {
-    shell->Printf("Unknown transport: %s\r\n", argv[0]);
-    return false;
-  }
-
-  shell->Printf("Switching CLI transport to %s\r\n", argv[0]);
-  shell->WriteLine("Reconnect on the selected port.");
-  return cli->UseTransport(argv[0]);
 }
 
 bool FlightCtrlCli::IntroAnimation(Shell *shell, void *context, bool start)

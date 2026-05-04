@@ -26,7 +26,57 @@ Shell::Shell()
 void Shell::BindIo(SerialIoBase *io)
 {
   io_ = io;
+  output_ = nullptr;
+  output_context_ = nullptr;
+  direct_connected_ = false;
   ResetSession();
+}
+
+void Shell::SetOutput(OutputHandler output, void *context)
+{
+  io_ = nullptr;
+  output_ = output;
+  output_context_ = context;
+  direct_connected_ = false;
+  ResetSession();
+}
+
+void Shell::SetConnected(bool connected)
+{
+  direct_connected_ = connected;
+  if (!direct_connected_) {
+    connectionActive_ = false;
+    sessionState_ = SessionState::kDisconnected;
+    ResetInputLine();
+    suppressNextLf_ = false;
+    return;
+  }
+
+  if (!connectionActive_) {
+    StartConnectedSession();
+  }
+}
+
+void Shell::ProcessInput(const uint8_t *data, uint32_t length)
+{
+  if ((data == nullptr) || (length == 0U) || !IsConnected()) {
+    return;
+  }
+
+  if (!connectionActive_) {
+    StartConnectedSession();
+  }
+
+  for (uint32_t index = 0U; index < length; ++index) {
+    ProcessByte(data[index]);
+  }
+
+  if (sessionState_ == SessionState::kSessionAnimation) {
+    if ((session_animation_ == nullptr) ||
+        session_animation_(this, session_animation_context_, false)) {
+      AdvanceAfterAnimation();
+    }
+  }
 }
 
 void Shell::SetBanner(const char *title, const char *subtitle)
@@ -170,7 +220,11 @@ bool Shell::HasPassword() const
 
 bool Shell::IsConnected() const
 {
-  return (io_ != nullptr) && io_->IsConnected();
+  if (io_ != nullptr) {
+    return io_->IsConnected();
+  }
+
+  return direct_connected_;
 }
 
 void Shell::Write(const char *text)
@@ -899,12 +953,36 @@ void Shell::PrintParameterValue(const Parameter &parameter) const
 
 uint32_t Shell::WriteBytes(const uint8_t *data, uint32_t length)
 {
-  if ((io_ == nullptr) || (data == nullptr) || (length == 0U)) {
+  if ((data == nullptr) || (length == 0U)) {
     return 0U;
   }
 
   uint32_t offset = 0U;
   uint32_t attempts = 0U;
+
+  if (output_ != nullptr) {
+    while ((offset < length) && (attempts < kMaxWriteAttempts)) {
+      uint32_t written =
+          output_(output_context_, data + offset, length - offset);
+      if (written > (length - offset)) {
+        written = length - offset;
+      }
+      if (written == 0U) {
+        ++attempts;
+        continue;
+      }
+
+      offset += written;
+      attempts = 0U;
+    }
+
+    return offset;
+  }
+
+  if (io_ == nullptr) {
+    return 0U;
+  }
+
   while ((offset < length) && (attempts < kMaxWriteAttempts)) {
     const uint32_t written = io_->Write(data + offset, length - offset);
     if (written == 0U) {

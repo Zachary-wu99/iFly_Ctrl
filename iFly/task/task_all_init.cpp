@@ -6,19 +6,20 @@
 #include "task.hpp"
 #include "task_all_init.hpp"
 #include "flight_ctrl_cli.hpp"
+#include "mavlink_link.hpp"
 #include "usb_uart.hpp"
 
 namespace {
 
-  constexpr uint16_t kUsbRxQueueSize = 120U;
-  constexpr char kDefaultCliTransport[] = "usb";
+  constexpr uint16_t kUsbRxQueueSize = 500U;
 
-  iFly::FlightCtrlCli CLI;
+  iFly::FlightCtrlCli Mavlink_CLI;
   iFly::UsbUart Usb_Cdc(kUsbRxQueueSize);
+  iFly::MavlinkLink Usb_Mavlink(&Usb_Cdc);
 
 }
 
-bool InitCliPollTask(iFly::FlightCtrlCli *cli);
+bool InitMavlinkTask(iFly::MavlinkLink *link);
 bool InitLedCtrlTask(void);
 bool InitPidCtrlTask(void);
 
@@ -26,16 +27,16 @@ namespace iFly {
 
   bool InitAllTasks(void)
   {
-    CLI.Init();
-    CLI.RegisterTransport("usb",&Usb_Cdc);
-    CLI.UseTransport("usb");
+    Mavlink_CLI.Init();
+    Mavlink_CLI.Console().DisableActivationKey();
+    Usb_Mavlink.BindConsole(&Mavlink_CLI);
+
     Usb_Cdc.Init();
 
-    bool init_sta = InitCliPollTask(&CLI);
+    bool init_sta = InitMavlinkTask(&Usb_Mavlink);
     init_sta = InitLedCtrlTask() && init_sta;
     init_sta = InitPidCtrlTask() && init_sta;
     return init_sta;
   }
 
 }
-

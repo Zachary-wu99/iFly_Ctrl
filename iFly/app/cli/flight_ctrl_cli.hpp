@@ -18,8 +18,6 @@ namespace iFly {
  */
 class FlightCtrlCli final {
 public:
-  static constexpr uint8_t kMaxTransportCount = 4U; /**< 最大传输通道数量。 */
-
   /**
    * @brief 构造飞控 CLI 对象。
    */
@@ -31,26 +29,27 @@ public:
   void Init();
 
   /**
-   * @brief 注册一个可用的传输通道。
+   * @brief 设置 CLI 输出回调。
    *
-   * @param name 传输通道名称。
-   * @param io 对应的串行 IO 对象。
-   * @return 注册成功返回 `true`。
+   * @param output 输出回调函数。
+   * @param context 输出回调上下文。
    */
-  bool RegisterTransport(const char *name, SerialIoBase *io);
+  void SetOutput(Shell::OutputHandler output, void *context);
 
   /**
-   * @brief 切换当前使用的传输通道。
+   * @brief 设置 CLI 链路连接状态。
    *
-   * @param name 目标传输通道名称。
-   * @return 切换成功返回 `true`。
+   * @param connected 新的连接状态。
    */
-  bool UseTransport(const char *name);
+  void SetConnected(bool connected);
 
   /**
-   * @brief 轮询驱动 CLI 运行。
+   * @brief 推入 CLI 输入字节。
+   *
+   * @param data 输入字节。
+   * @param length 输入长度。
    */
-  void Poll();
+  void ProcessInput(const uint8_t *data, uint32_t length);
 
   /**
    * @brief 获取可写 Shell 控制台。
@@ -72,14 +71,6 @@ public:
 
 private:
   static constexpr uint8_t kManagedParameterCount = 29U; /**< 受管参数数量。 */
-
-  /**
-   * @brief 传输通道绑定信息。
-   */
-  struct TransportBinding final {
-    const char *name = nullptr; /**< 传输通道名称。 */
-    SerialIoBase *io = nullptr; /**< 对应的串行 IO 对象。 */
-  };
 
   /**
    * @brief 受管参数类型。
@@ -202,14 +193,6 @@ private:
                         uint8_t steps, uint32_t step_delay_ms);
 
   /**
-   * @brief 按名称查找已注册传输通道。
-   *
-   * @param name 传输通道名称。
-   * @return 找到时返回绑定对象指针，否则返回 `nullptr`。
-   */
-  const TransportBinding *FindTransport(const char *name) const;
-
-  /**
    * @brief 获取当前传输通道参数值。
    *
    * @param context 回调上下文。
@@ -264,18 +247,6 @@ private:
                              const char *const *argv);
 
   /**
-   * @brief `transport_list` 功能实现。
-   */
-  static bool TransportListFunction(Shell *shell, void *context, uint8_t argc,
-                                    const char *const *argv);
-
-  /**
-   * @brief `transport_use` 功能实现。
-   */
-  static bool TransportUseFunction(Shell *shell, void *context, uint8_t argc,
-                                   const char *const *argv);
-
-  /**
    * @brief Shell 会话动画回调入口。
    */
   static bool IntroAnimation(Shell *shell, void *context, bool start);
@@ -289,9 +260,7 @@ private:
   Shell shell_ {}; /**< 命令行 Shell 实例。 */
   ManagedParameterContext managed_parameter_contexts_[kManagedParameterCount] {}; /**< 受管参数上下文表。 */
 
-  TransportBinding transports_[kMaxTransportCount] {}; /**< 已注册传输通道表。 */
-  uint8_t transport_count_ = 0U; /**< 当前已注册通道数。 */
-  const char *active_transport_name_ = "unbound"; /**< 当前激活的传输通道名称。 */
+  const char *active_transport_name_ = "mavlink"; /**< 当前激活的传输通道名称。 */
 
   char banner_subtitle_[64] {}; /**< Shell 横幅副标题缓冲区。 */
   IntroAnimationState intro_animation_ {}; /**< 开机动画运行状态。 */

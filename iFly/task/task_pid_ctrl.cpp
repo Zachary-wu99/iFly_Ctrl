@@ -30,13 +30,15 @@ void ConfigurePidControllers()
                                                    &iFly::ControlParameters::position_pid));
 }
 
-}
+
 
 void PidCtrlTask(void *context)
 {
   (void)context;
 
   
+}
+
 }
 
 bool InitPidCtrlTask(void)

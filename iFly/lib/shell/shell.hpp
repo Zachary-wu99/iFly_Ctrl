@@ -46,6 +46,10 @@ public:
   /**
    * @brief 一条普通命令的注册信息。
    */
+  using OutputHandler =
+      uint32_t (*)(void *context, const uint8_t *data,
+                   uint32_t length); /**< 杈撳嚭鍥炶皟绛惧悕銆?*/
+
   struct Command final {
     const char *name = nullptr; /**< 命令名称。 */
     const char *help = nullptr; /**< 命令帮助文本。 */
@@ -94,6 +98,29 @@ public:
   SerialIoBase *BoundIo() const {
     return io_;
   }
+
+  /**
+   * @brief 绑定直接输出回调。
+   *
+   * @param output 输出回调函数。
+   * @param context 输出回调上下文。
+   */
+  void SetOutput(OutputHandler output, void *context);
+
+  /**
+   * @brief 设置直接会话连接状态。
+   *
+   * @param connected 新的连接状态。
+   */
+  void SetConnected(bool connected);
+
+  /**
+   * @brief 推入直接会话输入字节。
+   *
+   * @param data 输入字节。
+   * @param length 输入长度。
+   */
+  void ProcessInput(const uint8_t *data, uint32_t length);
 
   /**
    * @brief 设置 Shell 横幅标题和副标题。
@@ -490,8 +517,11 @@ private:
 
 private:
   SerialIoBase *io_ = nullptr; /**< 当前绑定的底层串行 IO。 */
+  OutputHandler output_ = nullptr; /**< 直接输出回调函数。 */
+  void *output_context_ = nullptr; /**< 直接输出回调上下文。 */
   SessionState sessionState_ = SessionState::kDisconnected; /**< 当前会话状态。 */
   bool connectionActive_ = false; /**< 是否已经感知到底层链路连接。 */
+  bool direct_connected_ = false; /**< 直接会话连接状态。 */
   bool suppressNextLf_ = false; /**< 是否抑制下一个换行字符。 */
 
   const char *bannerTitle_ = "iFly Shell"; /**< 横幅标题。 */

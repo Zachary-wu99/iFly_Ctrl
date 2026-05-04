@@ -8,93 +8,71 @@
 #include <stdint.h>
 
 #include "can.hpp"
-#include "serial_io_base.hpp"
 
 namespace iFly {
 
-static constexpr uint32_t kDefaultCanRxQueueStorageSize = 2048U; /**< 默认 CAN 接收队列容量。 */
+static constexpr uint32_t kDefaultCanRxPoolFrameCount = 30U; /**< 默认 CAN 接收对象池帧数。 */
+static constexpr uint32_t kDefaultCanTxPoolFrameCount = 20U; /**< 默认 CAN 发送对象池帧数。 */
 
 /**
  * @brief 面向业务层的单路 CAN 设备封装。
  *
  * @details
- * 该类把 CAN 端口封装成与其他串行设备一致的统一接口，同时保留
- * 面向 CAN 帧的直接读写能力。
+ * 该类把 CAN 端口封装成面向 CAN 帧的直接读写接口。
  *
- * @tparam kTxQueueStorageSize 发送队列总容量。
- * @tparam kRxQueueStorageSize 接收队列总容量。
+ * @tparam kRxPoolFrameCount 接收对象池帧数。
+ * @tparam kTxPoolFrameCount 发送对象池帧数。
  */
-template <uint32_t kTxQueueStorageSize = CanService::kDefaultTxQueueStorageSize,
-          uint32_t kRxQueueStorageSize = kDefaultCanRxQueueStorageSize>
-class HardwareCan final : public SerialIoBase {
+template <uint32_t kRxPoolFrameCount = kDefaultCanRxPoolFrameCount,
+          uint32_t kTxPoolFrameCount = kDefaultCanTxPoolFrameCount>
+class HardwareCan final {
 public:
-  static_assert(kTxQueueStorageSize >= (CanService::kCanFramePacketSize + 1U),
-                "kTxQueueStorageSize must hold at least one CAN frame.");
-  static_assert(kRxQueueStorageSize >= (CanService::kCanFramePacketSize + 1U),
-                "kRxQueueStorageSize must hold at least one CAN frame.");
-
-  static constexpr uint32_t kDefaultRxQueueStorageSize =
-      iFly::kDefaultCanRxQueueStorageSize; /**< 默认 CAN 接收队列容量。 */
+  static_assert(kRxPoolFrameCount > 0U,
+                "kRxPoolFrameCount must be greater than 0.");
+  static_assert(kTxPoolFrameCount > 0U,
+                "kTxPoolFrameCount must be greater than 0.");
 
   /**
    * @brief 构造一个逻辑 CAN 设备对象。
    *
    * @param port 逻辑 CAN 端口号。
-   * @param rxQueueStorageSize 接收队列总容量，默认使用模板参数。
    */
-  explicit HardwareCan(CanPortId port,
-                       uint32_t rxQueueStorageSize = kRxQueueStorageSize)
-      : SerialIoBase(rxQueueStorageSize), port_(port) {
+  explicit HardwareCan(CanPortId port) : port_(port) {
   }
 
   /**
    * @brief 初始化当前 CAN 端口。
    */
-  void Init() override {
-    if (!EnsureRxQueueCreated()) {
-      return;
-    }
-
-    txQueue_.Recreate();
-    txBuffers_.Recreate();
-    (void)Device().InitPort(port_, RxQueue(), &txQueue_, &txBuffers_);
+  void Init() {
+    rxPool_.Recreate();
+    txPool_.Recreate();
+    (void)Device().InitPort(port_, &rxPool_, &txPool_);
   }
 
   /**
-   * @brief 以兼容字节流的方式写入待发送数据。
+   * @brief 获取发送队列池剩余帧数。
    *
-   * @param data 待发送数据首地址，内容需按 `CanFramePacket` 顺序排列。
-   * @param len 待发送数据长度，单位为字节。
-   * @return 实际写入的字节数。
+   * @return 剩余可写帧数。
    */
-  uint32_t Write(const uint8_t *data, uint32_t len) override {
-    return Device().Write(port_, data, len);
-  }
-
-  /**
-   * @brief 获取发送队列剩余空间。
-   *
-   * @return 剩余可写字节数。
-   */
-  uint32_t TxFree() const override {
+  uint32_t TxFree() const {
     return Device().TxFree(port_);
   }
 
   /**
-   * @brief 获取发送队列已用空间。
+   * @brief 获取发送队列池已用帧数。
    *
-   * @return 已使用字节数。
+   * @return 已保存帧数。
    */
-  uint32_t TxUsed() const override {
+  uint32_t TxUsed() const {
     return Device().TxUsed(port_);
   }
 
   /**
-   * @brief 获取累计丢弃的接收字节数。
+   * @brief 获取累计丢弃的接收帧数。
    *
-   * @return 累计丢弃字节数。
+   * @return 累计丢弃帧数。
    */
-  uint32_t RxDropped() const override {
+  uint32_t RxDropped() const {
     return Device().RxDropped(port_);
   }
 
@@ -103,7 +81,7 @@ public:
    *
    * @return 已完成初始化且底层句柄有效时返回 `true`。
    */
-  bool IsConnected() const override {
+  bool IsConnected() const {
     return Device().IsReady(port_);
   }
 
@@ -137,42 +115,25 @@ public:
       return false;
     }
 
-    BeforeRead();
-    if (SerialIoBase::Available() < sizeof(CanFramePacket)) {
-      return false;
-    }
-
-    return Dequeue(reinterpret_cast<uint8_t *>(frame), sizeof(CanFramePacket)) == sizeof(CanFramePacket);
+    return rxPool_.Pop(frame);
   }
 
   /**
-   * @brief 获取当前可读字节数。
+   * @brief 获取接收对象池剩余帧数。
    *
-   * @return 可读字节数。
+   * @return 剩余可写帧数。
    */
-  uint32_t Available() {
-    BeforeRead();
-    return SerialIoBase::Available();
+  uint32_t RxFree() const {
+    return rxPool_.FreeSize();
   }
 
   /**
-   * @brief 获取接收队列剩余空间。
+   * @brief 获取接收对象池已用帧数。
    *
-   * @return 剩余可写字节数。
+   * @return 已保存帧数。
    */
-  uint32_t RxFree() {
-    BeforeRead();
-    return SerialIoBase::RxFree();
-  }
-
-  /**
-   * @brief 获取接收队列已用空间。
-   *
-   * @return 已使用字节数。
-   */
-  uint32_t RxUsed() {
-    BeforeRead();
-    return SerialIoBase::RxUsed();
+  uint32_t RxUsed() const {
+    return rxPool_.UsedSize();
   }
 
 private:
@@ -185,16 +146,9 @@ private:
     return CanService::Instance();
   }
 
-  /**
-   * @brief 为统一接口保留的读前钩子。
-   */
-  void BeforeRead() override {
-    (void)port_;
-  }
-
   CanPortId port_; /**< 当前对象绑定的逻辑 CAN 端口。 */
-  StaticLockFreeQueue<kTxQueueStorageSize> txQueue_ {}; /**< 发送方向字节队列。 */
-  CanTxDoubleBuffer txBuffers_ {}; /**< 发送方向单帧双缓冲区。 */
+  StaticLockFreePool<CanFramePacket, kRxPoolFrameCount> rxPool_ {}; /**< 接收方向帧对象池。 */
+  StaticLockFreePool<CanFramePacket, kTxPoolFrameCount> txPool_ {}; /**< 发送方向帧对象池。 */
 };
 
 using can_port = HardwareCan<>;

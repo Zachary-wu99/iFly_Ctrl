@@ -14,9 +14,8 @@ constexpr uint8_t PortIndex(iFly::CanPortId port) {
 
 struct CanPortSlot final {
   CAN_HandleTypeDef *hcan = nullptr;
-  iFly::LockFreeQueueBase *appRxQueue = nullptr;
-  iFly::LockFreeQueueBase *txQueue = nullptr;
-  iFly::CanTxDoubleBuffer *txBuffers = nullptr;
+  iFly::LockFreePoolBase<iFly::CanFramePacket> *rxPool = nullptr;
+  iFly::LockFreePoolBase<iFly::CanFramePacket> *txPool = nullptr;
   std::atomic<uint32_t> rxDropped {0U};
   std::atomic<bool> initialized {false};
   std::atomic<uint32_t> txServiceRequests {0U};
@@ -169,78 +168,32 @@ iFly::CanFramePacket BuildRxPacket(const CAN_RxHeaderTypeDef &header,
   return packet;
 }
 
-uint32_t LoadTxPacketToInactiveBuffer(CanPortSlot &slot) {
-  if ((slot.txQueue == nullptr) || (slot.txBuffers == nullptr) ||
-      !slot.txQueue->IsCreated() || slot.txBuffers->HasInactiveData()) {
-    return 0U;
-  }
-
-  if (slot.txQueue->UsedSize() < iFly::CanService::kCanFramePacketSize) {
-    return 0U;
-  }
-
-  iFly::CanFramePacket packet {};
-  const uint32_t pulled = slot.txQueue->Dequeue(reinterpret_cast<uint8_t *>(&packet),
-                                                iFly::CanService::kCanFramePacketSize);
-  if (pulled == iFly::CanService::kCanFramePacketSize) {
-    slot.txBuffers->SetInactivePacket(packet);
-    return pulled;
-  }
-
-  return 0U;
-}
-
-bool PromoteInactiveToActive(CanPortSlot &slot) {
-  if (slot.txBuffers == nullptr) {
-    return false;
-  }
-
-  if (slot.txBuffers->HasActiveData()) {
-    return true;
-  }
-
-  if (!slot.txBuffers->HasInactiveData()) {
-    (void)LoadTxPacketToInactiveBuffer(slot);
-  }
-
-  if (!slot.txBuffers->HasInactiveData()) {
-    return false;
-  }
-
-  slot.txBuffers->SwapBuffers();
-  return true;
-}
-
 bool TryQueueOneTxPacket(CanPortSlot &slot) {
   CAN_HandleTypeDef *hcan = slot.hcan;
   if ((hcan == nullptr) ||
       !slot.initialized.load(std::memory_order_acquire) ||
+      (slot.txPool == nullptr) ||
       (HAL_CAN_GetTxMailboxesFreeLevel(hcan) == 0U)) {
     return false;
   }
 
-  if (!PromoteInactiveToActive(slot)) {
+  iFly::CanFramePacket packet {};
+  if (!slot.txPool->Pop(&packet)) {
     return false;
   }
 
   CAN_TxHeaderTypeDef header {};
-  FillTxHeader(slot.txBuffers->ActivePacket(), &header);
+  FillTxHeader(packet, &header);
 
   uint32_t txMailbox = 0U;
-  if (HAL_CAN_AddTxMessage(hcan,
-                           &header,
-                           slot.txBuffers->ActivePacket().data,
-                           &txMailbox) != HAL_OK) {
+  if (HAL_CAN_AddTxMessage(hcan, &header, packet.data, &txMailbox) != HAL_OK) {
     return false;
   }
 
-  slot.txBuffers->ClearActive();
-  (void)LoadTxPacketToInactiveBuffer(slot);
   return true;
 }
 
 void ServiceTxPathOnce(CanPortSlot &slot) {
-  (void)LoadTxPacketToInactiveBuffer(slot);
   while (TryQueueOneTxPacket(slot)) {
   }
 }
@@ -267,31 +220,20 @@ void ServiceTxPath(CanPortSlot &slot) {
   }
 }
 
-bool PushRxPacketToAppQueue(CanPortSlot &slot, const iFly::CanFramePacket &packet) {
-  if ((slot.appRxQueue == nullptr) || !slot.appRxQueue->IsCreated()) {
-    (void)slot.rxDropped.fetch_add(iFly::CanService::kCanFramePacketSize,
-                                   std::memory_order_relaxed);
-    return false;
+void PushRxPacketToAppPool(CanPortSlot &slot, const iFly::CanFramePacket &packet) {
+  if ((slot.rxPool == nullptr) || !slot.rxPool->IsCreated()) {
+    (void)slot.rxDropped.fetch_add(1U, std::memory_order_relaxed);
+    return;
   }
 
-  if (slot.appRxQueue->FreeSize() < iFly::CanService::kCanFramePacketSize) {
-    (void)slot.rxDropped.fetch_add(iFly::CanService::kCanFramePacketSize,
-                                   std::memory_order_relaxed);
-    return false;
+  if (slot.rxPool->IsFull()) {
+    (void)slot.rxDropped.fetch_add(1U, std::memory_order_relaxed);
   }
 
-  const uint32_t pushed = slot.appRxQueue->Enqueue(reinterpret_cast<const uint8_t *>(&packet),
-                                                   iFly::CanService::kCanFramePacketSize);
-  if (pushed == iFly::CanService::kCanFramePacketSize) {
-    return true;
-  }
-
-  (void)slot.rxDropped.fetch_add(iFly::CanService::kCanFramePacketSize - pushed,
-                                 std::memory_order_relaxed);
-  return false;
+  (void)slot.rxPool->Push(packet);
 }
 
-void DrainHardwareRxFifoToAppQueue(CanPortSlot &slot, uint32_t fifo) {
+void DrainHardwareRxFifoToAppPool(CanPortSlot &slot, uint32_t fifo) {
   CAN_HandleTypeDef *hcan = slot.hcan;
   if (hcan == nullptr) {
     return;
@@ -305,7 +247,7 @@ void DrainHardwareRxFifoToAppQueue(CanPortSlot &slot, uint32_t fifo) {
     }
 
     const iFly::CanFramePacket packet = BuildRxPacket(header, data, fifo);
-    (void)PushRxPacketToAppQueue(slot, packet);
+    PushRxPacketToAppPool(slot, packet);
   }
 }
 
@@ -350,30 +292,24 @@ void CanService::AttachHardware(CanPortId port, CAN_HandleTypeDef *hcan) {
 }
 
 bool CanService::InitPort(CanPortId port,
-                          LockFreeQueueBase *rxQueue,
-                          LockFreeQueueBase *txQueue,
-                          CanTxDoubleBuffer *txBuffers) {
+                          LockFreePoolBase<CanFramePacket> *rxPool,
+                          LockFreePoolBase<CanFramePacket> *txPool) {
   CanPortSlot &slot = Storage().slots[PortIndex(port)];
   if (slot.hcan == nullptr) {
     slot.hcan = DefaultHandleForPort(port);
   }
 
   slot.initialized.store(false, std::memory_order_release);
-  slot.appRxQueue = rxQueue;
-  slot.txQueue = txQueue;
-  slot.txBuffers = txBuffers;
+  slot.rxPool = rxPool;
+  slot.txPool = txPool;
 
-  if ((slot.txQueue == nullptr) || (slot.txBuffers == nullptr) ||
-      !slot.txQueue->IsCreated()) {
+  if ((slot.rxPool == nullptr) || !slot.rxPool->IsCreated() ||
+      (slot.txPool == nullptr) || !slot.txPool->IsCreated()) {
     return false;
   }
 
-  if ((slot.appRxQueue != nullptr) && slot.appRxQueue->IsCreated()) {
-    slot.appRxQueue->Clear();
-  }
-
-  slot.txQueue->Clear();
-  slot.txBuffers->Recreate();
+  slot.rxPool->Clear();
+  slot.txPool->Clear();
   slot.rxDropped.store(0U, std::memory_order_release);
   slot.txServiceRequests.store(0U, std::memory_order_release);
   slot.txServiceRunning.store(false, std::memory_order_release);
@@ -394,59 +330,42 @@ void CanService::DeinitPort(CanPortId port) {
     (void)HAL_CAN_Stop(hcan);
   }
 
-  slot.appRxQueue = nullptr;
-  if (slot.txQueue != nullptr) {
-    slot.txQueue->Clear();
+  if (slot.rxPool != nullptr) {
+    slot.rxPool->Clear();
   }
-  if (slot.txBuffers != nullptr) {
-    slot.txBuffers->Clear();
+  if (slot.txPool != nullptr) {
+    slot.txPool->Clear();
   }
-  slot.txQueue = nullptr;
-  slot.txBuffers = nullptr;
+  slot.rxPool = nullptr;
+  slot.txPool = nullptr;
   slot.rxDropped.store(0U, std::memory_order_release);
   slot.txServiceRequests.store(0U, std::memory_order_release);
   slot.txServiceRunning.store(false, std::memory_order_release);
 }
 
-uint32_t CanService::Write(CanPortId port, const uint8_t *data, uint32_t len) {
-  if ((data == nullptr) || (len < kCanFramePacketSize)) {
-    return 0U;
-  }
-
+bool CanService::WriteFrame(CanPortId port, const CanFramePacket &frame) {
   CanPortSlot &slot = Storage().slots[PortIndex(port)];
   if (!slot.initialized.load(std::memory_order_acquire) ||
-      (slot.txQueue == nullptr) || !slot.txQueue->IsCreated()) {
-    return 0U;
+      (slot.txPool == nullptr) || !slot.txPool->IsCreated()) {
+    return false;
   }
 
-  const uint32_t frameCountRequested = len / kCanFramePacketSize;
-  const uint32_t frameCountFree = slot.txQueue->FreeSize() / kCanFramePacketSize;
-  const uint32_t frameCountAccepted =
-      iFly::usermath::Min<uint32_t>(frameCountRequested, frameCountFree);
-  const uint32_t acceptedBytes = frameCountAccepted * kCanFramePacketSize;
-  if (acceptedBytes == 0U) {
-    return 0U;
+  if (!slot.txPool->Push(frame)) {
+    return false;
   }
 
-  const uint32_t queued = slot.txQueue->Enqueue(data, acceptedBytes);
   ServiceTxPath(slot);
-  return queued - (queued % kCanFramePacketSize);
-}
-
-bool CanService::WriteFrame(CanPortId port, const CanFramePacket &frame) {
-  return Write(port,
-               reinterpret_cast<const uint8_t *>(&frame),
-               sizeof(frame)) == sizeof(frame);
+  return true;
 }
 
 uint32_t CanService::TxFree(CanPortId port) const {
   const CanPortSlot &slot = Storage().slots[PortIndex(port)];
-  return ((slot.txQueue != nullptr) && slot.txQueue->IsCreated()) ? slot.txQueue->FreeSize() : 0U;
+  return ((slot.txPool != nullptr) && slot.txPool->IsCreated()) ? slot.txPool->FreeSize() : 0U;
 }
 
 uint32_t CanService::TxUsed(CanPortId port) const {
   const CanPortSlot &slot = Storage().slots[PortIndex(port)];
-  return ((slot.txQueue != nullptr) && slot.txQueue->IsCreated()) ? slot.txQueue->UsedSize() : 0U;
+  return ((slot.txPool != nullptr) && slot.txPool->IsCreated()) ? slot.txPool->UsedSize() : 0U;
 }
 
 uint32_t CanService::RxDropped(CanPortId port) const {
@@ -460,17 +379,13 @@ bool CanService::IsReady(CanPortId port) const {
          (hcan->Instance != nullptr);
 }
 
-void CanService::ServiceRxPath(CanPortId port) {
-  (void)port;
-}
-
 void CanService::OnRxFifoPending(CAN_HandleTypeDef *hcan, uint32_t fifo) {
   CanPortSlot *slot = FindSlot(hcan);
   if ((slot == nullptr) || !slot->initialized.load(std::memory_order_acquire) || (slot->hcan == nullptr)) {
     return;
   }
 
-  DrainHardwareRxFifoToAppQueue(*slot, fifo);
+  DrainHardwareRxFifoToAppPool(*slot, fifo);
 }
 
 void CanService::OnRxFifoFull(CAN_HandleTypeDef *hcan, uint32_t fifo) {

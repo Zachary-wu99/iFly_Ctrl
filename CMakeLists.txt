@@ -52,6 +52,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/app_main.cpp
     iFly/app/cli/flight_ctrl_cli.cpp
     iFly/app/ctrl/pid.cpp
+    iFly/app/mavlink_link/mavlink_link.cpp
     iFly/app/paramete/project_parameter_manager.cpp
     iFly/app/paramete/project_parameters.cpp
     iFly/app/task_mage/task.cpp
@@ -67,7 +68,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/lib/can/can.cpp
     iFly/lib/pwm/pwm.cpp
     iFly/task/task_all_init.cpp
-    iFly/task/task_cli_poll.cpp
+    iFly/task/task_mavlink.cpp
     iFly/task/task_led_ctrl.cpp
     iFly/task/task_pid_ctrl.cpp
 )
@@ -77,6 +78,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     iFly
     iFly/app/cli
     iFly/app/ctrl
+    iFly/app/mavlink_link
     iFly/app/observer
     iFly/app/paramete
     iFly/app/task_mage
@@ -102,6 +104,10 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/lib
     iFly/lib/platform
     iFly/task
+)
+
+target_include_directories(${CMAKE_PROJECT_NAME} SYSTEM PRIVATE
+    iFly/middlewares/mavlink
 )
 
 # Add project symbols (macros)
