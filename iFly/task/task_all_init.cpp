@@ -22,6 +22,7 @@ namespace {
 bool InitMavlinkTask(iFly::MavlinkLink *link);
 bool InitLedCtrlTask(void);
 bool InitPidCtrlTask(void);
+bool InitW25q32TestTask(void);
 
 namespace iFly {
 
@@ -36,6 +37,7 @@ namespace iFly {
     bool init_sta = InitMavlinkTask(&Usb_Mavlink);
     init_sta = InitLedCtrlTask() && init_sta;
     init_sta = InitPidCtrlTask() && init_sta;
+    init_sta = InitW25q32TestTask() && init_sta;
     return init_sta;
   }
 
