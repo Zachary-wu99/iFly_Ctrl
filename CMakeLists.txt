@@ -47,11 +47,16 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined library search paths
 )
 
+file(GLOB DRONECAN_DSDLC_SOURCES CONFIGURE_DEPENDS
+    iFly/middlewares/dronecan/dsdlc_generated/src/*.c
+)
+
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/app_main.cpp
     iFly/app/cli/flight_ctrl_cli.cpp
     iFly/app/ctrl/pid.cpp
+    iFly/app/dronecan/dronecan_node.cpp
     iFly/app/mavlink_link/mavlink_link.cpp
     iFly/app/paramete/project_parameter_manager.cpp
     iFly/app/paramete/project_parameters.cpp
@@ -68,10 +73,13 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/lib/can/can.cpp
     iFly/lib/pwm/pwm.cpp
     iFly/lib/spi/spi.cpp
+    iFly/middlewares/dronecan/libcanard/canard.c
+    ${DRONECAN_DSDLC_SOURCES}
     iFly/task/task_all_init.cpp
     iFly/task/task_mavlink.cpp
     iFly/task/task_led_ctrl.cpp
     iFly/task/task_pid_ctrl.cpp
+    iFly/task/task_dronecan.cpp
 )
 
 # Add include paths
@@ -79,6 +87,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     iFly
     iFly/app/cli
     iFly/app/ctrl
+    iFly/app/dronecan
     iFly/app/mavlink_link
     iFly/app/observer
     iFly/app/paramete
@@ -110,11 +119,16 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
 
 target_include_directories(${CMAKE_PROJECT_NAME} SYSTEM PRIVATE
     iFly/middlewares/mavlink
+    iFly/middlewares/dronecan/libcanard
+    iFly/middlewares/dronecan/dsdlc_generated/include
 )
 
 # Add project symbols (macros)
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined symbols
+    CANARD_ENABLE_CANFD=0
+    CANARD_MULTI_IFACE=0
+    CANARD_ENABLE_DEADLINE=0
 )
 
 # Remove wrong libob.a library dependency when using cpp files
