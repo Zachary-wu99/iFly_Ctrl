@@ -67,6 +67,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/lib/usb_cdc/usb_cdc.cpp
     iFly/lib/can/can.cpp
     iFly/lib/pwm/pwm.cpp
+    iFly/lib/spi/spi.cpp
     iFly/task/task_all_init.cpp
     iFly/task/task_mavlink.cpp
     iFly/task/task_led_ctrl.cpp
@@ -99,6 +100,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/lib/usb_cdc
     iFly/lib/can
     iFly/lib/pwm
+    iFly/lib/spi
     iFly/lib/gpio
     iFly/lib/double_buffer
     iFly/lib
