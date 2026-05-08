@@ -16,8 +16,6 @@ void MavlinkTask(void *context)
   if (link == nullptr) {
     return;
   }
-
-  link->Poll();
 }
 
 } // namespace

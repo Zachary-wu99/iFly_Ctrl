@@ -29,7 +29,6 @@ namespace iFly {
   {
     Mavlink_CLI.Init();
     Mavlink_CLI.Console().DisableActivationKey();
-    Usb_Mavlink.BindConsole(&Mavlink_CLI);
 
     Usb_Cdc.Init();
 
