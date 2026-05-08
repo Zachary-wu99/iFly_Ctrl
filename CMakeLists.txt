@@ -88,6 +88,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/app/proto/sbus
     iFly/app/ledctrl
     iFly/app/fly_sys
+    iFly/app/fly_sys/qgc
     iFly/dev
     iFly/lib/double_buffer
     iFly/dev/can_dev
