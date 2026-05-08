@@ -56,7 +56,7 @@ void MavlinkLink::HandleMessage(const mavlink_message_t &msg)
     case MAVLINK_MSG_ID_SERIAL_CONTROL:
       HandleSerialControl(msg);
       break;
-
+    
     default:
       break;
   }
