@@ -52,7 +52,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/app_main.cpp
     iFly/app/cli/flight_ctrl_cli.cpp
     iFly/app/ctrl/pid.cpp
-    iFly/app/mavlink_link/mavlink_link.cpp
+    iFly/app/fly_sys/ground_station/mavlink_link.cpp
     iFly/app/paramete/project_parameter_manager.cpp
     iFly/app/paramete/project_parameters.cpp
     iFly/app/task_mage/task.cpp
@@ -79,7 +79,6 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     iFly
     iFly/app/cli
     iFly/app/ctrl
-    iFly/app/mavlink_link
     iFly/app/observer
     iFly/app/paramete
     iFly/app/task_mage
@@ -88,7 +87,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/app/proto/sbus
     iFly/app/ledctrl
     iFly/app/fly_sys
-    iFly/app/fly_sys/qgc
+    iFly/app/fly_sys/ground_station
     iFly/dev
     iFly/lib/double_buffer
     iFly/dev/can_dev

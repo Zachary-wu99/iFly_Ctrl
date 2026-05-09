@@ -2,8 +2,8 @@
  * @file mavlink_qgc.hpp
  * @brief MAVLink QGC 接口定义。
  */
-#ifndef IFLY_APP_FLY_SYS_QGC_MAVLINK_QGC_HPP
-#define IFLY_APP_FLY_SYS_QGC_MAVLINK_QGC_HPP
+#ifndef IFLY_APP_FLY_SYS_GROUND_STATION_MAVLINK_QGC_HPP
+#define IFLY_APP_FLY_SYS_GROUND_STATION_MAVLINK_QGC_HPP
 
 #include "flight_ctrl_cli.hpp"
 #include "mavlink_link.hpp"
@@ -580,4 +580,4 @@ private:
 
 } // namespace iFly
 
-#endif /* IFLY_APP_FLY_SYS_QGC_MAVLINK_QGC_HPP */
+#endif /* IFLY_APP_FLY_SYS_GROUND_STATION_MAVLINK_QGC_HPP */

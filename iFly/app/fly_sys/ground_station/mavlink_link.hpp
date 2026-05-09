@@ -2,8 +2,8 @@
  * @file mavlink_link.hpp
  * @brief MAVLink 字节流链路接口。
  */
-#ifndef IFLY_APP_MAVLINK_LINK_HPP
-#define IFLY_APP_MAVLINK_LINK_HPP
+#ifndef IFLY_APP_FLY_SYS_GROUND_STATION_MAVLINK_LINK_HPP
+#define IFLY_APP_FLY_SYS_GROUND_STATION_MAVLINK_LINK_HPP
 
 #include <stdint.h>
 
@@ -87,4 +87,4 @@ private:
 
 } // namespace iFly
 
-#endif /* IFLY_APP_MAVLINK_LINK_HPP */
+#endif /* IFLY_APP_FLY_SYS_GROUND_STATION_MAVLINK_LINK_HPP */
