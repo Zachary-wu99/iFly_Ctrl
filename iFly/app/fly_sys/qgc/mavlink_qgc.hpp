@@ -23,6 +23,9 @@ public:
   explicit QgcMavlinkService()
       : link_(default_io), cli_(default_cli)
   {
+    if (cli_ != nullptr) {
+      cli_->SetOutput(&QgcMavlinkService::ConsoleOutput, this);
+    }
   }
 
   /**
@@ -34,6 +37,51 @@ public:
   bool ReceiveMessage(mavlink_message_t *msg)
   {
     return link_.ReceiveMessage(msg);
+  }
+
+  /**
+   * @brief 处理 MAVLink 控制台消息。
+   *
+   * @param msg MAVLink 消息。
+   * @return 控制台消息处理成功返回 `true`。
+   */
+  bool ProcessConsoleMessage(const mavlink_message_t &msg)
+  {
+    mavlink_serial_control_t control {};
+    if (!DecodeConsoleMessage(msg, &control) || (cli_ == nullptr)) {
+      return false;
+    }
+
+    cli_->SetConnected(true);
+    if (control.count > 0U) {
+      cli_->ProcessInput(control.data, control.count);
+    }
+
+    return true;
+  }
+
+  /**
+   * @brief 发送 MAVLink 控制台输出。
+   *
+   * @param data 控制台输出数据。
+   * @param length 控制台输出字节数。
+   * @return 实际发送字节数。
+   */
+  uint32_t SendConsoleOutput(const uint8_t *data, uint32_t length)
+  {
+    return link_.SendConsoleOutput(data, length);
+  }
+
+  /**
+   * @brief 发送一帧 MAVLink 控制台回包。
+   *
+   * @param data 控制台输出数据。
+   * @param len 控制台输出字节数。
+   * @param flags SERIAL_CONTROL 标志位。
+   */
+  void SendConsoleReply(const uint8_t *data, uint8_t len, uint8_t flags)
+  {
+    link_.SendConsoleReply(data, len, flags);
   }
 
   /**
@@ -488,7 +536,41 @@ public:
     return true;
   }
 
+  /**
+   * @brief 解码 MAVLink 控制台消息。
+   *
+   * @param msg MAVLink 消息。
+   * @param control 控制台消息输出。
+   * @return 控制台消息解码成功返回 `true`。
+   */
+  bool DecodeConsoleMessage(const mavlink_message_t &msg,
+                            mavlink_serial_control_t *control)
+  {
+    return link_.DecodeConsoleMessage(msg, control);
+  }
+
 private:
+  /**
+   * @brief MAVLink 控制台输出回调。
+   *
+   * @param context 回调上下文。
+   * @param data 输出数据。
+   * @param length 输出字节数。
+   * @return 实际发送字节数。
+   */
+  static uint32_t ConsoleOutput(void *context,
+                                const uint8_t *data,
+                                uint32_t length)
+  {
+    QgcMavlinkService *service =
+        reinterpret_cast<QgcMavlinkService *>(context);
+    if (service == nullptr) {
+      return 0U;
+    }
+
+    return service->SendConsoleOutput(data, length);
+  }
+
   static constexpr uint8_t kSystemId = 25U; /**< 本机 MAVLink 系统 ID。*/
   static constexpr uint8_t kComponentId = MAV_COMP_ID_AUTOPILOT1; /**< 本机 MAVLink 组件 ID。*/
 
