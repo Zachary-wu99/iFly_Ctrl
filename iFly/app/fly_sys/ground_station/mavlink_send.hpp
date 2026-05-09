@@ -1,87 +1,38 @@
 /**
- * @file mavlink_qgc.hpp
- * @brief MAVLink QGC 接口定义。
+ * @file mavlink_send.hpp
+ * @brief MAVLink 状态发送接口。
  */
-#ifndef IFLY_APP_FLY_SYS_GROUND_STATION_MAVLINK_QGC_HPP
-#define IFLY_APP_FLY_SYS_GROUND_STATION_MAVLINK_QGC_HPP
+#ifndef IFLY_APP_FLY_SYS_GROUND_STATION_MAVLINK_SEND_HPP
+#define IFLY_APP_FLY_SYS_GROUND_STATION_MAVLINK_SEND_HPP
 
-#include "flight_ctrl_cli.hpp"
 #include "mavlink_link.hpp"
 #include "sys_state_type.hpp"
 
 namespace iFly {
 
 /**
- * @brief MAVLink QGC 状态发送服务。
+ * @brief MAVLink 状态发送服务。
  */
-template<SerialIoBase *default_io, FlightCtrlCli *default_cli>
-class QgcMavlinkService final {
+class MavlinkSend final {
 public:
   /**
-   * @brief 构造 MAVLink QGC 服务对象。
+   * @brief 构造 MAVLink 发送服务对象。
+   *
+   * @param link MAVLink 字节流链路。
    */
-  explicit QgcMavlinkService()
-      : link_(default_io), cli_(default_cli)
+  explicit MavlinkSend(MavlinkLink *link = nullptr)
+      : link_(link)
   {
-    if (cli_ != nullptr) {
-      cli_->SetOutput(&QgcMavlinkService::ConsoleOutput, this);
-    }
   }
 
   /**
-   * @brief 读取一帧 MAVLink 消息。
+   * @brief 绑定 MAVLink 字节流链路。
    *
-   * @param msg MAVLink 消息输出。
-   * @return 读取到有效消息返回 `true`。
+   * @param link MAVLink 字节流链路。
    */
-  bool ReceiveMessage(mavlink_message_t *msg)
+  void BindLink(MavlinkLink *link)
   {
-    return link_.ReceiveMessage(msg);
-  }
-
-  /**
-   * @brief 处理 MAVLink 控制台消息。
-   *
-   * @param msg MAVLink 消息。
-   * @return 控制台消息处理成功返回 `true`。
-   */
-  bool ProcessConsoleMessage(const mavlink_message_t &msg)
-  {
-    mavlink_serial_control_t control {};
-    if (!DecodeConsoleMessage(msg, &control) || (cli_ == nullptr)) {
-      return false;
-    }
-
-    cli_->SetConnected(true);
-    if (control.count > 0U) {
-      cli_->ProcessInput(control.data, control.count);
-    }
-
-    return true;
-  }
-
-  /**
-   * @brief 发送 MAVLink 控制台输出。
-   *
-   * @param data 控制台输出数据。
-   * @param length 控制台输出字节数。
-   * @return 实际发送字节数。
-   */
-  uint32_t SendConsoleOutput(const uint8_t *data, uint32_t length)
-  {
-    return link_.SendConsoleOutput(data, length);
-  }
-
-  /**
-   * @brief 发送一帧 MAVLink 控制台回包。
-   *
-   * @param data 控制台输出数据。
-   * @param len 控制台输出字节数。
-   * @param flags SERIAL_CONTROL 标志位。
-   */
-  void SendConsoleReply(const uint8_t *data, uint8_t len, uint8_t flags)
-  {
-    link_.SendConsoleReply(data, len, flags);
+    link_ = link;
   }
 
   /**
@@ -100,7 +51,7 @@ public:
                                      state.base_mode,
                                      state.custom_mode,
                                      static_cast<uint8_t>(state.state));
-    link_.SendMessage(msg);
+    SendMessage(msg);
   }
 
   /**
@@ -130,7 +81,7 @@ public:
                                       0U,
                                       0U,
                                       0U);
-    link_.SendMessage(msg);
+    SendMessage(msg);
   }
 
   /**
@@ -159,7 +110,7 @@ public:
                                           voltage_ext,
                                           0U,
                                           0U);
-    link_.SendMessage(msg);
+    SendMessage(msg);
   }
 
   /**
@@ -189,7 +140,7 @@ public:
                                        0U,
                                        0U,
                                        0U);
-    link_.SendMessage(msg);
+    SendMessage(msg);
   }
 
   /**
@@ -212,7 +163,7 @@ public:
                                                state.velocity_east,
                                                state.velocity_down,
                                                state.heading);
-    link_.SendMessage(msg);
+    SendMessage(msg);
   }
 
   /**
@@ -233,7 +184,7 @@ public:
                                               state.velocity_north,
                                               state.velocity_east,
                                               state.velocity_down);
-    link_.SendMessage(msg);
+    SendMessage(msg);
   }
 
   /**
@@ -254,7 +205,7 @@ public:
                                     state.roll_rate,
                                     state.pitch_rate,
                                     state.yaw_rate);
-    link_.SendMessage(msg);
+    SendMessage(msg);
   }
 
   /**
@@ -274,7 +225,7 @@ public:
                                    state.throttle,
                                    state.altitude,
                                    state.climb);
-    link_.SendMessage(msg);
+    SendMessage(msg);
   }
 
   /**
@@ -309,7 +260,7 @@ public:
                                        state.channel[16],
                                        state.channel[17],
                                        state.rssi);
-    link_.SendMessage(msg);
+    SendMessage(msg);
   }
 
   /**
@@ -341,7 +292,7 @@ public:
                                             state.output[13],
                                             state.output[14],
                                             state.output[15]);
-    link_.SendMessage(msg);
+    SendMessage(msg);
   }
 
   /**
@@ -357,7 +308,7 @@ public:
                                               &msg,
                                               state.vtol_state,
                                               static_cast<uint8_t>(state.landed_state));
-    link_.SendMessage(msg);
+    SendMessage(msg);
   }
 
   /**
@@ -375,7 +326,7 @@ public:
                                       state.text,
                                       state.id,
                                       state.chunk_seq);
-    link_.SendMessage(msg);
+    SendMessage(msg);
   }
 
   /**
@@ -400,7 +351,7 @@ public:
                                         state.argument[4],
                                         state.argument[5],
                                         state.argument[6]);
-    link_.SendMessage(msg);
+    SendMessage(msg);
   }
 
   /**
@@ -420,7 +371,7 @@ public:
                                        state.result_detail,
                                        state.target_system,
                                        state.target_component);
-    link_.SendMessage(msg);
+    SendMessage(msg);
   }
 
   /**
@@ -450,7 +401,7 @@ public:
                                           0,
                                           0,
                                           0);
-    link_.SendMessage(msg);
+    SendMessage(msg);
   }
 
   /**
@@ -476,108 +427,30 @@ public:
                                              state.product_id,
                                              state.unique_id,
                                              state.unique_id_ext);
-    link_.SendMessage(msg);
-  }
-
-  /**
-   * @brief 解码长命令请求。
-   *
-   * @param msg MAVLink 消息。
-   * @param state 长命令请求输出。
-   * @return 解码成功返回 `true`。
-   */
-  bool DecodeCommandRequest(const mavlink_message_t &msg,
-                            CommandRequest *state)
-  {
-    if ((msg.msgid != MAVLINK_MSG_ID_COMMAND_LONG) || (state == nullptr)) {
-      return false;
-    }
-
-    mavlink_command_long_t command {};
-    mavlink_msg_command_long_decode(&msg, &command);
-    state->target_system = command.target_system;
-    state->target_component = command.target_component;
-    state->command = command.command;
-    state->confirmation = command.confirmation;
-    state->argument[0] = command.param1;
-    state->argument[1] = command.param2;
-    state->argument[2] = command.param3;
-    state->argument[3] = command.param4;
-    state->argument[4] = command.param5;
-    state->argument[5] = command.param6;
-    state->argument[6] = command.param7;
-
-    return true;
-  }
-
-  /**
-   * @brief 解码手动控制输入。
-   *
-   * @param msg MAVLink 消息。
-   * @param state 手动控制输入输出。
-   * @return 解码成功返回 `true`。
-   */
-  bool DecodeManualControl(const mavlink_message_t &msg, ManualControl *state)
-  {
-    if ((msg.msgid != MAVLINK_MSG_ID_MANUAL_CONTROL) || (state == nullptr)) {
-      return false;
-    }
-
-    mavlink_manual_control_t control {};
-    mavlink_msg_manual_control_decode(&msg, &control);
-    state->target = control.target;
-    state->x = control.x;
-    state->y = control.y;
-    state->z = control.z;
-    state->r = control.r;
-    state->buttons = control.buttons;
-    state->buttons2 = control.buttons2;
-
-    return true;
-  }
-
-  /**
-   * @brief 解码 MAVLink 控制台消息。
-   *
-   * @param msg MAVLink 消息。
-   * @param control 控制台消息输出。
-   * @return 控制台消息解码成功返回 `true`。
-   */
-  bool DecodeConsoleMessage(const mavlink_message_t &msg,
-                            mavlink_serial_control_t *control)
-  {
-    return link_.DecodeConsoleMessage(msg, control);
+    SendMessage(msg);
   }
 
 private:
   /**
-   * @brief MAVLink 控制台输出回调。
+   * @brief 发送一帧 MAVLink 消息。
    *
-   * @param context 回调上下文。
-   * @param data 输出数据。
-   * @param length 输出字节数。
-   * @return 实际发送字节数。
+   * @param msg MAVLink 消息。
    */
-  static uint32_t ConsoleOutput(void *context,
-                                const uint8_t *data,
-                                uint32_t length)
+  void SendMessage(const mavlink_message_t &msg)
   {
-    QgcMavlinkService *service =
-        reinterpret_cast<QgcMavlinkService *>(context);
-    if (service == nullptr) {
-      return 0U;
+    if (link_ == nullptr) {
+      return;
     }
 
-    return service->SendConsoleOutput(data, length);
+    link_->SendMessage(msg);
   }
 
-  static constexpr uint8_t kSystemId = 25U; /**< 本机 MAVLink 系统 ID。*/
-  static constexpr uint8_t kComponentId = MAV_COMP_ID_AUTOPILOT1; /**< 本机 MAVLink 组件 ID。*/
+  static constexpr uint8_t kSystemId = 25U; /**< 本机 MAVLink 系统 ID。 */
+  static constexpr uint8_t kComponentId = MAV_COMP_ID_AUTOPILOT1; /**< 本机 MAVLink 组件 ID。 */
 
-  MavlinkLink link_ {}; /**< MAVLink 字节流链路。*/
-  FlightCtrlCli *cli_ = nullptr; /**< 飞控 CLI 对象指针。*/
+  MavlinkLink *link_ = nullptr; /**< MAVLink 字节流链路。 */
 };
 
 } // namespace iFly
 
-#endif /* IFLY_APP_FLY_SYS_GROUND_STATION_MAVLINK_QGC_HPP */
+#endif /* IFLY_APP_FLY_SYS_GROUND_STATION_MAVLINK_SEND_HPP */

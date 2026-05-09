@@ -52,7 +52,6 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/app_main.cpp
     iFly/app/cli/flight_ctrl_cli.cpp
     iFly/app/ctrl/pid.cpp
-    iFly/app/fly_sys/ground_station/mavlink_link.cpp
     iFly/app/paramete/project_parameter_manager.cpp
     iFly/app/paramete/project_parameters.cpp
     iFly/app/task_mage/task.cpp
