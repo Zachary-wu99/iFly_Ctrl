@@ -15,7 +15,7 @@ namespace {
 
   iFly::FlightCtrlCli Mavlink_CLI;
   iFly::UsbUart Usb_Cdc(kUsbRxQueueSize);
-  iFly::MavlinkLink Usb_Mavlink(&Usb_Cdc);
+  iFly::MavlinkLink Mavlink(&Usb_Cdc);
 
 }
 
@@ -32,7 +32,7 @@ namespace iFly {
 
     Usb_Cdc.Init();
 
-    bool init_sta = InitMavlinkTask(&Usb_Mavlink);
+    bool init_sta = InitMavlinkTask(&Mavlink);
     init_sta = InitLedCtrlTask() && init_sta;
     init_sta = InitPidCtrlTask() && init_sta;
     return init_sta;

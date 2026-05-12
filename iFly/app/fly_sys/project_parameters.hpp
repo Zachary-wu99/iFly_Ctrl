@@ -2,8 +2,8 @@
  * @file project_parameters.hpp
  * @brief 工程参数树定义。
  */
-#ifndef IFLY_APP_PARAMETE_PROJECT_PARAMETERS_HPP
-#define IFLY_APP_PARAMETE_PROJECT_PARAMETERS_HPP
+#ifndef IFLY_APP_FLY_SYS_PROJECT_PARAMETERS_HPP
+#define IFLY_APP_FLY_SYS_PROJECT_PARAMETERS_HPP
 
 #include <stdint.h>
 
@@ -12,28 +12,13 @@
 namespace iFly {
 
 /**
- * @brief 系统级参数分组。
+ * @brief MAVLink 基础参数分组。
  */
-struct SystemParameters final {
-  uint32_t control_loop_hz = 1000U; /**< 主控制循环频率，单位为 Hz。 */
-  bool arm_locked = true; /**< 上锁状态标志，`true` 表示禁止解锁。 */
-};
-
-/**
- * @brief 任务调度相关参数分组。
- */
-struct TaskParameters final {
-  uint32_t main_loop_delay_ms = 1U; /**< 主循环阻塞延时，单位为毫秒。 */
-  uint32_t cli_poll_period_ms = 50U; /**< CLI 轮询周期，单位为毫秒。 */
-};
-
-/**
- * @brief CLI 相关参数分组。
- */
-struct CliParameters final {
-  uint32_t rx_queue_size = 1024U; /**< CLI 接收队列容量，单位为字节。 */
-  char default_transport[8] = "usb"; /**< 默认 CLI 传输通道名称。 */
-  char password[8] = "ifly"; /**< CLI 登录密码。 */
+struct MavlinkParameters final {
+  uint8_t system_id = 25U; /**< MAVLink 系统 ID。 */
+  uint8_t component_id = 1U; /**< MAVLink 组件 ID。 */
+  uint8_t vehicle_type = 2U; /**< 飞行器类型。 */
+  uint8_t autopilot_type = 0U; /**< 飞控类型。 */
 };
 
 /**
@@ -91,34 +76,60 @@ struct MotorParameters final {
 };
 
 /**
- * @brief 调试与诊断参数分组。
+ * @brief 电池参数分组。
  */
-struct DebugParameters final {
-  bool enable_cli = true; /**< 是否启用 CLI 服务。 */
-  bool verbose_shell = false; /**< 是否输出详细 Shell 日志。 */
+struct BatteryParameters final {
+  int32_t cell_count = 0; /**< 电池串数，`0` 表示自动识别。 */
+  float empty_voltage = 3.5f; /**< 单节空电电压，单位为 V。 */
+  float charged_voltage = 4.2f; /**< 单节满电电压，单位为 V。 */
+  float capacity_mah = -1.0f; /**< 电池容量，单位为 mAh。 */
+};
+
+/**
+ * @brief RC 通道映射参数分组。
+ */
+struct RcMapParameters final {
+  int32_t roll = 1; /**< 横滚通道编号。 */
+  int32_t pitch = 2; /**< 俯仰通道编号。 */
+  int32_t throttle = 3; /**< 油门通道编号。 */
+  int32_t yaw = 4; /**< 偏航通道编号。 */
 };
 
 /**
  * @brief 全工程参数根结构。
  */
 struct ProjectParameters final {
-  SystemParameters system {}; /**< 系统级参数集合。 */
-  TaskParameters task {}; /**< 任务调度参数集合。 */
-  CliParameters cli {}; /**< CLI 相关参数集合。 */
+  MavlinkParameters mavlink {}; /**< MAVLink 基础参数集合。 */
   ControlParameters control {}; /**< 控制器参数集合。 */
   MotorParameters motor {}; /**< 电机输出参数集合。 */
-  DebugParameters debug {}; /**< 调试参数集合。 */
+  BatteryParameters battery {}; /**< 电池参数集合。 */
+  RcMapParameters rc_map {}; /**< RC 通道映射参数集合。 */
+};
+
+/**
+ * @brief 工程参数在 MAVLink 参数协议中的数据类型。
+ */
+enum class ProjectParameterType : uint8_t {
+  kBytes = 0U, /**< 原始字节块。 */
+  kBool, /**< 布尔型。 */
+  kUint8, /**< 无符号 8 位整型。 */
+  kUint16, /**< 无符号 16 位整型。 */
+  kUint32, /**< 无符号 32 位整型。 */
+  kInt32, /**< 有符号 32 位整型。 */
+  kFloat /**< 32 位浮点型。 */
 };
 
 /**
  * @brief 单个工程参数的静态绑定描述。
  */
 struct ProjectParameterBinding final {
-  const char *name = nullptr; /**< 参数名，例如 `control.speed_pid.kp`。 */
+  const char *name = nullptr; /**< 参数名，例如 `SPD_PID_P`。 */
   const char *help = nullptr; /**< 参数说明文本。 */
   uint32_t offset = 0U; /**< 参数在 `ProjectParameters` 中的字节偏移。 */
   uint32_t size = 0U; /**< 参数占用的字节数。 */
   bool read_only = false; /**< 是否只读。 */
+  ProjectParameterType type = ProjectParameterType::kBytes; /**< MAVLink 参数类型。 */
+  bool mavlink_visible = false; /**< 是否通过 MAVLink 参数协议暴露。 */
 };
 
 /**
@@ -166,4 +177,4 @@ const ProjectParameterBinding *GetProjectParameterBindings(uint16_t *count);
 
 } // namespace iFly
 
-#endif /* IFLY_APP_PARAMETE_PROJECT_PARAMETERS_HPP */
+#endif /* IFLY_APP_FLY_SYS_PROJECT_PARAMETERS_HPP */

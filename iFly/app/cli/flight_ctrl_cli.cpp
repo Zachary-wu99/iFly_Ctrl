@@ -124,10 +124,9 @@ uint64_t MsToNs(uint32_t value_ms)
   return static_cast<uint64_t>(value_ms) * kNanosecondsPerMillisecond;
 }
 
-const char *ConfiguredCliPassword(const ProjectParameters &parameters)
+const char *ConfiguredCliPassword()
 {
-  return (parameters.cli.password[0] != '\0') ? parameters.cli.password
-                                              : kDefaultCliPassword;
+  return kDefaultCliPassword;
 }
 
 } // namespace
@@ -144,7 +143,7 @@ void FlightCtrlCli::Init()
   ResetIntroAnimation();
   shell_.ClearRegistrations();
   shell_.SetPrompt(kCliPrompt);
-  shell_.SetPassword(ConfiguredCliPassword(parameter_manager_.Data()));
+  shell_.SetPassword(ConfiguredCliPassword());
   shell_.SetActivationKey(' ', kActivationPrompt);
   shell_.SetSessionAnimation(&FlightCtrlCli::IntroAnimation, this);
   active_transport_name_ = "mavlink";
@@ -204,107 +203,99 @@ void FlightCtrlCli::RegisterParameters()
         ++index;
       };
 
-  register_managed_parameter("control.speed_pid.kp", "speed PID proportional gain",
-                             "control.speed_pid.kp", ManagedParameterType::kFloat,
+  register_managed_parameter("SPD_PID_P", "speed PID proportional gain",
+                             "SPD_PID_P", ManagedParameterType::kFloat,
                              0.0f, 1000.0f, 0U, 0U);
-  register_managed_parameter("control.speed_pid.ki", "speed PID integral gain",
-                             "control.speed_pid.ki", ManagedParameterType::kFloat,
+  register_managed_parameter("SPD_PID_I", "speed PID integral gain",
+                             "SPD_PID_I", ManagedParameterType::kFloat,
                              0.0f, 1000.0f, 0U, 0U);
-  register_managed_parameter("control.speed_pid.kd", "speed PID derivative gain",
-                             "control.speed_pid.kd", ManagedParameterType::kFloat,
+  register_managed_parameter("SPD_PID_D", "speed PID derivative gain",
+                             "SPD_PID_D", ManagedParameterType::kFloat,
                              0.0f, 1000.0f, 0U, 0U);
-  register_managed_parameter("control.speed_pid.kff", "speed PID feedforward gain",
-                             "control.speed_pid.kff", ManagedParameterType::kFloat,
+  register_managed_parameter("SPD_PID_FF", "speed PID feedforward gain",
+                             "SPD_PID_FF", ManagedParameterType::kFloat,
                              0.0f, 1000.0f, 0U, 0U);
-  register_managed_parameter("control.speed_pid.integral_min", "speed PID integral lower limit",
-                             "control.speed_pid.integral_min",
+  register_managed_parameter("SPD_PID_IMIN", "speed PID integral lower limit",
+                             "SPD_PID_IMIN",
                              ManagedParameterType::kFloat, -1000000.0f,
                              1000000.0f, 0U, 0U);
-  register_managed_parameter("control.speed_pid.integral_max", "speed PID integral upper limit",
-                             "control.speed_pid.integral_max",
+  register_managed_parameter("SPD_PID_IMAX", "speed PID integral upper limit",
+                             "SPD_PID_IMAX",
                              ManagedParameterType::kFloat, -1000000.0f,
                              1000000.0f, 0U, 0U);
-  register_managed_parameter("control.speed_pid.output_min", "speed PID output lower limit",
-                             "control.speed_pid.output_min",
+  register_managed_parameter("SPD_PID_OMIN", "speed PID output lower limit",
+                             "SPD_PID_OMIN",
                              ManagedParameterType::kFloat, -1000000.0f,
                              1000000.0f, 0U, 0U);
-  register_managed_parameter("control.speed_pid.output_max", "speed PID output upper limit",
-                             "control.speed_pid.output_max",
+  register_managed_parameter("SPD_PID_OMAX", "speed PID output upper limit",
+                             "SPD_PID_OMAX",
                              ManagedParameterType::kFloat, -1000000.0f,
                              1000000.0f, 0U, 0U);
-  register_managed_parameter("control.speed_pid.derivative_cutoff_hz", "speed PID derivative LPF cutoff",
-                             "control.speed_pid.derivative_cutoff_hz",
+  register_managed_parameter("SPD_PID_FLTD", "speed PID derivative LPF cutoff",
+                             "SPD_PID_FLTD",
                              ManagedParameterType::kFloat, 0.0f, 1000.0f, 0U, 0U);
-  register_managed_parameter("control.angle_pid.kp", "angle PID proportional gain",
-                             "control.angle_pid.kp", ManagedParameterType::kFloat,
+  register_managed_parameter("ANG_PID_P", "angle PID proportional gain",
+                             "ANG_PID_P", ManagedParameterType::kFloat,
                              0.0f, 1000.0f, 0U, 0U);
-  register_managed_parameter("control.angle_pid.ki", "angle PID integral gain",
-                             "control.angle_pid.ki", ManagedParameterType::kFloat,
+  register_managed_parameter("ANG_PID_I", "angle PID integral gain",
+                             "ANG_PID_I", ManagedParameterType::kFloat,
                              0.0f, 1000.0f, 0U, 0U);
-  register_managed_parameter("control.angle_pid.kd", "angle PID derivative gain",
-                             "control.angle_pid.kd", ManagedParameterType::kFloat,
+  register_managed_parameter("ANG_PID_D", "angle PID derivative gain",
+                             "ANG_PID_D", ManagedParameterType::kFloat,
                              0.0f, 1000.0f, 0U, 0U);
-  register_managed_parameter("control.angle_pid.kff", "angle PID feedforward gain",
-                             "control.angle_pid.kff", ManagedParameterType::kFloat,
+  register_managed_parameter("ANG_PID_FF", "angle PID feedforward gain",
+                             "ANG_PID_FF", ManagedParameterType::kFloat,
                              0.0f, 1000.0f, 0U, 0U);
-  register_managed_parameter("control.angle_pid.integral_min", "angle PID integral lower limit",
-                             "control.angle_pid.integral_min",
+  register_managed_parameter("ANG_PID_IMIN", "angle PID integral lower limit",
+                             "ANG_PID_IMIN",
                              ManagedParameterType::kFloat, -1000000.0f,
                              1000000.0f, 0U, 0U);
-  register_managed_parameter("control.angle_pid.integral_max", "angle PID integral upper limit",
-                             "control.angle_pid.integral_max",
+  register_managed_parameter("ANG_PID_IMAX", "angle PID integral upper limit",
+                             "ANG_PID_IMAX",
                              ManagedParameterType::kFloat, -1000000.0f,
                              1000000.0f, 0U, 0U);
-  register_managed_parameter("control.angle_pid.output_min", "angle PID output lower limit",
-                             "control.angle_pid.output_min",
+  register_managed_parameter("ANG_PID_OMIN", "angle PID output lower limit",
+                             "ANG_PID_OMIN",
                              ManagedParameterType::kFloat, -1000000.0f,
                              1000000.0f, 0U, 0U);
-  register_managed_parameter("control.angle_pid.output_max", "angle PID output upper limit",
-                             "control.angle_pid.output_max",
+  register_managed_parameter("ANG_PID_OMAX", "angle PID output upper limit",
+                             "ANG_PID_OMAX",
                              ManagedParameterType::kFloat, -1000000.0f,
                              1000000.0f, 0U, 0U);
-  register_managed_parameter("control.angle_pid.derivative_cutoff_hz", "angle PID derivative LPF cutoff",
-                             "control.angle_pid.derivative_cutoff_hz",
+  register_managed_parameter("ANG_PID_FLTD", "angle PID derivative LPF cutoff",
+                             "ANG_PID_FLTD",
                              ManagedParameterType::kFloat, 0.0f, 1000.0f, 0U, 0U);
-  register_managed_parameter("control.position_pid.kp", "position PID proportional gain",
-                             "control.position_pid.kp", ManagedParameterType::kFloat,
+  register_managed_parameter("POS_PID_P", "position PID proportional gain",
+                             "POS_PID_P", ManagedParameterType::kFloat,
                              0.0f, 1000.0f, 0U, 0U);
-  register_managed_parameter("control.position_pid.ki", "position PID integral gain",
-                             "control.position_pid.ki", ManagedParameterType::kFloat,
+  register_managed_parameter("POS_PID_I", "position PID integral gain",
+                             "POS_PID_I", ManagedParameterType::kFloat,
                              0.0f, 1000.0f, 0U, 0U);
-  register_managed_parameter("control.position_pid.kd", "position PID derivative gain",
-                             "control.position_pid.kd", ManagedParameterType::kFloat,
+  register_managed_parameter("POS_PID_D", "position PID derivative gain",
+                             "POS_PID_D", ManagedParameterType::kFloat,
                              0.0f, 1000.0f, 0U, 0U);
-  register_managed_parameter("control.position_pid.kff", "position PID feedforward gain",
-                             "control.position_pid.kff", ManagedParameterType::kFloat,
+  register_managed_parameter("POS_PID_FF", "position PID feedforward gain",
+                             "POS_PID_FF", ManagedParameterType::kFloat,
                              0.0f, 1000.0f, 0U, 0U);
-  register_managed_parameter("control.position_pid.integral_min", "position PID integral lower limit",
-                             "control.position_pid.integral_min",
+  register_managed_parameter("POS_PID_IMIN", "position PID integral lower limit",
+                             "POS_PID_IMIN",
                              ManagedParameterType::kFloat, -1000000.0f,
                              1000000.0f, 0U, 0U);
-  register_managed_parameter("control.position_pid.integral_max", "position PID integral upper limit",
-                             "control.position_pid.integral_max",
+  register_managed_parameter("POS_PID_IMAX", "position PID integral upper limit",
+                             "POS_PID_IMAX",
                              ManagedParameterType::kFloat, -1000000.0f,
                              1000000.0f, 0U, 0U);
-  register_managed_parameter("control.position_pid.output_min", "position PID output lower limit",
-                             "control.position_pid.output_min",
+  register_managed_parameter("POS_PID_OMIN", "position PID output lower limit",
+                             "POS_PID_OMIN",
                              ManagedParameterType::kFloat, -1000000.0f,
                              1000000.0f, 0U, 0U);
-  register_managed_parameter("control.position_pid.output_max", "position PID output upper limit",
-                             "control.position_pid.output_max",
+  register_managed_parameter("POS_PID_OMAX", "position PID output upper limit",
+                             "POS_PID_OMAX",
                              ManagedParameterType::kFloat, -1000000.0f,
                              1000000.0f, 0U, 0U);
-  register_managed_parameter("control.position_pid.derivative_cutoff_hz", "position PID derivative LPF cutoff",
-                             "control.position_pid.derivative_cutoff_hz",
+  register_managed_parameter("POS_PID_FLTD", "position PID derivative LPF cutoff",
+                             "POS_PID_FLTD",
                              ManagedParameterType::kFloat, 0.0f, 1000.0f, 0U, 0U);
-  register_managed_parameter("sys.loop_hz", "control loop frequency",
-                             "system.control_loop_hz",
-                             ManagedParameterType::kUint32, 0.0f, 0.0f,
-                             50U, 4000U);
-  register_managed_parameter("sys.arm_locked", "arming lock switch",
-                             "system.arm_locked",
-                             ManagedParameterType::kBool, 0.0f, 0.0f, 0U, 0U);
-
   (void)shell_.RegisterParameter(
       {"sys.transport", "active CLI transport",
        &FlightCtrlCli::GetTransportParameter, nullptr, this});
@@ -312,9 +303,6 @@ void FlightCtrlCli::RegisterParameters()
       {"sys.uptime_ms", "system uptime in milliseconds",
        &FlightCtrlCli::GetUptimeParameter, nullptr, this});
 
-  (void)parameter_manager_.SetChangeHandler("cli.password",
-                                            &FlightCtrlCli::OnProjectParameterUpdated,
-                                            this);
 }
 
 void FlightCtrlCli::RegisterFunctions()
@@ -646,7 +634,6 @@ bool FlightCtrlCli::StatusFunction(Shell *shell, void *context, uint8_t argc,
     return false;
   }
 
-  const ProjectParameters &parameters = cli->parameter_manager_.Data();
   shell->WriteLine("Flight Controller Status");
   shell->Printf("  transport     : %s\r\n",
                 (cli->active_transport_name_ != nullptr) ? cli->active_transport_name_
@@ -655,10 +642,6 @@ bool FlightCtrlCli::StatusFunction(Shell *shell, void *context, uint8_t argc,
                 cli->shell_.IsConnected() ? "connected" : "disconnected");
   shell->Printf("  uptime_ms     : %lu\r\n",
                 static_cast<unsigned long>(tick::NowMs()));
-  shell->Printf("  loop_hz       : %lu\r\n",
-                static_cast<unsigned long>(parameters.system.control_loop_hz));
-  shell->Printf("  arm_locked    : %s\r\n",
-                parameters.system.arm_locked ? "true" : "false");
   return true;
 }
 
@@ -688,18 +671,6 @@ bool FlightCtrlCli::IntroAnimation(Shell *shell, void *context, bool start)
   }
 
   return owner->UpdateIntroAnimation(shell, start);
-}
-
-void FlightCtrlCli::OnProjectParameterUpdated(const char *name, void *context)
-{
-  FlightCtrlCli *owner = reinterpret_cast<FlightCtrlCli *>(context);
-  if ((owner == nullptr) || (name == nullptr)) {
-    return;
-  }
-
-  if (strcmp(name, "cli.password") == 0) {
-    owner->shell_.SetPassword(ConfiguredCliPassword(owner->parameter_manager_.Data()));
-  }
 }
 
 } // namespace iFly

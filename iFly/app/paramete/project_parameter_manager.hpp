@@ -21,7 +21,7 @@ namespace iFly {
  */
 class ProjectParameterManager final {
 public:
-  static constexpr uint16_t kMaxEntryCount = 120U; /**< 最大参数表项数量。 */
+  static constexpr uint16_t kMaxEntryCount = 160U; /**< 最大参数表项数量。 */
 
   /**
    * @brief 参数访问权限。
@@ -41,7 +41,9 @@ public:
     const char *help = nullptr; /**< 参数帮助文本。 */
     const void *storage = nullptr; /**< 参数实际存储地址。 */
     uint32_t size = 0U; /**< 参数占用的字节数。 */
+    ProjectParameterType type = ProjectParameterType::kBytes; /**< MAVLink 参数类型。 */
     AccessMode access = AccessMode::kReadWrite; /**< 当前参数访问权限。 */
+    bool mavlink_visible = false; /**< 是否通过 MAVLink 参数协议暴露。 */
   };
 
   /**
@@ -82,6 +84,37 @@ public:
   uint16_t Count() const {
     return count_;
   }
+
+  /**
+   * @brief 获取指定索引的参数视图。
+   *
+   * @param index 参数表索引。
+   * @return 参数视图地址，索引越界返回 `nullptr`。
+   */
+  const EntryView *At(uint16_t index) const;
+
+  /**
+   * @brief 获取 MAVLink 可见参数数量。
+   *
+   * @return MAVLink 参数表项数量。
+   */
+  uint16_t MavlinkCount() const;
+
+  /**
+   * @brief 获取指定 MAVLink 索引的参数视图。
+   *
+   * @param index MAVLink 参数索引。
+   * @return 参数视图地址，索引越界返回 `nullptr`。
+   */
+  const EntryView *MavlinkAt(uint16_t index) const;
+
+  /**
+   * @brief 查找 MAVLink 参数索引。
+   *
+   * @param name 参数名。
+   * @return 参数索引，未找到返回 `-1`。
+   */
+  int16_t MavlinkIndexOf(const char *name) const;
 
   /**
    * @brief 判断参数名是否存在。
@@ -126,6 +159,18 @@ public:
    * @return 写入成功返回 `true`。
    */
   bool WriteRaw(const char *name, const void *data, uint32_t dataSize);
+
+  /**
+   * @brief 写入 MAVLink 参数值。
+   *
+   * @param name 参数名。
+   * @param value MAVLink 浮点参数值。
+   * @param type MAVLink 参数类型。
+   * @return 写入成功返回 `true`。
+   */
+  bool WriteMavlinkValue(const char *name,
+                         float value,
+                         ProjectParameterType type);
 
   /**
    * @brief 为指定参数绑定更新回调。

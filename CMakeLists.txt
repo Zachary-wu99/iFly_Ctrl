@@ -53,7 +53,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/app/cli/flight_ctrl_cli.cpp
     iFly/app/ctrl/pid.cpp
     iFly/app/paramete/project_parameter_manager.cpp
-    iFly/app/paramete/project_parameters.cpp
+    iFly/app/fly_sys/project_parameters.cpp
     iFly/app/task_mage/task.cpp
     iFly/app/tick/tick.cpp
     iFly/app/proto/crsf/crsf_protocol.cpp

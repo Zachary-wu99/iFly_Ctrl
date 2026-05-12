@@ -70,7 +70,7 @@ public:
   }
 
 private:
-  static constexpr uint8_t kManagedParameterCount = 29U; /**< 受管参数数量。 */
+  static constexpr uint8_t kManagedParameterCount = 27U; /**< 受管参数数量。 */
 
   /**
    * @brief 受管参数类型。
@@ -250,11 +250,6 @@ private:
    * @brief Shell 会话动画回调入口。
    */
   static bool IntroAnimation(Shell *shell, void *context, bool start);
-
-  /**
-   * @brief 工程参数更新回调。
-   */
-  static void OnProjectParameterUpdated(const char *name, void *context);
 
   ProjectParameterManager &parameter_manager_; /**< 工程参数中心引用。 */
   Shell shell_ {}; /**< 命令行 Shell 实例。 */

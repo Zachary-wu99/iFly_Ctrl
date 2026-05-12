@@ -6,6 +6,7 @@
 #define IFLY_APP_FLY_SYS_GROUND_STATION_MAVLINK_SEND_HPP
 
 #include "mavlink_link.hpp"
+#include "project_parameter_manager.hpp"
 #include "sys_state_type.hpp"
 
 namespace iFly {
@@ -430,6 +431,29 @@ public:
     SendMessage(msg);
   }
 
+  /**
+   * @brief 发送 MAVLink 参数值。
+   *
+   * @param parameter 参数视图。
+   * @param param_count 参数总数。
+   * @param param_index 当前参数索引。
+   */
+  void SendParameterValue(const ProjectParameterManager::EntryView &parameter,
+                          uint16_t param_count,
+                          uint16_t param_index)
+  {
+    mavlink_message_t msg {};
+    (void)mavlink_msg_param_value_pack(kSystemId,
+                                       kComponentId,
+                                       &msg,
+                                       parameter.name,
+                                       EncodeParameterValue(parameter),
+                                       ToMavlinkParameterType(parameter.type),
+                                       param_count,
+                                       param_index);
+    SendMessage(msg);
+  }
+
 private:
   /**
    * @brief 发送一帧 MAVLink 消息。
@@ -443,6 +467,72 @@ private:
     }
 
     link_->SendMessage(msg);
+  }
+
+  /**
+   * @brief 转换工程参数类型到 MAVLink 参数类型。
+   *
+   * @param type 工程参数类型。
+   * @return MAVLink 参数类型。
+   */
+  static constexpr uint8_t ToMavlinkParameterType(ProjectParameterType type)
+  {
+    switch (type) {
+      case ProjectParameterType::kBool:
+      case ProjectParameterType::kUint8:
+        return MAV_PARAM_TYPE_UINT8;
+
+      case ProjectParameterType::kUint16:
+        return MAV_PARAM_TYPE_UINT16;
+
+      case ProjectParameterType::kUint32:
+        return MAV_PARAM_TYPE_UINT32;
+
+      case ProjectParameterType::kInt32:
+        return MAV_PARAM_TYPE_INT32;
+
+      case ProjectParameterType::kFloat:
+        return MAV_PARAM_TYPE_REAL32;
+
+      default:
+        return MAV_PARAM_TYPE_UINT8;
+    }
+  }
+
+  /**
+   * @brief 转换工程参数值到 MAVLink 参数值。
+   *
+   * @param parameter 参数视图。
+   * @return MAVLink 浮点参数值。
+   */
+  static float EncodeParameterValue(const ProjectParameterManager::EntryView &parameter)
+  {
+    if (parameter.storage == nullptr) {
+      return 0.0f;
+    }
+
+    switch (parameter.type) {
+      case ProjectParameterType::kBool:
+        return (*reinterpret_cast<const bool *>(parameter.storage)) ? 1.0f : 0.0f;
+
+      case ProjectParameterType::kUint8:
+        return static_cast<float>(*reinterpret_cast<const uint8_t *>(parameter.storage));
+
+      case ProjectParameterType::kUint16:
+        return static_cast<float>(*reinterpret_cast<const uint16_t *>(parameter.storage));
+
+      case ProjectParameterType::kUint32:
+        return static_cast<float>(*reinterpret_cast<const uint32_t *>(parameter.storage));
+
+      case ProjectParameterType::kInt32:
+        return static_cast<float>(*reinterpret_cast<const int32_t *>(parameter.storage));
+
+      case ProjectParameterType::kFloat:
+        return *reinterpret_cast<const float *>(parameter.storage);
+
+      default:
+        return 0.0f;
+    }
   }
 
   static constexpr uint8_t kSystemId = 25U; /**< 本机 MAVLink 系统 ID。 */

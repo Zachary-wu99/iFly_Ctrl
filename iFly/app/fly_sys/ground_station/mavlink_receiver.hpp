@@ -6,6 +6,8 @@
 #define IFLY_APP_FLY_SYS_GROUND_STATION_MAVLINK_RECEIVER_HPP
 
 #include "mavlink_link.hpp"
+#include "mavlink_send.hpp"
+#include "project_parameter_manager.hpp"
 #include "sys_state_type.hpp"
 
 namespace iFly {
@@ -21,7 +23,8 @@ public:
    * @param link MAVLink 字节流链路。
    */
   explicit MavlinkReceiver(MavlinkLink *link = nullptr)
-      : link_(link)
+      : link_(link),
+        send_(link)
   {
   }
 
@@ -33,6 +36,7 @@ public:
   void BindLink(MavlinkLink *link)
   {
     link_ = link;
+    send_.BindLink(link);
   }
 
   /**
@@ -153,8 +157,20 @@ public:
         break;
 
       case MAVLINK_MSG_ID_PARAM_REQUEST_READ:
+        dispatch_state_ = DispatchState::kParameterRead;
+        HandleParameterReadMessage(msg);
+        break;
+
       case MAVLINK_MSG_ID_PARAM_REQUEST_LIST:
+        dispatch_state_ = DispatchState::kParameterList;
+        HandleParameterListMessage(msg);
+        break;
+
       case MAVLINK_MSG_ID_PARAM_SET:
+        dispatch_state_ = DispatchState::kParameterSet;
+        HandleParameterSetMessage(msg);
+        break;
+
       case MAVLINK_MSG_ID_PARAM_MAP_RC:
         dispatch_state_ = DispatchState::kParameter;
         HandleParameterMessage(msg);
@@ -303,6 +319,9 @@ private:
     kLandingTarget, /**< 分发降落目标消息。 */
     kDataStreamRequest, /**< 分发数据流请求。 */
     kParameter, /**< 分发参数消息。 */
+    kParameterRead, /**< 分发参数读取消息。 */
+    kParameterList, /**< 分发参数列表消息。 */
+    kParameterSet, /**< 分发参数设置消息。 */
     kExtendedParameter, /**< 分发扩展参数消息。 */
     kMission, /**< 分发任务消息。 */
     kFileTransfer, /**< 分发文件传输消息。 */
@@ -470,6 +489,72 @@ private:
   }
 
   /**
+   * @brief 处理参数读取消息。
+   *
+   * @param msg MAVLink 消息。
+   */
+  void HandleParameterReadMessage(const mavlink_message_t &msg)
+  {
+    mavlink_param_request_read_t request {};
+    mavlink_msg_param_request_read_decode(&msg, &request);
+    if (!IsTargetMatched(request.target_system, request.target_component)) {
+      return;
+    }
+
+    if (request.param_index >= 0) {
+      SendParameterByIndex(static_cast<uint16_t>(request.param_index));
+      return;
+    }
+
+    char name[kMavlinkParamIdLength + 1U] {};
+    CopyParamId(request.param_id, name, sizeof(name));
+    SendParameterByName(name);
+  }
+
+  /**
+   * @brief 处理参数列表消息。
+   *
+   * @param msg MAVLink 消息。
+   */
+  void HandleParameterListMessage(const mavlink_message_t &msg)
+  {
+    mavlink_param_request_list_t request {};
+    mavlink_msg_param_request_list_decode(&msg, &request);
+    if (!IsTargetMatched(request.target_system, request.target_component)) {
+      return;
+    }
+
+    ProjectParameterManager &parameters = ProjectParameterManager::Instance();
+    const uint16_t count = parameters.MavlinkCount();
+    for (uint16_t index = 0U; index < count; ++index) {
+      SendParameterByIndex(index);
+    }
+  }
+
+  /**
+   * @brief 处理参数设置消息。
+   *
+   * @param msg MAVLink 消息。
+   */
+  void HandleParameterSetMessage(const mavlink_message_t &msg)
+  {
+    mavlink_param_set_t request {};
+    mavlink_msg_param_set_decode(&msg, &request);
+    if (!IsTargetMatched(request.target_system, request.target_component)) {
+      return;
+    }
+
+    char name[kMavlinkParamIdLength + 1U] {};
+    CopyParamId(request.param_id, name, sizeof(name));
+
+    ProjectParameterManager &parameters = ProjectParameterManager::Instance();
+    (void)parameters.WriteMavlinkValue(name,
+                                       request.param_value,
+                                       ToProjectParameterType(request.param_type));
+    SendParameterByName(name);
+  }
+
+  /**
    * @brief 处理参数消息。
    *
    * @param msg MAVLink 消息。
@@ -579,7 +664,110 @@ private:
     (void)msg;
   }
 
+  /**
+   * @brief 判断消息目标是否为本机。
+   *
+   * @param target_system 目标系统 ID。
+   * @param target_component 目标组件 ID。
+   * @return 目标匹配返回 `true`。
+   */
+  static bool IsTargetMatched(uint8_t target_system, uint8_t target_component)
+  {
+    return ((target_system == 0U) || (target_system == kSystemId)) &&
+           ((target_component == 0U) || (target_component == kComponentId));
+  }
+
+  /**
+   * @brief 拷贝 MAVLink 参数名。
+   *
+   * @param source MAVLink 参数名字段。
+   * @param output 输出缓冲区。
+   * @param output_size 输出缓冲区大小。
+   */
+  static void CopyParamId(const char *source, char *output, uint32_t output_size)
+  {
+    if ((source == nullptr) || (output == nullptr) || (output_size == 0U)) {
+      return;
+    }
+
+    uint32_t index = 0U;
+    while ((index < kMavlinkParamIdLength) &&
+           ((index + 1U) < output_size) &&
+           (source[index] != '\0')) {
+      output[index] = source[index];
+      ++index;
+    }
+
+    output[index] = '\0';
+  }
+
+  /**
+   * @brief 转换 MAVLink 参数类型到工程参数类型。
+   *
+   * @param type MAVLink 参数类型。
+   * @return 工程参数类型。
+   */
+  static ProjectParameterType ToProjectParameterType(uint8_t type)
+  {
+    switch (type) {
+      case MAV_PARAM_TYPE_UINT8:
+        return ProjectParameterType::kUint8;
+
+      case MAV_PARAM_TYPE_UINT16:
+        return ProjectParameterType::kUint16;
+
+      case MAV_PARAM_TYPE_UINT32:
+        return ProjectParameterType::kUint32;
+
+      case MAV_PARAM_TYPE_INT32:
+        return ProjectParameterType::kInt32;
+
+      case MAV_PARAM_TYPE_REAL32:
+        return ProjectParameterType::kFloat;
+
+      default:
+        return ProjectParameterType::kBytes;
+    }
+  }
+
+  /**
+   * @brief 按索引发送参数。
+   *
+   * @param index MAVLink 参数索引。
+   */
+  void SendParameterByIndex(uint16_t index)
+  {
+    ProjectParameterManager &parameters = ProjectParameterManager::Instance();
+    const ProjectParameterManager::EntryView *parameter = parameters.MavlinkAt(index);
+    if (parameter == nullptr) {
+      return;
+    }
+
+    send_.SendParameterValue(*parameter, parameters.MavlinkCount(), index);
+  }
+
+  /**
+   * @brief 按名称发送参数。
+   *
+   * @param name MAVLink 参数名。
+   */
+  void SendParameterByName(const char *name)
+  {
+    ProjectParameterManager &parameters = ProjectParameterManager::Instance();
+    const int16_t index = parameters.MavlinkIndexOf(name);
+    if (index < 0) {
+      return;
+    }
+
+    SendParameterByIndex(static_cast<uint16_t>(index));
+  }
+
+  static constexpr uint8_t kSystemId = 25U; /**< 本机 MAVLink 系统 ID。 */
+  static constexpr uint8_t kComponentId = MAV_COMP_ID_AUTOPILOT1; /**< 本机 MAVLink 组件 ID。 */
+  static constexpr uint8_t kMavlinkParamIdLength = 16U; /**< MAVLink 参数名长度。 */
+
   MavlinkLink *link_ = nullptr; /**< MAVLink 字节流链路。 */
+  MavlinkSend send_ {}; /**< MAVLink 发送服务。 */
   DispatchState dispatch_state_ = DispatchState::kIdle; /**< 当前分发状态。 */
 };
 
