@@ -55,6 +55,27 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/app/fly_sys/parameter/parameter_manager.cpp
     iFly/app/fly_sys/parameter/sys_parameters.cpp
     iFly/app/fly_sys/ground_station/mavlink_parameter_service.cpp
+    iFly/app/fly_sys/ground_station/mavlink_send.cpp
+    iFly/app/fly_sys/ground_station/mavlink_send/heartbeat.cpp
+    iFly/app/fly_sys/ground_station/mavlink_send/system_status.cpp
+    iFly/app/fly_sys/ground_station/mavlink_send/battery_status.cpp
+    iFly/app/fly_sys/ground_station/mavlink_send/gps_status.cpp
+    iFly/app/fly_sys/ground_station/mavlink_send/global_position.cpp
+    iFly/app/fly_sys/ground_station/mavlink_send/local_position.cpp
+    iFly/app/fly_sys/ground_station/mavlink_send/attitude.cpp
+    iFly/app/fly_sys/ground_station/mavlink_send/flight_hud.cpp
+    iFly/app/fly_sys/ground_station/mavlink_send/rc_channels.cpp
+    iFly/app/fly_sys/ground_station/mavlink_send/output_status.cpp
+    iFly/app/fly_sys/ground_station/mavlink_send/extended_state.cpp
+    iFly/app/fly_sys/ground_station/mavlink_send/status_text.cpp
+    iFly/app/fly_sys/ground_station/mavlink_send/command_request.cpp
+    iFly/app/fly_sys/ground_station/mavlink_send/command_response.cpp
+    iFly/app/fly_sys/ground_station/mavlink_send/manual_control.cpp
+    iFly/app/fly_sys/ground_station/mavlink_send/version_info.cpp
+    iFly/app/fly_sys/ground_station/mavlink_send/parameter_value.cpp
+    iFly/app/fly_sys/ground_station/mavlink_receiver.cpp
+    iFly/app/fly_sys/ground_station/mavlink_receiver_decode.cpp
+    iFly/app/fly_sys/ground_station/mavlink_receiver_handlers.cpp
     iFly/app/task_mage/task.cpp
     iFly/app/tick/tick.cpp
     iFly/app/proto/crsf/crsf_protocol.cpp
