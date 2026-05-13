@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file mavlink_link.hpp
  * @brief MAVLink 字节流链路接口。
  */
@@ -219,3 +219,4 @@ inline void MavlinkLink::SendConsoleReply(const uint8_t *data,
 } // namespace iFly
 
 #endif /* IFLY_APP_FLY_SYS_GROUND_STATION_MAVLINK_LINK_HPP */
+

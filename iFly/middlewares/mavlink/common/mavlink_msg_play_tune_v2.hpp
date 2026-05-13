@@ -1,4 +1,4 @@
-// MESSAGE PLAY_TUNE_V2 support class
+﻿// MESSAGE PLAY_TUNE_V2 support class
 
 #pragma once
 
@@ -70,3 +70,4 @@ struct PLAY_TUNE_V2 : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

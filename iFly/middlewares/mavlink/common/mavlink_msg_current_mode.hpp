@@ -1,4 +1,4 @@
-// MESSAGE CURRENT_MODE support class
+﻿// MESSAGE CURRENT_MODE support class
 
 #pragma once
 
@@ -70,3 +70,4 @@ struct CURRENT_MODE : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

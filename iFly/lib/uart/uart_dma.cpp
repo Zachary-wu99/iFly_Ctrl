@@ -1,4 +1,4 @@
-#include "uart_dma.hpp"
+﻿#include "uart_dma.hpp"
 
 #include <string.h>
 
@@ -485,3 +485,4 @@ extern "C" void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
 extern "C" void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
   iFly::UartDmaService::Instance().OnError(huart);
 }
+

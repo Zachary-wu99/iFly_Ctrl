@@ -1,4 +1,4 @@
-#include "sbus_protocol.hpp"
+﻿#include "sbus_protocol.hpp"
 
 #include <string.h>
 
@@ -219,3 +219,4 @@ void SbusProtocol::DropUntilNextCandidate()
 }
 
 } // namespace iFly::Sbus
+

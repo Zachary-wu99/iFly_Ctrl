@@ -1,4 +1,4 @@
-// MESSAGE RAW_IMU support class
+﻿// MESSAGE RAW_IMU support class
 
 #pragma once
 
@@ -102,3 +102,4 @@ struct RAW_IMU : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

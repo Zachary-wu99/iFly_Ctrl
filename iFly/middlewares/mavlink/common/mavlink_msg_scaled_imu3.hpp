@@ -1,4 +1,4 @@
-// MESSAGE SCALED_IMU3 support class
+﻿// MESSAGE SCALED_IMU3 support class
 
 #pragma once
 
@@ -98,3 +98,4 @@ struct SCALED_IMU3 : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

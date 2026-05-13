@@ -1,4 +1,4 @@
-// MESSAGE FENCE_STATUS support class
+﻿// MESSAGE FENCE_STATUS support class
 
 #pragma once
 
@@ -74,3 +74,4 @@ struct FENCE_STATUS : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

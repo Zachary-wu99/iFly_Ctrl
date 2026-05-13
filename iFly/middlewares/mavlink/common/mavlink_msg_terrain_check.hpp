@@ -1,4 +1,4 @@
-// MESSAGE TERRAIN_CHECK support class
+﻿// MESSAGE TERRAIN_CHECK support class
 
 #pragma once
 
@@ -62,3 +62,4 @@ struct TERRAIN_CHECK : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

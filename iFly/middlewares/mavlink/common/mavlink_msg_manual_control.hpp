@@ -1,4 +1,4 @@
-// MESSAGE MANUAL_CONTROL support class
+﻿// MESSAGE MANUAL_CONTROL support class
 
 #pragma once
 
@@ -119,3 +119,4 @@ struct MANUAL_CONTROL : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

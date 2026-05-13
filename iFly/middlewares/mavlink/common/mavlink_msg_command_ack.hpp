@@ -1,4 +1,4 @@
-// MESSAGE COMMAND_ACK support class
+﻿// MESSAGE COMMAND_ACK support class
 
 #pragma once
 
@@ -78,3 +78,4 @@ struct COMMAND_ACK : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

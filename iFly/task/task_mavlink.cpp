@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file task_mavlink.cpp
  * @brief MAVLink 轮询任务。
  */
@@ -35,3 +35,4 @@ bool InitMavlinkTask(iFly::MavlinkLink *link)
 
   return mavlink_handle != iFly::kInvalidTaskHandle;
 }
+

@@ -1,4 +1,4 @@
-# 项目顶层构建脚本。
+﻿# 项目顶层构建脚本。
 # 负责汇总自写源码、包含路径和 STM32CubeMX 生成工程。
 cmake_minimum_required(VERSION 3.22)
 
@@ -52,8 +52,9 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/app_main.cpp
     iFly/app/cli/flight_ctrl_cli.cpp
     iFly/app/ctrl/pid.cpp
-    iFly/app/paramete/project_parameter_manager.cpp
-    iFly/app/fly_sys/project_parameters.cpp
+    iFly/app/fly_sys/parameter/parameter_manager.cpp
+    iFly/app/fly_sys/parameter/sys_parameters.cpp
+    iFly/app/fly_sys/ground_station/mavlink_parameter_service.cpp
     iFly/app/task_mage/task.cpp
     iFly/app/tick/tick.cpp
     iFly/app/proto/crsf/crsf_protocol.cpp
@@ -79,13 +80,13 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/app/cli
     iFly/app/ctrl
     iFly/app/observer
-    iFly/app/paramete
     iFly/app/task_mage
     iFly/app/tick
     iFly/app/proto/crsf
     iFly/app/proto/sbus
     iFly/app/ledctrl
     iFly/app/fly_sys
+    iFly/app/fly_sys/parameter
     iFly/app/fly_sys/ground_station
     iFly/dev
     iFly/lib/double_buffer
@@ -126,3 +127,4 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
 
     # Add user defined libraries
 )
+

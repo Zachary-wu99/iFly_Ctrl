@@ -1,4 +1,4 @@
-// MESSAGE DEBUG support class
+﻿// MESSAGE DEBUG support class
 
 #pragma once
 
@@ -66,3 +66,4 @@ struct DEBUG : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

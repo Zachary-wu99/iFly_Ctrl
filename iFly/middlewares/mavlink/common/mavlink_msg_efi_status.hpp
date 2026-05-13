@@ -1,4 +1,4 @@
-// MESSAGE EFI_STATUS support class
+﻿// MESSAGE EFI_STATUS support class
 
 #pragma once
 
@@ -130,3 +130,4 @@ struct EFI_STATUS : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

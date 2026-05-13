@@ -1,4 +1,4 @@
-// MESSAGE AIS_VESSEL support class
+﻿// MESSAGE AIS_VESSEL support class
 
 #pragma once
 
@@ -122,3 +122,4 @@ struct AIS_VESSEL : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

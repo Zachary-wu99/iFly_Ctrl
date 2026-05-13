@@ -1,4 +1,4 @@
-#include "shell.hpp"
+﻿#include "shell.hpp"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -1026,3 +1026,4 @@ bool Shell::IsWhitespace(char character)
 }
 
 } // namespace iFly
+

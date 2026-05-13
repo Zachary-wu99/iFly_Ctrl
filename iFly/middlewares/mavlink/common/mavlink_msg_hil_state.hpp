@@ -1,4 +1,4 @@
-// MESSAGE HIL_STATE support class
+﻿// MESSAGE HIL_STATE support class
 
 #pragma once
 
@@ -118,3 +118,4 @@ struct HIL_STATE : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

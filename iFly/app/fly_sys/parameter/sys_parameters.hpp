@@ -1,9 +1,9 @@
-/**
- * @file project_parameters.hpp
- * @brief 工程参数树定义。
+﻿/**
+ * @file sys_parameters.hpp
+ * @brief 系统参数树定义。
  */
-#ifndef IFLY_APP_FLY_SYS_PROJECT_PARAMETERS_HPP
-#define IFLY_APP_FLY_SYS_PROJECT_PARAMETERS_HPP
+#ifndef IFLY_APP_FLY_SYS_PARAMETER_SYS_PARAMETERS_HPP
+#define IFLY_APP_FLY_SYS_PARAMETER_SYS_PARAMETERS_HPP
 
 #include <stdint.h>
 
@@ -96,9 +96,9 @@ struct RcMapParameters final {
 };
 
 /**
- * @brief 全工程参数根结构。
+ * @brief 全系统参数根结构。
  */
-struct ProjectParameters final {
+struct SysParameters final {
   MavlinkParameters mavlink {}; /**< MAVLink 基础参数集合。 */
   ControlParameters control {}; /**< 控制器参数集合。 */
   MotorParameters motor {}; /**< 电机输出参数集合。 */
@@ -107,9 +107,9 @@ struct ProjectParameters final {
 };
 
 /**
- * @brief 工程参数在 MAVLink 参数协议中的数据类型。
+ * @brief 系统参数数据类型。
  */
-enum class ProjectParameterType : uint8_t {
+enum class ParameterType : uint8_t {
   kBytes = 0U, /**< 原始字节块。 */
   kBool, /**< 布尔型。 */
   kUint8, /**< 无符号 8 位整型。 */
@@ -120,61 +120,61 @@ enum class ProjectParameterType : uint8_t {
 };
 
 /**
- * @brief 单个工程参数的静态绑定描述。
+ * @brief 单个系统参数的静态绑定描述。
  */
-struct ProjectParameterBinding final {
+struct ParameterBinding final {
   const char *name = nullptr; /**< 参数名，例如 `SPD_PID_P`。 */
   const char *help = nullptr; /**< 参数说明文本。 */
-  uint32_t offset = 0U; /**< 参数在 `ProjectParameters` 中的字节偏移。 */
+  uint32_t offset = 0U; /**< 参数在 `SysParameters` 中的字节偏移。 */
   uint32_t size = 0U; /**< 参数占用的字节数。 */
   bool read_only = false; /**< 是否只读。 */
-  ProjectParameterType type = ProjectParameterType::kBytes; /**< MAVLink 参数类型。 */
-  bool mavlink_visible = false; /**< 是否通过 MAVLink 参数协议暴露。 */
+  ParameterType type = ParameterType::kBytes; /**< 参数数据类型。 */
 };
 
 /**
- * @brief 生成一份默认工程参数。
+ * @brief 生成一份默认系统参数。
  *
  * @return 默认参数树对象。
  */
-ProjectParameters MakeDefaultProjectParameters();
+SysParameters MakeDefaultSysParameters();
 
 /**
- * @brief 获取工程参数树中的参数分组。
+ * @brief 获取系统参数树中的参数分组。
  *
- * @param parameters 工程参数树。
+ * @param parameters 系统参数树。
  * @param group 参数分组成员指针。
  * @return 参数分组只读引用。
  */
 template <typename Group>
-const Group &GetProjectParameter(const ProjectParameters &parameters,
-                                 Group ProjectParameters::*group) {
+const Group &GetSysParameter(const SysParameters &parameters,
+                                 Group SysParameters::*group) {
   return parameters.*group;
 }
 
 /**
- * @brief 获取工程参数树中的指定参数。
+ * @brief 获取系统参数树中的指定参数。
  *
- * @param parameters 工程参数树。
+ * @param parameters 系统参数树。
  * @param group 参数分组成员指针。
  * @param member 分组内参数成员指针。
  * @return 指定参数只读引用。
  */
 template <typename Group, typename Member>
-const Member &GetProjectParameter(const ProjectParameters &parameters,
-                                  Group ProjectParameters::*group,
+const Member &GetSysParameter(const SysParameters &parameters,
+                                  Group SysParameters::*group,
                                   Member Group::*member) {
   return (parameters.*group).*member;
 }
 
 /**
- * @brief 获取工程参数绑定表。
+ * @brief 获取系统参数绑定表。
  *
  * @param count 输出绑定项数量，可为 `nullptr`。
  * @return 指向只读静态绑定表的首地址。
  */
-const ProjectParameterBinding *GetProjectParameterBindings(uint16_t *count);
+const ParameterBinding *GetSysParameterBindings(uint16_t *count);
 
 } // namespace iFly
 
-#endif /* IFLY_APP_FLY_SYS_PROJECT_PARAMETERS_HPP */
+#endif /* IFLY_APP_FLY_SYS_PARAMETER_SYS_PARAMETERS_HPP */
+

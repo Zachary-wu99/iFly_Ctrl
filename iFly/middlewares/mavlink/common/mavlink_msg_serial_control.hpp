@@ -1,4 +1,4 @@
-// MESSAGE SERIAL_CONTROL support class
+﻿// MESSAGE SERIAL_CONTROL support class
 
 #pragma once
 
@@ -86,3 +86,4 @@ struct SERIAL_CONTROL : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

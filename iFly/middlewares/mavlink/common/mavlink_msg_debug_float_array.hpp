@@ -1,4 +1,4 @@
-// MESSAGE DEBUG_FLOAT_ARRAY support class
+﻿// MESSAGE DEBUG_FLOAT_ARRAY support class
 
 #pragma once
 
@@ -70,3 +70,4 @@ struct DEBUG_FLOAT_ARRAY : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

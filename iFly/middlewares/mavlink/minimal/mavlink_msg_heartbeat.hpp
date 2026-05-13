@@ -1,4 +1,4 @@
-// MESSAGE HEARTBEAT support class
+﻿// MESSAGE HEARTBEAT support class
 
 #pragma once
 
@@ -78,3 +78,4 @@ struct HEARTBEAT : mavlink::Message {
 } // namespace msg
 } // namespace minimal
 } // namespace mavlink
+

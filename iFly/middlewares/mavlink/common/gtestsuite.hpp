@@ -1,4 +1,4 @@
-/** @file
+﻿/** @file
  *	@brief MAVLink comm testsuite protocol generated from common.xml
  *	@see http://mavlink.org
  */
@@ -20287,3 +20287,4 @@ TEST(common_interop, HYGROMETER_SENSOR)
 #endif
 }
 #endif
+

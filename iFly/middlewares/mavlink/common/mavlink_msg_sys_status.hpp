@@ -1,4 +1,4 @@
-// MESSAGE SYS_STATUS support class
+﻿// MESSAGE SYS_STATUS support class
 
 #pragma once
 
@@ -118,3 +118,4 @@ struct SYS_STATUS : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

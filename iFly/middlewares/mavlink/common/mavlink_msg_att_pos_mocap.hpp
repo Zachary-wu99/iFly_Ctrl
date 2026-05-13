@@ -1,4 +1,4 @@
-// MESSAGE ATT_POS_MOCAP support class
+﻿// MESSAGE ATT_POS_MOCAP support class
 
 #pragma once
 
@@ -78,3 +78,4 @@ struct ATT_POS_MOCAP : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

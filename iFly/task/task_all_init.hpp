@@ -1,4 +1,4 @@
-#ifndef IFLY_APP_TASK_ALL_INIT_HPP
+﻿#ifndef IFLY_APP_TASK_ALL_INIT_HPP
 #define IFLY_APP_TASK_ALL_INIT_HPP
 
 namespace iFly {

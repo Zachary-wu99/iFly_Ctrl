@@ -1,4 +1,4 @@
-// MESSAGE AUTOPILOT_STATE_FOR_GIMBAL_DEVICE support class
+﻿// MESSAGE AUTOPILOT_STATE_FOR_GIMBAL_DEVICE support class
 
 #pragma once
 
@@ -106,3 +106,4 @@ struct AUTOPILOT_STATE_FOR_GIMBAL_DEVICE : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

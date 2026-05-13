@@ -1,4 +1,4 @@
-// MESSAGE SET_GPS_GLOBAL_ORIGIN support class
+﻿// MESSAGE SET_GPS_GLOBAL_ORIGIN support class
 
 #pragma once
 
@@ -74,3 +74,4 @@ struct SET_GPS_GLOBAL_ORIGIN : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

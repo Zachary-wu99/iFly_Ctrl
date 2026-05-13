@@ -1,4 +1,4 @@
-// MESSAGE MANUAL_SETPOINT support class
+﻿// MESSAGE MANUAL_SETPOINT support class
 
 #pragma once
 
@@ -82,3 +82,4 @@ struct MANUAL_SETPOINT : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

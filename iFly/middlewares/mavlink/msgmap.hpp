@@ -1,4 +1,4 @@
-
+﻿
 #pragma once
 
 #include <algorithm>
@@ -249,3 +249,4 @@ void mavlink::MsgMap::operator>> (std::array<_T, _Size> &data)
 		*this >> v;
 	}
 }
+

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file mavlink_receiver.hpp
  * @brief MAVLink 接收分发接口。
  */
@@ -6,8 +6,8 @@
 #define IFLY_APP_FLY_SYS_GROUND_STATION_MAVLINK_RECEIVER_HPP
 
 #include "mavlink_link.hpp"
+#include "mavlink_parameter_service.hpp"
 #include "mavlink_send.hpp"
-#include "project_parameter_manager.hpp"
 #include "sys_state_type.hpp"
 
 namespace iFly {
@@ -524,8 +524,7 @@ private:
       return;
     }
 
-    ProjectParameterManager &parameters = ProjectParameterManager::Instance();
-    const uint16_t count = parameters.MavlinkCount();
+    const uint16_t count = parameter_service_.Count();
     for (uint16_t index = 0U; index < count; ++index) {
       SendParameterByIndex(index);
     }
@@ -547,10 +546,9 @@ private:
     char name[kMavlinkParamIdLength + 1U] {};
     CopyParamId(request.param_id, name, sizeof(name));
 
-    ProjectParameterManager &parameters = ProjectParameterManager::Instance();
-    (void)parameters.WriteMavlinkValue(name,
-                                       request.param_value,
-                                       ToProjectParameterType(request.param_type));
+    (void)parameter_service_.WriteValue(name,
+                                        request.param_value,
+                                        request.param_type);
     SendParameterByName(name);
   }
 
@@ -702,48 +700,18 @@ private:
   }
 
   /**
-   * @brief 转换 MAVLink 参数类型到工程参数类型。
-   *
-   * @param type MAVLink 参数类型。
-   * @return 工程参数类型。
-   */
-  static ProjectParameterType ToProjectParameterType(uint8_t type)
-  {
-    switch (type) {
-      case MAV_PARAM_TYPE_UINT8:
-        return ProjectParameterType::kUint8;
-
-      case MAV_PARAM_TYPE_UINT16:
-        return ProjectParameterType::kUint16;
-
-      case MAV_PARAM_TYPE_UINT32:
-        return ProjectParameterType::kUint32;
-
-      case MAV_PARAM_TYPE_INT32:
-        return ProjectParameterType::kInt32;
-
-      case MAV_PARAM_TYPE_REAL32:
-        return ProjectParameterType::kFloat;
-
-      default:
-        return ProjectParameterType::kBytes;
-    }
-  }
-
-  /**
    * @brief 按索引发送参数。
    *
    * @param index MAVLink 参数索引。
    */
   void SendParameterByIndex(uint16_t index)
   {
-    ProjectParameterManager &parameters = ProjectParameterManager::Instance();
-    const ProjectParameterManager::EntryView *parameter = parameters.MavlinkAt(index);
-    if (parameter == nullptr) {
+    MavlinkParameterValue parameter {};
+    if (!parameter_service_.ReadByIndex(index, &parameter)) {
       return;
     }
 
-    send_.SendParameterValue(*parameter, parameters.MavlinkCount(), index);
+    send_.SendParameterValue(parameter);
   }
 
   /**
@@ -753,13 +721,12 @@ private:
    */
   void SendParameterByName(const char *name)
   {
-    ProjectParameterManager &parameters = ProjectParameterManager::Instance();
-    const int16_t index = parameters.MavlinkIndexOf(name);
-    if (index < 0) {
+    MavlinkParameterValue parameter {};
+    if (!parameter_service_.ReadByName(name, &parameter)) {
       return;
     }
 
-    SendParameterByIndex(static_cast<uint16_t>(index));
+    send_.SendParameterValue(parameter);
   }
 
   static constexpr uint8_t kSystemId = 25U; /**< 本机 MAVLink 系统 ID。 */
@@ -768,9 +735,11 @@ private:
 
   MavlinkLink *link_ = nullptr; /**< MAVLink 字节流链路。 */
   MavlinkSend send_ {}; /**< MAVLink 发送服务。 */
+  MavlinkParameterService parameter_service_ {}; /**< MAVLink 参数适配服务。 */
   DispatchState dispatch_state_ = DispatchState::kIdle; /**< 当前分发状态。 */
 };
 
 } // namespace iFly
 
 #endif /* IFLY_APP_FLY_SYS_GROUND_STATION_MAVLINK_RECEIVER_HPP */
+

@@ -1,4 +1,4 @@
-// MESSAGE CAMERA_TRACKING_GEO_STATUS support class
+﻿// MESSAGE CAMERA_TRACKING_GEO_STATUS support class
 
 #pragma once
 
@@ -110,3 +110,4 @@ struct CAMERA_TRACKING_GEO_STATUS : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

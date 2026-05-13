@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file task_all_init.cpp
  * @brief 初始化任务。
  */
@@ -39,3 +39,4 @@ namespace iFly {
   }
 
 }
+

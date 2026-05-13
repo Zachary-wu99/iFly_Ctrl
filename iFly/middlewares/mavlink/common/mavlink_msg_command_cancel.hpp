@@ -1,4 +1,4 @@
-// MESSAGE COMMAND_CANCEL support class
+﻿// MESSAGE COMMAND_CANCEL support class
 
 #pragma once
 
@@ -66,3 +66,4 @@ struct COMMAND_CANCEL : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

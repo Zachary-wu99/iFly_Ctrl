@@ -1,4 +1,4 @@
-// MESSAGE PARAM_ERROR support class
+﻿// MESSAGE PARAM_ERROR support class
 
 #pragma once
 
@@ -75,3 +75,4 @@ struct PARAM_ERROR : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

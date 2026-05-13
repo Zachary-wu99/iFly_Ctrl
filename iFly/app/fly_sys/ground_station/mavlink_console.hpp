@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file mavlink_console.hpp
  * @brief MAVLink 控制台接口。
  */
@@ -136,3 +136,4 @@ private:
 } // namespace iFly
 
 #endif /* IFLY_APP_FLY_SYS_GROUND_STATION_MAVLINK_CONSOLE_HPP */
+

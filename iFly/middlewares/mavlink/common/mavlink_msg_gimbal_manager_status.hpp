@@ -1,4 +1,4 @@
-// MESSAGE GIMBAL_MANAGER_STATUS support class
+﻿// MESSAGE GIMBAL_MANAGER_STATUS support class
 
 #pragma once
 
@@ -82,3 +82,4 @@ struct GIMBAL_MANAGER_STATUS : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

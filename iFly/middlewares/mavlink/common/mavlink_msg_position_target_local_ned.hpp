@@ -1,4 +1,4 @@
-// MESSAGE POSITION_TARGET_LOCAL_NED support class
+﻿// MESSAGE POSITION_TARGET_LOCAL_NED support class
 
 #pragma once
 
@@ -110,3 +110,4 @@ struct POSITION_TARGET_LOCAL_NED : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

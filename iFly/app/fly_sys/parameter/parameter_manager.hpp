@@ -1,25 +1,25 @@
-/**
- * @file project_parameter_manager.hpp
- * @brief 工程参数中心接口。
+﻿/**
+ * @file parameter_manager.hpp
+ * @brief 系统参数中心接口。
  */
-#ifndef IFLY_APP_PARAMETE_PROJECT_PARAMETER_MANAGER_HPP
-#define IFLY_APP_PARAMETE_PROJECT_PARAMETER_MANAGER_HPP
+#ifndef IFLY_APP_FLY_SYS_PARAMETER_PARAMETER_MANAGER_HPP
+#define IFLY_APP_FLY_SYS_PARAMETER_PARAMETER_MANAGER_HPP
 
 #include <stdint.h>
 #include <string.h>
 #include <type_traits>
 
-#include "project_parameters.hpp"
+#include "sys_parameters.hpp"
 
 namespace iFly {
 
 /**
- * @brief 工程级参数中心。
+ * @brief 系统参数中心。
  *
  * @details
- * 该类统一持有整棵工程参数树，并提供基于名字的读写、查询与变更通知能力。
+ * 该类统一持有整棵系统参数树，并提供基于名字的读写、查询与变更通知能力。
  */
-class ProjectParameterManager final {
+class ParameterManager final {
 public:
   static constexpr uint16_t kMaxEntryCount = 160U; /**< 最大参数表项数量。 */
 
@@ -41,9 +41,8 @@ public:
     const char *help = nullptr; /**< 参数帮助文本。 */
     const void *storage = nullptr; /**< 参数实际存储地址。 */
     uint32_t size = 0U; /**< 参数占用的字节数。 */
-    ProjectParameterType type = ProjectParameterType::kBytes; /**< MAVLink 参数类型。 */
+    ParameterType type = ParameterType::kBytes; /**< 参数数据类型。 */
     AccessMode access = AccessMode::kReadWrite; /**< 当前参数访问权限。 */
-    bool mavlink_visible = false; /**< 是否通过 MAVLink 参数协议暴露。 */
   };
 
   /**
@@ -51,7 +50,7 @@ public:
    *
    * @return 单例引用。
    */
-  static ProjectParameterManager &Instance();
+  static ParameterManager &Instance();
 
   /**
    * @brief 将参数树恢复为默认值。
@@ -63,7 +62,7 @@ public:
    *
    * @return 只读参数树引用。
    */
-  const ProjectParameters &Data() const {
+  const SysParameters &Data() const {
     return data_;
   }
 
@@ -72,7 +71,7 @@ public:
    *
    * @return 可写参数树引用。
    */
-  ProjectParameters &MutableData() {
+  SysParameters &MutableData() {
     return data_;
   }
 
@@ -94,27 +93,12 @@ public:
   const EntryView *At(uint16_t index) const;
 
   /**
-   * @brief 获取 MAVLink 可见参数数量。
-   *
-   * @return MAVLink 参数表项数量。
-   */
-  uint16_t MavlinkCount() const;
-
-  /**
-   * @brief 获取指定 MAVLink 索引的参数视图。
-   *
-   * @param index MAVLink 参数索引。
-   * @return 参数视图地址，索引越界返回 `nullptr`。
-   */
-  const EntryView *MavlinkAt(uint16_t index) const;
-
-  /**
-   * @brief 查找 MAVLink 参数索引。
+   * @brief 查找参数索引。
    *
    * @param name 参数名。
    * @return 参数索引，未找到返回 `-1`。
    */
-  int16_t MavlinkIndexOf(const char *name) const;
+  int16_t IndexOf(const char *name) const;
 
   /**
    * @brief 判断参数名是否存在。
@@ -161,18 +145,6 @@ public:
   bool WriteRaw(const char *name, const void *data, uint32_t dataSize);
 
   /**
-   * @brief 写入 MAVLink 参数值。
-   *
-   * @param name 参数名。
-   * @param value MAVLink 浮点参数值。
-   * @param type MAVLink 参数类型。
-   * @return 写入成功返回 `true`。
-   */
-  bool WriteMavlinkValue(const char *name,
-                         float value,
-                         ProjectParameterType type);
-
-  /**
    * @brief 为指定参数绑定更新回调。
    *
    * @param name 参数名。
@@ -201,7 +173,7 @@ public:
   template <typename T>
   bool Read(const char *name, T *value) const {
     static_assert(std::is_trivially_copyable<T>::value,
-                  "ProjectParameterManager::Read only supports trivially copyable types.");
+                  "ParameterManager::Read only supports trivially copyable types.");
     return ReadRaw(name, value, sizeof(T));
   }
 
@@ -216,7 +188,7 @@ public:
   template <typename T>
   bool Write(const char *name, const T &value) {
     static_assert(std::is_trivially_copyable<T>::value,
-                  "ProjectParameterManager::Write only supports trivially copyable types.");
+                  "ParameterManager::Write only supports trivially copyable types.");
     return WriteRaw(name, &value, sizeof(T));
   }
 
@@ -230,7 +202,7 @@ private:
     void *on_updated_context = nullptr; /**< 回调函数的上下文指针。 */
   };
 
-  ProjectParameterManager();
+  ParameterManager();
 
   /**
    * @brief 构建默认参数绑定表。
@@ -245,7 +217,7 @@ private:
    * @param binding 参数绑定描述。
    * @return 注册成功返回 `true`。
    */
-  bool Register(const ProjectParameterBinding &binding);
+  bool Register(const ParameterBinding &binding);
 
   /**
    * @brief 查找可写参数表项。
@@ -270,11 +242,12 @@ private:
    */
   void NotifyUpdated(const Entry &entry);
 
-  ProjectParameters data_ {}; /**< 当前持有的工程参数树。 */
+  SysParameters data_ {}; /**< 当前持有的系统参数树。 */
   Entry entries_[kMaxEntryCount] {}; /**< 参数注册表。 */
   uint16_t count_ = 0U; /**< 当前已注册参数数量。 */
 };
 
 } // namespace iFly
 
-#endif /* IFLY_APP_PARAMETE_PROJECT_PARAMETER_MANAGER_HPP */
+#endif /* IFLY_APP_FLY_SYS_PARAMETER_PARAMETER_MANAGER_HPP */
+

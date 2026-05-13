@@ -1,4 +1,4 @@
-// MESSAGE AVAILABLE_MODES_MONITOR support class
+﻿// MESSAGE AVAILABLE_MODES_MONITOR support class
 
 #pragma once
 
@@ -64,3 +64,4 @@ struct AVAILABLE_MODES_MONITOR : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

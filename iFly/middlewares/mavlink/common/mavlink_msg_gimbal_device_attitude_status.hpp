@@ -1,4 +1,4 @@
-// MESSAGE GIMBAL_DEVICE_ATTITUDE_STATUS support class
+﻿// MESSAGE GIMBAL_DEVICE_ATTITUDE_STATUS support class
 
 #pragma once
 
@@ -116,3 +116,4 @@ struct GIMBAL_DEVICE_ATTITUDE_STATUS : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

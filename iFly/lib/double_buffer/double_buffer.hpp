@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file double_buffer.hpp
  * @brief 双缓冲工具模板。
  */
@@ -401,3 +401,4 @@ private:
 } // namespace iFly
 
 #endif /* IFLY_DOUBLE_BUFFER_HPP */
+

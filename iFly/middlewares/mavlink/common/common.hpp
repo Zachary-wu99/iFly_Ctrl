@@ -1,4 +1,4 @@
-/** @file
+﻿/** @file
  *	@brief MAVLink comm protocol generated from common.xml
  *	@see http://mavlink.org
  */
@@ -3019,3 +3019,4 @@ constexpr auto GLOBAL_POSITION_FLAGS_ENUM_END = 3;
 
 // base include
 #include "../standard/standard.hpp"
+

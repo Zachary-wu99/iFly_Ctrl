@@ -1,4 +1,4 @@
-// MESSAGE CAMERA_CAPTURE_STATUS support class
+﻿// MESSAGE CAMERA_CAPTURE_STATUS support class
 
 #pragma once
 
@@ -86,3 +86,4 @@ struct CAMERA_CAPTURE_STATUS : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

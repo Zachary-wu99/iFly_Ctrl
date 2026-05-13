@@ -1,4 +1,4 @@
-// MESSAGE MISSION_ITEM_REACHED support class
+﻿// MESSAGE MISSION_ITEM_REACHED support class
 
 #pragma once
 
@@ -58,3 +58,4 @@ struct MISSION_ITEM_REACHED : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

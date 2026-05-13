@@ -1,4 +1,4 @@
-/** @file
+﻿/** @file
  *	@brief MAVLink comm protocol generated from standard.xml
  *	@see http://mavlink.org
  */
@@ -101,3 +101,4 @@ constexpr auto FIRMWARE_VERSION_TYPE_ENUM_END = 256;
 
 // base include
 #include "../minimal/minimal.hpp"
+

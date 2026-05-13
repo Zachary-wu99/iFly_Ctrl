@@ -786,8 +786,8 @@ iFly/
       controller modules...
     fly_sys/
       parameters/
-        project_parameters.*
-        project_parameter_manager.*
+        sys_parameters.*
+        parameter_manager.*
       state/
         vehicle_state.hpp
         sensor_state.hpp

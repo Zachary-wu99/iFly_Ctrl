@@ -1,4 +1,4 @@
-// MESSAGE ATTITUDE_TARGET support class
+﻿// MESSAGE ATTITUDE_TARGET support class
 
 #pragma once
 
@@ -82,3 +82,4 @@ struct ATTITUDE_TARGET : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

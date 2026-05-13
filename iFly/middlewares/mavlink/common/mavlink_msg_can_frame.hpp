@@ -1,4 +1,4 @@
-// MESSAGE CAN_FRAME support class
+﻿// MESSAGE CAN_FRAME support class
 
 #pragma once
 
@@ -78,3 +78,4 @@ struct CAN_FRAME : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

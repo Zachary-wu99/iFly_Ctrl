@@ -1,4 +1,4 @@
-// MESSAGE V2_EXTENSION support class
+﻿// MESSAGE V2_EXTENSION support class
 
 #pragma once
 
@@ -74,3 +74,4 @@ struct V2_EXTENSION : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

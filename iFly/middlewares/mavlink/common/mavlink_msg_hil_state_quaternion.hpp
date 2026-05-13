@@ -1,4 +1,4 @@
-// MESSAGE HIL_STATE_QUATERNION support class
+﻿// MESSAGE HIL_STATE_QUATERNION support class
 
 #pragma once
 
@@ -118,3 +118,4 @@ struct HIL_STATE_QUATERNION : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

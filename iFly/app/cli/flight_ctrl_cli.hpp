@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file flight_ctrl_cli.hpp
  * @brief 飞控 CLI 接口。
  */
@@ -7,7 +7,7 @@
 
 #include <stdint.h>
 
-#include "project_parameter_manager.hpp"
+#include "parameter_manager.hpp"
 #include "shell.hpp"
 #include "tick.hpp"
 
@@ -86,7 +86,7 @@ private:
    */
   struct ManagedParameterContext final {
     FlightCtrlCli *owner = nullptr; /**< 所属 CLI 对象。 */
-    const char *project_name = nullptr; /**< 工程参数中心中的参数名。 */
+    const char *project_name = nullptr; /**< 系统参数中心中的参数名。 */
     ManagedParameterType type = ManagedParameterType::kFloat; /**< 参数类型。 */
     float min_float = 0.0f; /**< 浮点参数最小值。 */
     float max_float = 0.0f; /**< 浮点参数最大值。 */
@@ -251,7 +251,7 @@ private:
    */
   static bool IntroAnimation(Shell *shell, void *context, bool start);
 
-  ProjectParameterManager &parameter_manager_; /**< 工程参数中心引用。 */
+  ParameterManager &parameter_manager_; /**< 系统参数中心引用。 */
   Shell shell_ {}; /**< 命令行 Shell 实例。 */
   ManagedParameterContext managed_parameter_contexts_[kManagedParameterCount] {}; /**< 受管参数上下文表。 */
 
@@ -264,3 +264,4 @@ private:
 } // namespace iFly
 
 #endif /* IFLY_FLIGHT_CTRL_CLI_HPP */
+

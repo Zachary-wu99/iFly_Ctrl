@@ -1,4 +1,4 @@
-// MESSAGE CHANGE_OPERATOR_CONTROL support class
+﻿// MESSAGE CHANGE_OPERATOR_CONTROL support class
 
 #pragma once
 
@@ -70,3 +70,4 @@ struct CHANGE_OPERATOR_CONTROL : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

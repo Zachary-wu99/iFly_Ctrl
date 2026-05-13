@@ -1,4 +1,4 @@
-// MESSAGE TIME_ESTIMATE_TO_TARGET support class
+﻿// MESSAGE TIME_ESTIMATE_TO_TARGET support class
 
 #pragma once
 
@@ -74,3 +74,4 @@ struct TIME_ESTIMATE_TO_TARGET : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

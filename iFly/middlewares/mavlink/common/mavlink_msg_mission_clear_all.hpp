@@ -1,4 +1,4 @@
-// MESSAGE MISSION_CLEAR_ALL support class
+﻿// MESSAGE MISSION_CLEAR_ALL support class
 
 #pragma once
 
@@ -66,3 +66,4 @@ struct MISSION_CLEAR_ALL : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

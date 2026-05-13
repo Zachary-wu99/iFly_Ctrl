@@ -1,4 +1,4 @@
-// MESSAGE WIND_COV support class
+﻿// MESSAGE WIND_COV support class
 
 #pragma once
 
@@ -90,3 +90,4 @@ struct WIND_COV : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

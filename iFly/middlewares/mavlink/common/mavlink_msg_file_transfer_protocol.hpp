@@ -1,4 +1,4 @@
-// MESSAGE FILE_TRANSFER_PROTOCOL support class
+﻿// MESSAGE FILE_TRANSFER_PROTOCOL support class
 
 #pragma once
 
@@ -70,3 +70,4 @@ struct FILE_TRANSFER_PROTOCOL : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

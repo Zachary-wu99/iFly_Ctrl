@@ -1,4 +1,4 @@
-// MESSAGE AIRSPEED support class
+﻿// MESSAGE AIRSPEED support class
 
 #pragma once
 
@@ -74,3 +74,4 @@ struct AIRSPEED : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

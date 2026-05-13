@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file pwm.hpp
  * @brief PWM 输出控制接口。
  */
@@ -226,3 +226,4 @@ using pwm_channel = PwmChannel;
 } // namespace iFly
 
 #endif /* IFLY_PWM_HPP */
+

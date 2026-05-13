@@ -1,4 +1,4 @@
-// MESSAGE RELAY_STATUS support class
+﻿// MESSAGE RELAY_STATUS support class
 
 #pragma once
 
@@ -69,3 +69,4 @@ struct RELAY_STATUS : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

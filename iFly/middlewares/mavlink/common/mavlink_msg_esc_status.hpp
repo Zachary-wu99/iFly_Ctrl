@@ -1,4 +1,4 @@
-// MESSAGE ESC_STATUS support class
+﻿// MESSAGE ESC_STATUS support class
 
 #pragma once
 
@@ -74,3 +74,4 @@ struct ESC_STATUS : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

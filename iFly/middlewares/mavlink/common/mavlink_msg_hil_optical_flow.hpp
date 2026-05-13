@@ -1,4 +1,4 @@
-// MESSAGE HIL_OPTICAL_FLOW support class
+﻿// MESSAGE HIL_OPTICAL_FLOW support class
 
 #pragma once
 
@@ -102,3 +102,4 @@ struct HIL_OPTICAL_FLOW : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

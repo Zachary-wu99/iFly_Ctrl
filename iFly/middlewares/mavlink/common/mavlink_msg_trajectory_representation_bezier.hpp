@@ -1,4 +1,4 @@
-// MESSAGE TRAJECTORY_REPRESENTATION_BEZIER support class
+﻿// MESSAGE TRAJECTORY_REPRESENTATION_BEZIER support class
 
 #pragma once
 
@@ -82,3 +82,4 @@ struct TRAJECTORY_REPRESENTATION_BEZIER : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

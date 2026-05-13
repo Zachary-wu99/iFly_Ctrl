@@ -1,4 +1,4 @@
-// MESSAGE GPS_STATUS support class
+﻿// MESSAGE GPS_STATUS support class
 
 #pragma once
 
@@ -78,3 +78,4 @@ struct GPS_STATUS : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

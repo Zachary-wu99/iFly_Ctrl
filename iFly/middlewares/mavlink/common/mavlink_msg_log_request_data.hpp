@@ -1,4 +1,4 @@
-// MESSAGE LOG_REQUEST_DATA support class
+﻿// MESSAGE LOG_REQUEST_DATA support class
 
 #pragma once
 
@@ -74,3 +74,4 @@ struct LOG_REQUEST_DATA : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

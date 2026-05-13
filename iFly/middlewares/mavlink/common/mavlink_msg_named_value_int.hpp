@@ -1,4 +1,4 @@
-// MESSAGE NAMED_VALUE_INT support class
+﻿// MESSAGE NAMED_VALUE_INT support class
 
 #pragma once
 
@@ -66,3 +66,4 @@ struct NAMED_VALUE_INT : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

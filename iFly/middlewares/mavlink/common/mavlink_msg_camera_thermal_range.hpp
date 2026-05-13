@@ -1,4 +1,4 @@
-// MESSAGE CAMERA_THERMAL_RANGE support class
+﻿// MESSAGE CAMERA_THERMAL_RANGE support class
 
 #pragma once
 
@@ -90,3 +90,4 @@ struct CAMERA_THERMAL_RANGE : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

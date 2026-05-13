@@ -1,4 +1,4 @@
-// MESSAGE GIMBAL_DEVICE_SET_ATTITUDE support class
+﻿// MESSAGE GIMBAL_DEVICE_SET_ATTITUDE support class
 
 #pragma once
 
@@ -93,3 +93,4 @@ struct GIMBAL_DEVICE_SET_ATTITUDE : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

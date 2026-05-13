@@ -1,4 +1,4 @@
-// MESSAGE ESTIMATOR_STATUS support class
+﻿// MESSAGE ESTIMATOR_STATUS support class
 
 #pragma once
 
@@ -94,3 +94,4 @@ struct ESTIMATOR_STATUS : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

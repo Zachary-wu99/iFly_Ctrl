@@ -1,4 +1,4 @@
-// MESSAGE HIL_GPS support class
+﻿// MESSAGE HIL_GPS support class
 
 #pragma once
 
@@ -115,3 +115,4 @@ struct HIL_GPS : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

@@ -1,4 +1,4 @@
-// MESSAGE TUNNEL support class
+﻿// MESSAGE TUNNEL support class
 
 #pragma once
 
@@ -74,3 +74,4 @@ struct TUNNEL : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

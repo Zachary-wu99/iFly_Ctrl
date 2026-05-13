@@ -1,4 +1,4 @@
-// MESSAGE AUTOPILOT_VERSION support class
+﻿// MESSAGE AUTOPILOT_VERSION support class
 
 #pragma once
 
@@ -104,3 +104,4 @@ struct AUTOPILOT_VERSION : mavlink::Message {
 } // namespace msg
 } // namespace standard
 } // namespace mavlink
+

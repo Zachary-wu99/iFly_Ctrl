@@ -1,4 +1,4 @@
-// MESSAGE SCALED_PRESSURE support class
+﻿// MESSAGE SCALED_PRESSURE support class
 
 #pragma once
 
@@ -74,3 +74,4 @@ struct SCALED_PRESSURE : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file shell.hpp
  * @brief 命令行 Shell 接口。
  */
@@ -547,3 +547,4 @@ private:
 } // namespace iFly
 
 #endif /* IFLY_SHELL_HPP */
+

@@ -1,4 +1,4 @@
-// MESSAGE TERRAIN_DATA support class
+﻿// MESSAGE TERRAIN_DATA support class
 
 #pragma once
 
@@ -74,3 +74,4 @@ struct TERRAIN_DATA : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

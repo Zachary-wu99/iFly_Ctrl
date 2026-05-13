@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file sys_state_type.hpp
  * @brief 系统状态变量类型定义。
  */
@@ -364,3 +364,4 @@ struct SysState final {
 } // namespace iFly
 
 #endif /* IFLY_APP_FLY_SYS_SYS_STATE_TYPE_HPP */
+

@@ -1,4 +1,4 @@
-// MESSAGE MISSION_ITEM_INT support class
+﻿// MESSAGE MISSION_ITEM_INT support class
 
 #pragma once
 
@@ -115,3 +115,4 @@ struct MISSION_ITEM_INT : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

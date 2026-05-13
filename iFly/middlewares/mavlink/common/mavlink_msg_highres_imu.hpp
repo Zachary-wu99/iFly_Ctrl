@@ -1,4 +1,4 @@
-// MESSAGE HIGHRES_IMU support class
+﻿// MESSAGE HIGHRES_IMU support class
 
 #pragma once
 
@@ -118,3 +118,4 @@ struct HIGHRES_IMU : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

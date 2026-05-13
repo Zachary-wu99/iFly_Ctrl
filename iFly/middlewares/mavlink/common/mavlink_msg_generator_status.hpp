@@ -1,4 +1,4 @@
-// MESSAGE GENERATOR_STATUS support class
+﻿// MESSAGE GENERATOR_STATUS support class
 
 #pragma once
 
@@ -98,3 +98,4 @@ struct GENERATOR_STATUS : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

@@ -1,4 +1,4 @@
-// MESSAGE EXTENDED_SYS_STATE support class
+﻿// MESSAGE EXTENDED_SYS_STATE support class
 
 #pragma once
 
@@ -62,3 +62,4 @@ struct EXTENDED_SYS_STATE : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

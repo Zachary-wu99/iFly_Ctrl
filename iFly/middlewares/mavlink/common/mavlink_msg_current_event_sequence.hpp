@@ -1,4 +1,4 @@
-// MESSAGE CURRENT_EVENT_SEQUENCE support class
+﻿// MESSAGE CURRENT_EVENT_SEQUENCE support class
 
 #pragma once
 
@@ -62,3 +62,4 @@ struct CURRENT_EVENT_SEQUENCE : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

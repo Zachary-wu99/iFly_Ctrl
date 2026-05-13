@@ -1,4 +1,4 @@
-// MESSAGE AVAILABLE_MODES support class
+﻿// MESSAGE AVAILABLE_MODES support class
 
 #pragma once
 
@@ -86,3 +86,4 @@ struct AVAILABLE_MODES : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

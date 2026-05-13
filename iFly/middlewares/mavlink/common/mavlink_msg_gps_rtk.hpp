@@ -1,4 +1,4 @@
-// MESSAGE GPS_RTK support class
+﻿// MESSAGE GPS_RTK support class
 
 #pragma once
 
@@ -106,3 +106,4 @@ struct GPS_RTK : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

@@ -1,4 +1,4 @@
-// MESSAGE GIMBAL_DEVICE_INFORMATION support class
+﻿// MESSAGE GIMBAL_DEVICE_INFORMATION support class
 
 #pragma once
 
@@ -122,3 +122,4 @@ struct GIMBAL_DEVICE_INFORMATION : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

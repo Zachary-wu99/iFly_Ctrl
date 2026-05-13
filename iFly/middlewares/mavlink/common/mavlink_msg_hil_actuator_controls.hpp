@@ -1,4 +1,4 @@
-// MESSAGE HIL_ACTUATOR_CONTROLS support class
+﻿// MESSAGE HIL_ACTUATOR_CONTROLS support class
 
 #pragma once
 
@@ -70,3 +70,4 @@ struct HIL_ACTUATOR_CONTROLS : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

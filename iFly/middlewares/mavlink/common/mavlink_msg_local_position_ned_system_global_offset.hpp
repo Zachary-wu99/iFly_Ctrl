@@ -1,4 +1,4 @@
-// MESSAGE LOCAL_POSITION_NED_SYSTEM_GLOBAL_OFFSET support class
+﻿// MESSAGE LOCAL_POSITION_NED_SYSTEM_GLOBAL_OFFSET support class
 
 #pragma once
 
@@ -82,3 +82,4 @@ struct LOCAL_POSITION_NED_SYSTEM_GLOBAL_OFFSET : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

@@ -1,4 +1,4 @@
-// MESSAGE PARAM_REQUEST_LIST support class
+﻿// MESSAGE PARAM_REQUEST_LIST support class
 
 #pragma once
 
@@ -62,3 +62,4 @@ struct PARAM_REQUEST_LIST : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

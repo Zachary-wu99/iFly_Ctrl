@@ -1,4 +1,4 @@
-/** @file
+﻿/** @file
  *	@brief MAVLink comm testsuite protocol generated from minimal.xml
  *	@see http://mavlink.org
  */
@@ -93,3 +93,4 @@ TEST(minimal_interop, HEARTBEAT)
 #endif
 }
 #endif
+

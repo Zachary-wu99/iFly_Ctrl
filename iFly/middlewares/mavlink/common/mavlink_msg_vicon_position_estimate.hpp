@@ -1,4 +1,4 @@
-// MESSAGE VICON_POSITION_ESTIMATE support class
+﻿// MESSAGE VICON_POSITION_ESTIMATE support class
 
 #pragma once
 
@@ -86,3 +86,4 @@ struct VICON_POSITION_ESTIMATE : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

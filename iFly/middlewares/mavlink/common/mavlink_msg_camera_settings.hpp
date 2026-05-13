@@ -1,4 +1,4 @@
-// MESSAGE CAMERA_SETTINGS support class
+﻿// MESSAGE CAMERA_SETTINGS support class
 
 #pragma once
 
@@ -74,3 +74,4 @@ struct CAMERA_SETTINGS : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

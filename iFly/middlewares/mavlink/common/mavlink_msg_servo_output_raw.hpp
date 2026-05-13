@@ -1,4 +1,4 @@
-// MESSAGE SERVO_OUTPUT_RAW support class
+﻿// MESSAGE SERVO_OUTPUT_RAW support class
 
 #pragma once
 
@@ -126,3 +126,4 @@ struct SERVO_OUTPUT_RAW : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

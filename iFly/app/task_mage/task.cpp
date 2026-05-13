@@ -1,4 +1,4 @@
-#include "task.hpp"
+﻿#include "task.hpp"
 
 namespace {
 
@@ -503,3 +503,4 @@ uint32_t TaskNow() {
 }
 
 } // namespace iFly
+

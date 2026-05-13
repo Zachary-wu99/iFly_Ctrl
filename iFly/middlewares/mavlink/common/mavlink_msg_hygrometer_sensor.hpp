@@ -1,4 +1,4 @@
-// MESSAGE HYGROMETER_SENSOR support class
+﻿// MESSAGE HYGROMETER_SENSOR support class
 
 #pragma once
 
@@ -66,3 +66,4 @@ struct HYGROMETER_SENSOR : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

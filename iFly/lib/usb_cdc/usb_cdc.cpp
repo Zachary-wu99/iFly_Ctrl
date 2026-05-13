@@ -1,4 +1,4 @@
-#include "usb_cdc.hpp"
+﻿#include "usb_cdc.hpp"
 
 #include <string.h>
 
@@ -869,3 +869,4 @@ void HAL_PCD_ResumeCallback(PCD_HandleTypeDef *hpcd) {
 }
 
 } // extern "C"
+

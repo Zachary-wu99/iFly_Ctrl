@@ -1,4 +1,4 @@
-#include "flight_ctrl_cli.hpp"
+﻿#include "flight_ctrl_cli.hpp"
 
 #include <math.h>
 #include <stdio.h>
@@ -132,7 +132,7 @@ const char *ConfiguredCliPassword()
 } // namespace
 
 FlightCtrlCli::FlightCtrlCli()
-    : parameter_manager_(ProjectParameterManager::Instance())
+    : parameter_manager_(ParameterManager::Instance())
 {
   ResetIntroAnimation();
 }
@@ -674,3 +674,4 @@ bool FlightCtrlCli::IntroAnimation(Shell *shell, void *context, bool start)
 }
 
 } // namespace iFly
+
