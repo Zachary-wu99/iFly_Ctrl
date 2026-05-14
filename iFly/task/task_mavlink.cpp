@@ -5,14 +5,14 @@
 
 #include "mavlink_link.hpp"
 #include "mavlink_receiver.hpp"
-#include "mavlink_send.hpp"
+#include "mavlink_stream.hpp"
 #include "task.hpp"
 
 namespace {
 
 iFly::TaskHandle mavlink_handle = iFly::kInvalidTaskHandle;
 iFly::MavlinkReceiver mavlink_receiver;
-iFly::MavlinkSend mavlink_send;
+iFly::MavlinkStream mavlink_stream;
 
 void MavlinkTask(void *context)
 {
@@ -22,7 +22,7 @@ void MavlinkTask(void *context)
   }
 
   (void)mavlink_receiver.Poll();
-  mavlink_send.Update(iFly::TaskNow());
+  mavlink_stream.Update(iFly::TaskNow());
 }
 
 } // namespace
@@ -34,7 +34,7 @@ bool InitMavlinkTask(iFly::MavlinkLink *link)
   }
 
   mavlink_receiver.BindLink(link);
-  mavlink_send.BindLink(link);
+  mavlink_stream.BindLink(link);
 
   mavlink_handle = iFly::TaskCreatePeriodic(&MavlinkTask,
                                             link,

@@ -1,12 +1,11 @@
 重构iFly的mavlink架构
-
-mavlink_link保留原有接口下，封装mavlink常用类型的打包函数，以供上层使用
-mavlink_send改名mavlink_stream  .hpp类型文件
-定义结构体，成员为类型名称，char*类型，函数指针void（send*）（void）类型，调用周期 uint16_t类型
+1.mavlink_link保留原有接口下，封装mavlink常用类型的打包函数，以供上层使用
+2. mavlink_send改名mavlink_stream  .hpp类型文件
+定义结构体，成员为类型名称，char*类型，函数指针void（send*）（void）类型，发送周期， uint16_t类型
 通过这个结构体数组管理所有的发送，但是不实现具体发送，实现各个回调的调度接口updata
-
-mavlink_send文件夹改为mavlink_stream,存放实现各个类型发送的回调函数的.hpp文件，一个类型一个文件，分开管理
+3.mavlink_send文件夹改为mavlink_stream,存放实现各个类型发送的回调函数的.hpp文件，一个类型一个文件，分开管理
 后续我自己在回调中使用mavlink_link接口实现发送
+4.代码风格和注释风格不变，遇到不会的和不确定的直接问我，不要瞎猜瞎改，只改我们说到的部分
 
 
 

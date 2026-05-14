@@ -48,6 +48,189 @@ public:
   void SendMessage(const mavlink_message_t &msg);
 
   /**
+   * @brief 打包 MAVLink HEARTBEAT 消息。
+   *
+   * @param msg MAVLink 消息输出。
+   * @param heartbeat HEARTBEAT 消息负载。
+   * @return MAVLink 消息负载长度。
+   */
+  uint16_t PackHeartbeat(mavlink_message_t *msg,
+                         const mavlink_heartbeat_t &heartbeat) const;
+
+  /**
+   * @brief 打包 MAVLink SYS_STATUS 消息。
+   *
+   * @param msg MAVLink 消息输出。
+   * @param status SYS_STATUS 消息负载。
+   * @return MAVLink 消息负载长度。
+   */
+  uint16_t PackSystemStatus(mavlink_message_t *msg,
+                            const mavlink_sys_status_t &status) const;
+
+  /**
+   * @brief 打包 MAVLink BATTERY_STATUS 消息。
+   *
+   * @param msg MAVLink 消息输出。
+   * @param status BATTERY_STATUS 消息负载。
+   * @return MAVLink 消息负载长度。
+   */
+  uint16_t PackBatteryStatus(mavlink_message_t *msg,
+                             const mavlink_battery_status_t &status) const;
+
+  /**
+   * @brief 打包 MAVLink GPS_RAW_INT 消息。
+   *
+   * @param msg MAVLink 消息输出。
+   * @param status GPS_RAW_INT 消息负载。
+   * @return MAVLink 消息负载长度。
+   */
+  uint16_t PackGpsRawInt(mavlink_message_t *msg,
+                         const mavlink_gps_raw_int_t &status) const;
+
+  /**
+   * @brief 打包 MAVLink GLOBAL_POSITION_INT 消息。
+   *
+   * @param msg MAVLink 消息输出。
+   * @param position GLOBAL_POSITION_INT 消息负载。
+   * @return MAVLink 消息负载长度。
+   */
+  uint16_t PackGlobalPositionInt(
+      mavlink_message_t *msg,
+      const mavlink_global_position_int_t &position) const;
+
+  /**
+   * @brief 打包 MAVLink LOCAL_POSITION_NED 消息。
+   *
+   * @param msg MAVLink 消息输出。
+   * @param position LOCAL_POSITION_NED 消息负载。
+   * @return MAVLink 消息负载长度。
+   */
+  uint16_t PackLocalPositionNed(
+      mavlink_message_t *msg,
+      const mavlink_local_position_ned_t &position) const;
+
+  /**
+   * @brief 打包 MAVLink ATTITUDE 消息。
+   *
+   * @param msg MAVLink 消息输出。
+   * @param attitude ATTITUDE 消息负载。
+   * @return MAVLink 消息负载长度。
+   */
+  uint16_t PackAttitude(mavlink_message_t *msg,
+                        const mavlink_attitude_t &attitude) const;
+
+  /**
+   * @brief 打包 MAVLink VFR_HUD 消息。
+   *
+   * @param msg MAVLink 消息输出。
+   * @param hud VFR_HUD 消息负载。
+   * @return MAVLink 消息负载长度。
+   */
+  uint16_t PackVfrHud(mavlink_message_t *msg,
+                      const mavlink_vfr_hud_t &hud) const;
+
+  /**
+   * @brief 打包 MAVLink RC_CHANNELS 消息。
+   *
+   * @param msg MAVLink 消息输出。
+   * @param channels RC_CHANNELS 消息负载。
+   * @return MAVLink 消息负载长度。
+   */
+  uint16_t PackRcChannels(mavlink_message_t *msg,
+                          const mavlink_rc_channels_t &channels) const;
+
+  /**
+   * @brief 打包 MAVLink SERVO_OUTPUT_RAW 消息。
+   *
+   * @param msg MAVLink 消息输出。
+   * @param output SERVO_OUTPUT_RAW 消息负载。
+   * @return MAVLink 消息负载长度。
+   */
+  uint16_t PackServoOutputRaw(
+      mavlink_message_t *msg,
+      const mavlink_servo_output_raw_t &output) const;
+
+  /**
+   * @brief 打包 MAVLink EXTENDED_SYS_STATE 消息。
+   *
+   * @param msg MAVLink 消息输出。
+   * @param state EXTENDED_SYS_STATE 消息负载。
+   * @return MAVLink 消息负载长度。
+   */
+  uint16_t PackExtendedSysState(
+      mavlink_message_t *msg,
+      const mavlink_extended_sys_state_t &state) const;
+
+  /**
+   * @brief 打包 MAVLink STATUSTEXT 消息。
+   *
+   * @param msg MAVLink 消息输出。
+   * @param text STATUSTEXT 消息负载。
+   * @return MAVLink 消息负载长度。
+   */
+  uint16_t PackStatusText(mavlink_message_t *msg,
+                          const mavlink_statustext_t &text) const;
+
+  /**
+   * @brief 打包 MAVLink COMMAND_LONG 消息。
+   *
+   * @param msg MAVLink 消息输出。
+   * @param command COMMAND_LONG 消息负载。
+   * @return MAVLink 消息负载长度。
+   */
+  uint16_t PackCommandLong(mavlink_message_t *msg,
+                           const mavlink_command_long_t &command) const;
+
+  /**
+   * @brief 打包 MAVLink COMMAND_ACK 消息。
+   *
+   * @param msg MAVLink 消息输出。
+   * @param ack COMMAND_ACK 消息负载。
+   * @return MAVLink 消息负载长度。
+   */
+  uint16_t PackCommandAck(mavlink_message_t *msg,
+                          const mavlink_command_ack_t &ack) const;
+
+  /**
+   * @brief 打包 MAVLink MANUAL_CONTROL 消息。
+   *
+   * @param msg MAVLink 消息输出。
+   * @param control MANUAL_CONTROL 消息负载。
+   * @return MAVLink 消息负载长度。
+   */
+  uint16_t PackManualControl(mavlink_message_t *msg,
+                             const mavlink_manual_control_t &control) const;
+
+  /**
+   * @brief 打包 MAVLink AUTOPILOT_VERSION 消息。
+   *
+   * @param msg MAVLink 消息输出。
+   * @param version AUTOPILOT_VERSION 消息负载。
+   * @return MAVLink 消息负载长度。
+   */
+  uint16_t PackAutopilotVersion(
+      mavlink_message_t *msg,
+      const mavlink_autopilot_version_t &version) const;
+
+  /**
+   * @brief 打包 MAVLink PARAM_VALUE 消息。
+   *
+   * @param msg MAVLink 消息输出。
+   * @param param_id MAVLink 参数名。
+   * @param param_value MAVLink 参数值。
+   * @param param_type MAVLink 参数类型。
+   * @param param_count MAVLink 参数总数。
+   * @param param_index 当前 MAVLink 参数索引。
+   * @return MAVLink 消息负载长度。
+   */
+  uint16_t PackParameterValue(mavlink_message_t *msg,
+                              const char *param_id,
+                              float param_value,
+                              uint8_t param_type,
+                              uint16_t param_count,
+                              uint16_t param_index) const;
+
+  /**
    * @brief 解码 MAVLink 控制台消息。
    *
    * @param msg MAVLink 消息。
@@ -121,6 +304,229 @@ inline void MavlinkLink::SendMessage(const mavlink_message_t &msg)
   uint8_t tx_buffer[MAVLINK_MAX_PACKET_LEN] {};
   const uint16_t tx_length = mavlink_msg_to_send_buffer(tx_buffer, &msg);
   (void)io_->Write(tx_buffer, tx_length);
+}
+
+inline uint16_t MavlinkLink::PackHeartbeat(
+    mavlink_message_t *msg,
+    const mavlink_heartbeat_t &heartbeat) const
+{
+  if (msg == nullptr) {
+    return 0U;
+  }
+
+  return mavlink_msg_heartbeat_encode(kSystemId, kComponentId, msg, &heartbeat);
+}
+
+inline uint16_t MavlinkLink::PackSystemStatus(
+    mavlink_message_t *msg,
+    const mavlink_sys_status_t &status) const
+{
+  if (msg == nullptr) {
+    return 0U;
+  }
+
+  return mavlink_msg_sys_status_encode(kSystemId, kComponentId, msg, &status);
+}
+
+inline uint16_t MavlinkLink::PackBatteryStatus(
+    mavlink_message_t *msg,
+    const mavlink_battery_status_t &status) const
+{
+  if (msg == nullptr) {
+    return 0U;
+  }
+
+  return mavlink_msg_battery_status_encode(kSystemId,
+                                           kComponentId,
+                                           msg,
+                                           &status);
+}
+
+inline uint16_t MavlinkLink::PackGpsRawInt(
+    mavlink_message_t *msg,
+    const mavlink_gps_raw_int_t &status) const
+{
+  if (msg == nullptr) {
+    return 0U;
+  }
+
+  return mavlink_msg_gps_raw_int_encode(kSystemId, kComponentId, msg, &status);
+}
+
+inline uint16_t MavlinkLink::PackGlobalPositionInt(
+    mavlink_message_t *msg,
+    const mavlink_global_position_int_t &position) const
+{
+  if (msg == nullptr) {
+    return 0U;
+  }
+
+  return mavlink_msg_global_position_int_encode(kSystemId,
+                                                kComponentId,
+                                                msg,
+                                                &position);
+}
+
+inline uint16_t MavlinkLink::PackLocalPositionNed(
+    mavlink_message_t *msg,
+    const mavlink_local_position_ned_t &position) const
+{
+  if (msg == nullptr) {
+    return 0U;
+  }
+
+  return mavlink_msg_local_position_ned_encode(kSystemId,
+                                               kComponentId,
+                                               msg,
+                                               &position);
+}
+
+inline uint16_t MavlinkLink::PackAttitude(
+    mavlink_message_t *msg,
+    const mavlink_attitude_t &attitude) const
+{
+  if (msg == nullptr) {
+    return 0U;
+  }
+
+  return mavlink_msg_attitude_encode(kSystemId, kComponentId, msg, &attitude);
+}
+
+inline uint16_t MavlinkLink::PackVfrHud(mavlink_message_t *msg,
+                                        const mavlink_vfr_hud_t &hud) const
+{
+  if (msg == nullptr) {
+    return 0U;
+  }
+
+  return mavlink_msg_vfr_hud_encode(kSystemId, kComponentId, msg, &hud);
+}
+
+inline uint16_t MavlinkLink::PackRcChannels(
+    mavlink_message_t *msg,
+    const mavlink_rc_channels_t &channels) const
+{
+  if (msg == nullptr) {
+    return 0U;
+  }
+
+  return mavlink_msg_rc_channels_encode(kSystemId,
+                                        kComponentId,
+                                        msg,
+                                        &channels);
+}
+
+inline uint16_t MavlinkLink::PackServoOutputRaw(
+    mavlink_message_t *msg,
+    const mavlink_servo_output_raw_t &output) const
+{
+  if (msg == nullptr) {
+    return 0U;
+  }
+
+  return mavlink_msg_servo_output_raw_encode(kSystemId,
+                                             kComponentId,
+                                             msg,
+                                             &output);
+}
+
+inline uint16_t MavlinkLink::PackExtendedSysState(
+    mavlink_message_t *msg,
+    const mavlink_extended_sys_state_t &state) const
+{
+  if (msg == nullptr) {
+    return 0U;
+  }
+
+  return mavlink_msg_extended_sys_state_encode(kSystemId,
+                                               kComponentId,
+                                               msg,
+                                               &state);
+}
+
+inline uint16_t MavlinkLink::PackStatusText(
+    mavlink_message_t *msg,
+    const mavlink_statustext_t &text) const
+{
+  if (msg == nullptr) {
+    return 0U;
+  }
+
+  return mavlink_msg_statustext_encode(kSystemId, kComponentId, msg, &text);
+}
+
+inline uint16_t MavlinkLink::PackCommandLong(
+    mavlink_message_t *msg,
+    const mavlink_command_long_t &command) const
+{
+  if (msg == nullptr) {
+    return 0U;
+  }
+
+  return mavlink_msg_command_long_encode(kSystemId,
+                                         kComponentId,
+                                         msg,
+                                         &command);
+}
+
+inline uint16_t MavlinkLink::PackCommandAck(
+    mavlink_message_t *msg,
+    const mavlink_command_ack_t &ack) const
+{
+  if (msg == nullptr) {
+    return 0U;
+  }
+
+  return mavlink_msg_command_ack_encode(kSystemId, kComponentId, msg, &ack);
+}
+
+inline uint16_t MavlinkLink::PackManualControl(
+    mavlink_message_t *msg,
+    const mavlink_manual_control_t &control) const
+{
+  if (msg == nullptr) {
+    return 0U;
+  }
+
+  return mavlink_msg_manual_control_encode(kSystemId,
+                                           kComponentId,
+                                           msg,
+                                           &control);
+}
+
+inline uint16_t MavlinkLink::PackAutopilotVersion(
+    mavlink_message_t *msg,
+    const mavlink_autopilot_version_t &version) const
+{
+  if (msg == nullptr) {
+    return 0U;
+  }
+
+  return mavlink_msg_autopilot_version_encode(kSystemId,
+                                              kComponentId,
+                                              msg,
+                                              &version);
+}
+
+inline uint16_t MavlinkLink::PackParameterValue(mavlink_message_t *msg,
+                                                const char *param_id,
+                                                float param_value,
+                                                uint8_t param_type,
+                                                uint16_t param_count,
+                                                uint16_t param_index) const
+{
+  if ((msg == nullptr) || (param_id == nullptr)) {
+    return 0U;
+  }
+
+  return mavlink_msg_param_value_pack(kSystemId,
+                                      kComponentId,
+                                      msg,
+                                      param_id,
+                                      param_value,
+                                      param_type,
+                                      param_count,
+                                      param_index);
 }
 
 inline bool MavlinkLink::DecodeConsoleMessage(
