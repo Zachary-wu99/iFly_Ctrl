@@ -12,13 +12,13 @@
 namespace iFly {
 
 /**
- * @brief MAVLink 基础参数分组。
+ * @brief 系统身份参数分组。
  */
-struct MavlinkParameters final {
-  uint8_t system_id = 25U; /**< MAVLink 系统 ID。 */
-  uint8_t component_id = 1U; /**< MAVLink 组件 ID。 */
+struct SystemIdentityParameters final {
+  uint8_t system_id = 25U; /**< 系统 ID。 */
+  uint8_t component_id = 1U; /**< 组件 ID。 */
   uint8_t vehicle_type = 2U; /**< 飞行器类型。 */
-  uint8_t autopilot_type = 0U; /**< 飞控类型。 */
+  uint8_t autopilot_type = 0U; /**< 自驾仪类型。 */
 };
 
 /**
@@ -99,12 +99,89 @@ struct RcMapParameters final {
  * @brief 全系统参数根结构。
  */
 struct SysParameters final {
-  MavlinkParameters mavlink {}; /**< MAVLink 基础参数集合。 */
+  SystemIdentityParameters identity {}; /**< 系统身份参数集合。 */
   ControlParameters control {}; /**< 控制器参数集合。 */
   MotorParameters motor {}; /**< 电机输出参数集合。 */
   BatteryParameters battery {}; /**< 电池参数集合。 */
   RcMapParameters rc_map {}; /**< RC 通道映射参数集合。 */
 };
+
+/**
+ * @brief 系统内部参数名集合。
+ *
+ * @details 外部协议参数名需要先映射到这些内部参数名，再访问参数中心。
+ */
+namespace SysParameterNames {
+
+inline constexpr char kIdentitySystemId[] = "identity.system_id";
+inline constexpr char kIdentityComponentId[] = "identity.component_id";
+inline constexpr char kIdentityVehicleType[] = "identity.vehicle_type";
+inline constexpr char kIdentityAutopilotType[] = "identity.autopilot_type";
+
+inline constexpr char kBatteryCellCount[] = "battery.cell_count";
+inline constexpr char kBatteryEmptyVoltage[] = "battery.empty_voltage";
+inline constexpr char kBatteryChargedVoltage[] = "battery.charged_voltage";
+inline constexpr char kBatteryCapacityMah[] = "battery.capacity_mah";
+
+inline constexpr char kRcRollChannel[] = "rc.roll_channel";
+inline constexpr char kRcPitchChannel[] = "rc.pitch_channel";
+inline constexpr char kRcThrottleChannel[] = "rc.throttle_channel";
+inline constexpr char kRcYawChannel[] = "rc.yaw_channel";
+
+inline constexpr char kMotorPwmMin[] = "motor.pwm_min";
+inline constexpr char kMotorPwmIdle[] = "motor.pwm_idle";
+inline constexpr char kMotorPwmMax[] = "motor.pwm_max";
+
+inline constexpr char kControlSpeedKp[] = "control.speed.kp";
+inline constexpr char kControlSpeedKi[] = "control.speed.ki";
+inline constexpr char kControlSpeedKd[] = "control.speed.kd";
+inline constexpr char kControlSpeedKff[] = "control.speed.kff";
+inline constexpr char kControlSpeedIntegralMin[] = "control.speed.integral_min";
+inline constexpr char kControlSpeedIntegralMax[] = "control.speed.integral_max";
+inline constexpr char kControlSpeedOutputMin[] = "control.speed.output_min";
+inline constexpr char kControlSpeedOutputMax[] = "control.speed.output_max";
+inline constexpr char kControlSpeedDerivativeCutoffHz[] =
+    "control.speed.derivative_cutoff_hz";
+inline constexpr char kControlSpeedDtMinS[] = "control.speed.dt_min_s";
+inline constexpr char kControlSpeedDtMaxS[] = "control.speed.dt_max_s";
+inline constexpr char kControlSpeedDerivativeMode[] =
+    "control.speed.derivative_mode";
+
+inline constexpr char kControlAngleKp[] = "control.angle.kp";
+inline constexpr char kControlAngleKi[] = "control.angle.ki";
+inline constexpr char kControlAngleKd[] = "control.angle.kd";
+inline constexpr char kControlAngleKff[] = "control.angle.kff";
+inline constexpr char kControlAngleIntegralMin[] = "control.angle.integral_min";
+inline constexpr char kControlAngleIntegralMax[] = "control.angle.integral_max";
+inline constexpr char kControlAngleOutputMin[] = "control.angle.output_min";
+inline constexpr char kControlAngleOutputMax[] = "control.angle.output_max";
+inline constexpr char kControlAngleDerivativeCutoffHz[] =
+    "control.angle.derivative_cutoff_hz";
+inline constexpr char kControlAngleDtMinS[] = "control.angle.dt_min_s";
+inline constexpr char kControlAngleDtMaxS[] = "control.angle.dt_max_s";
+inline constexpr char kControlAngleDerivativeMode[] =
+    "control.angle.derivative_mode";
+
+inline constexpr char kControlPositionKp[] = "control.position.kp";
+inline constexpr char kControlPositionKi[] = "control.position.ki";
+inline constexpr char kControlPositionKd[] = "control.position.kd";
+inline constexpr char kControlPositionKff[] = "control.position.kff";
+inline constexpr char kControlPositionIntegralMin[] =
+    "control.position.integral_min";
+inline constexpr char kControlPositionIntegralMax[] =
+    "control.position.integral_max";
+inline constexpr char kControlPositionOutputMin[] =
+    "control.position.output_min";
+inline constexpr char kControlPositionOutputMax[] =
+    "control.position.output_max";
+inline constexpr char kControlPositionDerivativeCutoffHz[] =
+    "control.position.derivative_cutoff_hz";
+inline constexpr char kControlPositionDtMinS[] = "control.position.dt_min_s";
+inline constexpr char kControlPositionDtMaxS[] = "control.position.dt_max_s";
+inline constexpr char kControlPositionDerivativeMode[] =
+    "control.position.derivative_mode";
+
+} // namespace SysParameterNames
 
 /**
  * @brief 系统参数数据类型。
@@ -123,7 +200,7 @@ enum class ParameterType : uint8_t {
  * @brief 单个系统参数的静态绑定描述。
  */
 struct ParameterBinding final {
-  const char *name = nullptr; /**< 参数名，例如 `SPD_PID_P`。 */
+  const char *name = nullptr; /**< 内部参数名，例如 `control.speed.kp`。 */
   const char *help = nullptr; /**< 参数说明文本。 */
   uint32_t offset = 0U; /**< 参数在 `SysParameters` 中的字节偏移。 */
   uint32_t size = 0U; /**< 参数占用的字节数。 */

@@ -9,6 +9,7 @@ namespace iFly {
 
 inline void MavlinkStreamSendExtendedState()
 {
+    
 }
 
 } // namespace iFly

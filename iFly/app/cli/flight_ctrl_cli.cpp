@@ -173,13 +173,13 @@ void FlightCtrlCli::RegisterParameters()
   auto register_managed_parameter =
       [this, &index](const char *shell_name,
                      const char *help,
-                     const char *project_name,
+                     const char *internal_name,
                      ManagedParameterType type,
                      float min_float,
                      float max_float,
                      uint32_t min_u32,
                      uint32_t max_u32) {
-        if ((shell_name == nullptr) || (project_name == nullptr) ||
+        if ((shell_name == nullptr) || (internal_name == nullptr) ||
             (index >= kManagedParameterCount)) {
           return;
         }
@@ -187,7 +187,7 @@ void FlightCtrlCli::RegisterParameters()
         ManagedParameterContext &context = managed_parameter_contexts_[index];
         context = ManagedParameterContext {};
         context.owner = this;
-        context.project_name = project_name;
+        context.internal_name = internal_name;
         context.type = type;
         context.min_float = min_float;
         context.max_float = max_float;
@@ -204,97 +204,97 @@ void FlightCtrlCli::RegisterParameters()
       };
 
   register_managed_parameter("SPD_PID_P", "speed PID proportional gain",
-                             "SPD_PID_P", ManagedParameterType::kFloat,
+                             SysParameterNames::kControlSpeedKp, ManagedParameterType::kFloat,
                              0.0f, 1000.0f, 0U, 0U);
   register_managed_parameter("SPD_PID_I", "speed PID integral gain",
-                             "SPD_PID_I", ManagedParameterType::kFloat,
+                             SysParameterNames::kControlSpeedKi, ManagedParameterType::kFloat,
                              0.0f, 1000.0f, 0U, 0U);
   register_managed_parameter("SPD_PID_D", "speed PID derivative gain",
-                             "SPD_PID_D", ManagedParameterType::kFloat,
+                             SysParameterNames::kControlSpeedKd, ManagedParameterType::kFloat,
                              0.0f, 1000.0f, 0U, 0U);
   register_managed_parameter("SPD_PID_FF", "speed PID feedforward gain",
-                             "SPD_PID_FF", ManagedParameterType::kFloat,
+                             SysParameterNames::kControlSpeedKff, ManagedParameterType::kFloat,
                              0.0f, 1000.0f, 0U, 0U);
   register_managed_parameter("SPD_PID_IMIN", "speed PID integral lower limit",
-                             "SPD_PID_IMIN",
+                             SysParameterNames::kControlSpeedIntegralMin,
                              ManagedParameterType::kFloat, -1000000.0f,
                              1000000.0f, 0U, 0U);
   register_managed_parameter("SPD_PID_IMAX", "speed PID integral upper limit",
-                             "SPD_PID_IMAX",
+                             SysParameterNames::kControlSpeedIntegralMax,
                              ManagedParameterType::kFloat, -1000000.0f,
                              1000000.0f, 0U, 0U);
   register_managed_parameter("SPD_PID_OMIN", "speed PID output lower limit",
-                             "SPD_PID_OMIN",
+                             SysParameterNames::kControlSpeedOutputMin,
                              ManagedParameterType::kFloat, -1000000.0f,
                              1000000.0f, 0U, 0U);
   register_managed_parameter("SPD_PID_OMAX", "speed PID output upper limit",
-                             "SPD_PID_OMAX",
+                             SysParameterNames::kControlSpeedOutputMax,
                              ManagedParameterType::kFloat, -1000000.0f,
                              1000000.0f, 0U, 0U);
   register_managed_parameter("SPD_PID_FLTD", "speed PID derivative LPF cutoff",
-                             "SPD_PID_FLTD",
+                             SysParameterNames::kControlSpeedDerivativeCutoffHz,
                              ManagedParameterType::kFloat, 0.0f, 1000.0f, 0U, 0U);
   register_managed_parameter("ANG_PID_P", "angle PID proportional gain",
-                             "ANG_PID_P", ManagedParameterType::kFloat,
+                             SysParameterNames::kControlAngleKp, ManagedParameterType::kFloat,
                              0.0f, 1000.0f, 0U, 0U);
   register_managed_parameter("ANG_PID_I", "angle PID integral gain",
-                             "ANG_PID_I", ManagedParameterType::kFloat,
+                             SysParameterNames::kControlAngleKi, ManagedParameterType::kFloat,
                              0.0f, 1000.0f, 0U, 0U);
   register_managed_parameter("ANG_PID_D", "angle PID derivative gain",
-                             "ANG_PID_D", ManagedParameterType::kFloat,
+                             SysParameterNames::kControlAngleKd, ManagedParameterType::kFloat,
                              0.0f, 1000.0f, 0U, 0U);
   register_managed_parameter("ANG_PID_FF", "angle PID feedforward gain",
-                             "ANG_PID_FF", ManagedParameterType::kFloat,
+                             SysParameterNames::kControlAngleKff, ManagedParameterType::kFloat,
                              0.0f, 1000.0f, 0U, 0U);
   register_managed_parameter("ANG_PID_IMIN", "angle PID integral lower limit",
-                             "ANG_PID_IMIN",
+                             SysParameterNames::kControlAngleIntegralMin,
                              ManagedParameterType::kFloat, -1000000.0f,
                              1000000.0f, 0U, 0U);
   register_managed_parameter("ANG_PID_IMAX", "angle PID integral upper limit",
-                             "ANG_PID_IMAX",
+                             SysParameterNames::kControlAngleIntegralMax,
                              ManagedParameterType::kFloat, -1000000.0f,
                              1000000.0f, 0U, 0U);
   register_managed_parameter("ANG_PID_OMIN", "angle PID output lower limit",
-                             "ANG_PID_OMIN",
+                             SysParameterNames::kControlAngleOutputMin,
                              ManagedParameterType::kFloat, -1000000.0f,
                              1000000.0f, 0U, 0U);
   register_managed_parameter("ANG_PID_OMAX", "angle PID output upper limit",
-                             "ANG_PID_OMAX",
+                             SysParameterNames::kControlAngleOutputMax,
                              ManagedParameterType::kFloat, -1000000.0f,
                              1000000.0f, 0U, 0U);
   register_managed_parameter("ANG_PID_FLTD", "angle PID derivative LPF cutoff",
-                             "ANG_PID_FLTD",
+                             SysParameterNames::kControlAngleDerivativeCutoffHz,
                              ManagedParameterType::kFloat, 0.0f, 1000.0f, 0U, 0U);
   register_managed_parameter("POS_PID_P", "position PID proportional gain",
-                             "POS_PID_P", ManagedParameterType::kFloat,
+                             SysParameterNames::kControlPositionKp, ManagedParameterType::kFloat,
                              0.0f, 1000.0f, 0U, 0U);
   register_managed_parameter("POS_PID_I", "position PID integral gain",
-                             "POS_PID_I", ManagedParameterType::kFloat,
+                             SysParameterNames::kControlPositionKi, ManagedParameterType::kFloat,
                              0.0f, 1000.0f, 0U, 0U);
   register_managed_parameter("POS_PID_D", "position PID derivative gain",
-                             "POS_PID_D", ManagedParameterType::kFloat,
+                             SysParameterNames::kControlPositionKd, ManagedParameterType::kFloat,
                              0.0f, 1000.0f, 0U, 0U);
   register_managed_parameter("POS_PID_FF", "position PID feedforward gain",
-                             "POS_PID_FF", ManagedParameterType::kFloat,
+                             SysParameterNames::kControlPositionKff, ManagedParameterType::kFloat,
                              0.0f, 1000.0f, 0U, 0U);
   register_managed_parameter("POS_PID_IMIN", "position PID integral lower limit",
-                             "POS_PID_IMIN",
+                             SysParameterNames::kControlPositionIntegralMin,
                              ManagedParameterType::kFloat, -1000000.0f,
                              1000000.0f, 0U, 0U);
   register_managed_parameter("POS_PID_IMAX", "position PID integral upper limit",
-                             "POS_PID_IMAX",
+                             SysParameterNames::kControlPositionIntegralMax,
                              ManagedParameterType::kFloat, -1000000.0f,
                              1000000.0f, 0U, 0U);
   register_managed_parameter("POS_PID_OMIN", "position PID output lower limit",
-                             "POS_PID_OMIN",
+                             SysParameterNames::kControlPositionOutputMin,
                              ManagedParameterType::kFloat, -1000000.0f,
                              1000000.0f, 0U, 0U);
   register_managed_parameter("POS_PID_OMAX", "position PID output upper limit",
-                             "POS_PID_OMAX",
+                             SysParameterNames::kControlPositionOutputMax,
                              ManagedParameterType::kFloat, -1000000.0f,
                              1000000.0f, 0U, 0U);
   register_managed_parameter("POS_PID_FLTD", "position PID derivative LPF cutoff",
-                             "POS_PID_FLTD",
+                             SysParameterNames::kControlPositionDerivativeCutoffHz,
                              ManagedParameterType::kFloat, 0.0f, 1000.0f, 0U, 0U);
   (void)shell_.RegisterParameter(
       {"sys.transport", "active CLI transport",
@@ -536,7 +536,7 @@ bool FlightCtrlCli::GetManagedParameter(void *context, char *buffer,
   ManagedParameterContext *parameter =
       reinterpret_cast<ManagedParameterContext *>(context);
   if ((parameter == nullptr) || (parameter->owner == nullptr) ||
-      (parameter->project_name == nullptr) || (buffer == nullptr) ||
+      (parameter->internal_name == nullptr) || (buffer == nullptr) ||
       (bufferSize == 0U)) {
     return false;
   }
@@ -545,7 +545,7 @@ bool FlightCtrlCli::GetManagedParameter(void *context, char *buffer,
   switch (parameter->type) {
     case ManagedParameterType::kFloat: {
       float value = 0.0f;
-      if (!parameter->owner->parameter_manager_.Read(parameter->project_name, &value)) {
+      if (!parameter->owner->parameter_manager_.Read(parameter->internal_name, &value)) {
         return false;
       }
       written = snprintf(buffer, bufferSize, "%.6g", static_cast<double>(value));
@@ -554,7 +554,7 @@ bool FlightCtrlCli::GetManagedParameter(void *context, char *buffer,
 
     case ManagedParameterType::kUint32: {
       uint32_t value = 0U;
-      if (!parameter->owner->parameter_manager_.Read(parameter->project_name, &value)) {
+      if (!parameter->owner->parameter_manager_.Read(parameter->internal_name, &value)) {
         return false;
       }
       written = snprintf(buffer, bufferSize, "%lu",
@@ -564,7 +564,7 @@ bool FlightCtrlCli::GetManagedParameter(void *context, char *buffer,
 
     case ManagedParameterType::kBool: {
       bool value = false;
-      if (!parameter->owner->parameter_manager_.Read(parameter->project_name, &value)) {
+      if (!parameter->owner->parameter_manager_.Read(parameter->internal_name, &value)) {
         return false;
       }
       written = snprintf(buffer, bufferSize, "%s", value ? "true" : "false");
@@ -583,7 +583,7 @@ bool FlightCtrlCli::SetManagedParameter(void *context, const char *value)
   ManagedParameterContext *parameter =
       reinterpret_cast<ManagedParameterContext *>(context);
   if ((parameter == nullptr) || (parameter->owner == nullptr) ||
-      (parameter->project_name == nullptr) || (value == nullptr)) {
+      (parameter->internal_name == nullptr) || (value == nullptr)) {
     return false;
   }
 
@@ -595,7 +595,7 @@ bool FlightCtrlCli::SetManagedParameter(void *context, const char *value)
           (parsed > parameter->max_float)) {
         return false;
       }
-      return parameter->owner->parameter_manager_.Write(parameter->project_name, parsed);
+      return parameter->owner->parameter_manager_.Write(parameter->internal_name, parsed);
     }
 
     case ManagedParameterType::kUint32: {
@@ -605,7 +605,7 @@ bool FlightCtrlCli::SetManagedParameter(void *context, const char *value)
           (parsed > parameter->max_u32)) {
         return false;
       }
-      return parameter->owner->parameter_manager_.Write(parameter->project_name, parsed);
+      return parameter->owner->parameter_manager_.Write(parameter->internal_name, parsed);
     }
 
     case ManagedParameterType::kBool: {
@@ -613,7 +613,7 @@ bool FlightCtrlCli::SetManagedParameter(void *context, const char *value)
       if (!ParseBool(value, &parsed)) {
         return false;
       }
-      return parameter->owner->parameter_manager_.Write(parameter->project_name, parsed);
+      return parameter->owner->parameter_manager_.Write(parameter->internal_name, parsed);
     }
 
     default:

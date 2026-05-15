@@ -86,7 +86,7 @@ private:
    */
   struct ManagedParameterContext final {
     FlightCtrlCli *owner = nullptr; /**< 所属 CLI 对象。 */
-    const char *project_name = nullptr; /**< 系统参数中心中的参数名。 */
+    const char *internal_name = nullptr; /**< 系统参数中心内部参数名。 */
     ManagedParameterType type = ManagedParameterType::kFloat; /**< 参数类型。 */
     float min_float = 0.0f; /**< 浮点参数最小值。 */
     float max_float = 0.0f; /**< 浮点参数最大值。 */

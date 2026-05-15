@@ -5,10 +5,13 @@
 #ifndef IFLY_APP_FLY_SYS_GROUND_STATION_MAVLINK_STREAM_COMMAND_RESPONSE_HPP
 #define IFLY_APP_FLY_SYS_GROUND_STATION_MAVLINK_STREAM_COMMAND_RESPONSE_HPP
 
+#include "mavlink_stream.hpp"
+
 namespace iFly {
 
 inline void MavlinkStreamSendCommandResponse()
 {
+    //MavlinkLink *link = MavlinkStream::ActiveLink();
 }
 
 } // namespace iFly

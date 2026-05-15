@@ -24,6 +24,8 @@ struct MavlinkParameterValue final {
 
 /**
  * @brief MAVLink 参数协议到系统参数中心的适配服务。
+ *
+ * @details MAVLink 参数名会先转换为系统内部参数名，再访问参数中心。
  */
 class MavlinkParameterService final {
 public:

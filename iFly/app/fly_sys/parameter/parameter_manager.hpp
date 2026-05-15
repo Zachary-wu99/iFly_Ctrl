@@ -31,13 +31,13 @@ public:
     kReadWrite = 1U /**< 允许读写。 */
   };
 
-  using ChangeHandler = void (*)(const char *name, void *context); /**< 参数变更回调签名。 */
+  using ChangeHandler = void (*)(const char *name, void *context); /**< 内部参数变更回调签名。 */
 
   /**
    * @brief 对外暴露的只读参数项视图。
    */
   struct EntryView final {
-    const char *name = nullptr; /**< 参数名。 */
+    const char *name = nullptr; /**< 内部参数名。 */
     const char *help = nullptr; /**< 参数帮助文本。 */
     const void *storage = nullptr; /**< 参数实际存储地址。 */
     uint32_t size = 0U; /**< 参数占用的字节数。 */
@@ -95,15 +95,15 @@ public:
   /**
    * @brief 查找参数索引。
    *
-   * @param name 参数名。
+   * @param name 内部参数名。
    * @return 参数索引，未找到返回 `-1`。
    */
   int16_t IndexOf(const char *name) const;
 
   /**
-   * @brief 判断参数名是否存在。
+   * @brief 判断内部参数名是否存在。
    *
-   * @param name 参数名。
+   * @param name 内部参数名。
    * @return 存在返回 `true`。
    */
   bool Contains(const char *name) const;
@@ -111,7 +111,7 @@ public:
   /**
    * @brief 查找参数的只读视图。
    *
-   * @param name 参数名。
+   * @param name 内部参数名。
    * @return 找到时返回视图地址，否则返回 `nullptr`。
    */
   const EntryView *Find(const char *name) const;
@@ -119,7 +119,7 @@ public:
   /**
    * @brief 查询参数的存储大小。
    *
-   * @param name 参数名。
+   * @param name 内部参数名。
    * @return 参数大小，未找到时返回 `0`。
    */
   uint32_t SizeOf(const char *name) const;
@@ -127,7 +127,7 @@ public:
   /**
    * @brief 读取参数的原始二进制内容。
    *
-   * @param name 参数名。
+   * @param name 内部参数名。
    * @param buffer 输出缓冲区。
    * @param bufferSize 输出缓冲区大小。
    * @return 读取成功返回 `true`。
@@ -137,7 +137,7 @@ public:
   /**
    * @brief 写入参数的原始二进制内容。
    *
-   * @param name 参数名。
+   * @param name 内部参数名。
    * @param data 输入数据首地址。
    * @param dataSize 输入数据大小。
    * @return 写入成功返回 `true`。
@@ -147,7 +147,7 @@ public:
   /**
    * @brief 为指定参数绑定更新回调。
    *
-   * @param name 参数名。
+   * @param name 内部参数名。
    * @param handler 变更回调函数。
    * @param context 回调上下文指针。
    * @return 绑定成功返回 `true`。
@@ -157,7 +157,7 @@ public:
   /**
    * @brief 清除指定参数的更新回调。
    *
-   * @param name 参数名。
+   * @param name 内部参数名。
    * @return 清除成功返回 `true`。
    */
   bool ClearChangeHandler(const char *name);
@@ -166,7 +166,7 @@ public:
    * @brief 按指定类型读取参数。
    *
    * @tparam T 可平凡拷贝类型。
-   * @param name 参数名。
+   * @param name 内部参数名。
    * @param value 输出对象地址。
    * @return 读取成功返回 `true`。
    */
@@ -181,7 +181,7 @@ public:
    * @brief 按指定类型写入参数。
    *
    * @tparam T 可平凡拷贝类型。
-   * @param name 参数名。
+   * @param name 内部参数名。
    * @param value 输入对象引用。
    * @return 写入成功返回 `true`。
    */
@@ -222,7 +222,7 @@ private:
   /**
    * @brief 查找可写参数表项。
    *
-   * @param name 参数名。
+   * @param name 内部参数名。
    * @return 找到时返回表项地址，否则返回 `nullptr`。
    */
   Entry *FindEntry(const char *name);
@@ -230,7 +230,7 @@ private:
   /**
    * @brief 查找只读参数表项。
    *
-   * @param name 参数名。
+   * @param name 内部参数名。
    * @return 找到时返回表项地址，否则返回 `nullptr`。
    */
   const Entry *FindEntry(const char *name) const;

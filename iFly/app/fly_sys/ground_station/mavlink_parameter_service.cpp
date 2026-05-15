@@ -11,61 +11,61 @@ namespace {
 
 struct MavlinkParameterBinding final {
   const char *mavlink_name = nullptr; /**< MAVLink 参数名。 */
-  const char *project_name = nullptr; /**< 系统参数中心参数名。 */
+  const char *internal_name = nullptr; /**< 系统参数中心内部参数名。 */
 };
 
 const MavlinkParameterBinding kMavlinkParameterBindings[] = {
-    {"MAV_SYS_ID", "MAV_SYS_ID"},
-    {"MAV_COMP_ID", "MAV_COMP_ID"},
-    {"MAV_TYPE", "MAV_TYPE"},
-    {"MAV_AUTOPILOT", "MAV_AUTOPILOT"},
-    {"BAT1_N_CELLS", "BAT1_N_CELLS"},
-    {"BAT1_V_EMPTY", "BAT1_V_EMPTY"},
-    {"BAT1_V_CHARGED", "BAT1_V_CHARGED"},
-    {"BAT1_CAPACITY", "BAT1_CAPACITY"},
-    {"RC_MAP_ROLL", "RC_MAP_ROLL"},
-    {"RC_MAP_PITCH", "RC_MAP_PITCH"},
-    {"RC_MAP_THROTTLE", "RC_MAP_THROTTLE"},
-    {"RC_MAP_YAW", "RC_MAP_YAW"},
-    {"MOT_PWM_MIN", "MOT_PWM_MIN"},
-    {"MOT_PWM_IDLE", "MOT_PWM_IDLE"},
-    {"MOT_PWM_MAX", "MOT_PWM_MAX"},
-    {"SPD_PID_P", "SPD_PID_P"},
-    {"SPD_PID_I", "SPD_PID_I"},
-    {"SPD_PID_D", "SPD_PID_D"},
-    {"SPD_PID_FF", "SPD_PID_FF"},
-    {"SPD_PID_IMIN", "SPD_PID_IMIN"},
-    {"SPD_PID_IMAX", "SPD_PID_IMAX"},
-    {"SPD_PID_OMIN", "SPD_PID_OMIN"},
-    {"SPD_PID_OMAX", "SPD_PID_OMAX"},
-    {"SPD_PID_FLTD", "SPD_PID_FLTD"},
-    {"SPD_PID_DTMIN", "SPD_PID_DTMIN"},
-    {"SPD_PID_DTMAX", "SPD_PID_DTMAX"},
-    {"SPD_PID_DMODE", "SPD_PID_DMODE"},
-    {"ANG_PID_P", "ANG_PID_P"},
-    {"ANG_PID_I", "ANG_PID_I"},
-    {"ANG_PID_D", "ANG_PID_D"},
-    {"ANG_PID_FF", "ANG_PID_FF"},
-    {"ANG_PID_IMIN", "ANG_PID_IMIN"},
-    {"ANG_PID_IMAX", "ANG_PID_IMAX"},
-    {"ANG_PID_OMIN", "ANG_PID_OMIN"},
-    {"ANG_PID_OMAX", "ANG_PID_OMAX"},
-    {"ANG_PID_FLTD", "ANG_PID_FLTD"},
-    {"ANG_PID_DTMIN", "ANG_PID_DTMIN"},
-    {"ANG_PID_DTMAX", "ANG_PID_DTMAX"},
-    {"ANG_PID_DMODE", "ANG_PID_DMODE"},
-    {"POS_PID_P", "POS_PID_P"},
-    {"POS_PID_I", "POS_PID_I"},
-    {"POS_PID_D", "POS_PID_D"},
-    {"POS_PID_FF", "POS_PID_FF"},
-    {"POS_PID_IMIN", "POS_PID_IMIN"},
-    {"POS_PID_IMAX", "POS_PID_IMAX"},
-    {"POS_PID_OMIN", "POS_PID_OMIN"},
-    {"POS_PID_OMAX", "POS_PID_OMAX"},
-    {"POS_PID_FLTD", "POS_PID_FLTD"},
-    {"POS_PID_DTMIN", "POS_PID_DTMIN"},
-    {"POS_PID_DTMAX", "POS_PID_DTMAX"},
-    {"POS_PID_DMODE", "POS_PID_DMODE"},
+    {"MAV_SYS_ID", SysParameterNames::kIdentitySystemId},
+    {"MAV_COMP_ID", SysParameterNames::kIdentityComponentId},
+    {"MAV_TYPE", SysParameterNames::kIdentityVehicleType},
+    {"MAV_AUTOPILOT", SysParameterNames::kIdentityAutopilotType},
+    {"BAT1_N_CELLS", SysParameterNames::kBatteryCellCount},
+    {"BAT1_V_EMPTY", SysParameterNames::kBatteryEmptyVoltage},
+    {"BAT1_V_CHARGED", SysParameterNames::kBatteryChargedVoltage},
+    {"BAT1_CAPACITY", SysParameterNames::kBatteryCapacityMah},
+    {"RC_MAP_ROLL", SysParameterNames::kRcRollChannel},
+    {"RC_MAP_PITCH", SysParameterNames::kRcPitchChannel},
+    {"RC_MAP_THROTTLE", SysParameterNames::kRcThrottleChannel},
+    {"RC_MAP_YAW", SysParameterNames::kRcYawChannel},
+    {"MOT_PWM_MIN", SysParameterNames::kMotorPwmMin},
+    {"MOT_PWM_IDLE", SysParameterNames::kMotorPwmIdle},
+    {"MOT_PWM_MAX", SysParameterNames::kMotorPwmMax},
+    {"SPD_PID_P", SysParameterNames::kControlSpeedKp},
+    {"SPD_PID_I", SysParameterNames::kControlSpeedKi},
+    {"SPD_PID_D", SysParameterNames::kControlSpeedKd},
+    {"SPD_PID_FF", SysParameterNames::kControlSpeedKff},
+    {"SPD_PID_IMIN", SysParameterNames::kControlSpeedIntegralMin},
+    {"SPD_PID_IMAX", SysParameterNames::kControlSpeedIntegralMax},
+    {"SPD_PID_OMIN", SysParameterNames::kControlSpeedOutputMin},
+    {"SPD_PID_OMAX", SysParameterNames::kControlSpeedOutputMax},
+    {"SPD_PID_FLTD", SysParameterNames::kControlSpeedDerivativeCutoffHz},
+    {"SPD_PID_DTMIN", SysParameterNames::kControlSpeedDtMinS},
+    {"SPD_PID_DTMAX", SysParameterNames::kControlSpeedDtMaxS},
+    {"SPD_PID_DMODE", SysParameterNames::kControlSpeedDerivativeMode},
+    {"ANG_PID_P", SysParameterNames::kControlAngleKp},
+    {"ANG_PID_I", SysParameterNames::kControlAngleKi},
+    {"ANG_PID_D", SysParameterNames::kControlAngleKd},
+    {"ANG_PID_FF", SysParameterNames::kControlAngleKff},
+    {"ANG_PID_IMIN", SysParameterNames::kControlAngleIntegralMin},
+    {"ANG_PID_IMAX", SysParameterNames::kControlAngleIntegralMax},
+    {"ANG_PID_OMIN", SysParameterNames::kControlAngleOutputMin},
+    {"ANG_PID_OMAX", SysParameterNames::kControlAngleOutputMax},
+    {"ANG_PID_FLTD", SysParameterNames::kControlAngleDerivativeCutoffHz},
+    {"ANG_PID_DTMIN", SysParameterNames::kControlAngleDtMinS},
+    {"ANG_PID_DTMAX", SysParameterNames::kControlAngleDtMaxS},
+    {"ANG_PID_DMODE", SysParameterNames::kControlAngleDerivativeMode},
+    {"POS_PID_P", SysParameterNames::kControlPositionKp},
+    {"POS_PID_I", SysParameterNames::kControlPositionKi},
+    {"POS_PID_D", SysParameterNames::kControlPositionKd},
+    {"POS_PID_FF", SysParameterNames::kControlPositionKff},
+    {"POS_PID_IMIN", SysParameterNames::kControlPositionIntegralMin},
+    {"POS_PID_IMAX", SysParameterNames::kControlPositionIntegralMax},
+    {"POS_PID_OMIN", SysParameterNames::kControlPositionOutputMin},
+    {"POS_PID_OMAX", SysParameterNames::kControlPositionOutputMax},
+    {"POS_PID_FLTD", SysParameterNames::kControlPositionDerivativeCutoffHz},
+    {"POS_PID_DTMIN", SysParameterNames::kControlPositionDtMinS},
+    {"POS_PID_DTMAX", SysParameterNames::kControlPositionDtMaxS},
+    {"POS_PID_DMODE", SysParameterNames::kControlPositionDerivativeMode},
 };
 
 bool IsNameValid(const char *name)
@@ -196,12 +196,12 @@ bool MavlinkParameterService::ReadByIndex(uint16_t index,
 
   const MavlinkParameterBinding *binding = MavlinkBindingAt(index);
   if ((binding == nullptr) || !IsNameValid(binding->mavlink_name) ||
-      !IsNameValid(binding->project_name)) {
+      !IsNameValid(binding->internal_name)) {
     return false;
   }
 
   const ParameterManager::EntryView *entry =
-      Parameters().Find(binding->project_name);
+      Parameters().Find(binding->internal_name);
   if (entry == nullptr) {
     return false;
   }
@@ -254,13 +254,13 @@ bool MavlinkParameterService::WriteValue(const char *name,
 
   const MavlinkParameterBinding *binding =
       MavlinkBindingAt(static_cast<uint16_t>(index));
-  if ((binding == nullptr) || !IsNameValid(binding->project_name)) {
+  if ((binding == nullptr) || !IsNameValid(binding->internal_name)) {
     return false;
   }
 
   ParameterManager &parameters = Parameters();
   const ParameterManager::EntryView *entry =
-      parameters.Find(binding->project_name);
+      parameters.Find(binding->internal_name);
   const ParameterType request_type = ToParameterType(type);
   if ((entry == nullptr) ||
       (entry->access != ParameterManager::AccessMode::kReadWrite) ||
@@ -271,41 +271,41 @@ bool MavlinkParameterService::WriteValue(const char *name,
   switch (entry->type) {
     case ParameterType::kBool: {
       const bool typed_value = value != 0.0f;
-      return parameters.WriteRaw(binding->project_name,
+      return parameters.WriteRaw(binding->internal_name,
                                  &typed_value,
                                  sizeof(typed_value));
     }
 
     case ParameterType::kUint8: {
       const uint8_t typed_value = static_cast<uint8_t>(value);
-      return parameters.WriteRaw(binding->project_name,
+      return parameters.WriteRaw(binding->internal_name,
                                  &typed_value,
                                  sizeof(typed_value));
     }
 
     case ParameterType::kUint16: {
       const uint16_t typed_value = static_cast<uint16_t>(value);
-      return parameters.WriteRaw(binding->project_name,
+      return parameters.WriteRaw(binding->internal_name,
                                  &typed_value,
                                  sizeof(typed_value));
     }
 
     case ParameterType::kUint32: {
       const uint32_t typed_value = static_cast<uint32_t>(value);
-      return parameters.WriteRaw(binding->project_name,
+      return parameters.WriteRaw(binding->internal_name,
                                  &typed_value,
                                  sizeof(typed_value));
     }
 
     case ParameterType::kInt32: {
       const int32_t typed_value = static_cast<int32_t>(value);
-      return parameters.WriteRaw(binding->project_name,
+      return parameters.WriteRaw(binding->internal_name,
                                  &typed_value,
                                  sizeof(typed_value));
     }
 
     case ParameterType::kFloat:
-      return parameters.WriteRaw(binding->project_name, &value, sizeof(value));
+      return parameters.WriteRaw(binding->internal_name, &value, sizeof(value));
 
     default:
       return false;
