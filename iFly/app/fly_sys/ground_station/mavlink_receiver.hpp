@@ -132,6 +132,14 @@ private:
   void HandleManualControl(const ManualControl &state);
   void HandleConsoleMessage(const mavlink_message_t &msg);
   void HandleUnknownMessage(const mavlink_message_t &msg);
+  bool SendParameterValue(const MavlinkParameterValue &parameter);
+  void SendCommandAck(const mavlink_message_t &request,
+                      uint16_t command,
+                      uint8_t result);
+  bool SendHeartbeat();
+  bool SendAutopilotVersion();
+  bool SendProtocolVersion();
+  bool SendRequestedMessage(uint32_t message_id);
 
   /**
    * @brief 判断消息目标是否为本机。

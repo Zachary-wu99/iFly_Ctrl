@@ -73,6 +73,11 @@ bool IsNameValid(const char *name)
   return (name != nullptr) && (name[0] != '\0');
 }
 
+ParameterManager *ResolveParameterManager(ParameterManager *parameters)
+{
+  return (parameters != nullptr) ? parameters : &ParameterManager::Instance();
+}
+
 uint16_t MavlinkBindingCount()
 {
   return static_cast<uint16_t>(sizeof(kMavlinkParameterBindings) /
@@ -173,13 +178,13 @@ float EncodeParameterValue(const ParameterManager::EntryView &parameter)
 } // namespace
 
 MavlinkParameterService::MavlinkParameterService(ParameterManager *parameters)
-    : parameters_(parameters)
+    : parameters_(ResolveParameterManager(parameters))
 {
 }
 
 void MavlinkParameterService::BindParameterManager(ParameterManager *parameters)
 {
-  parameters_ = parameters;
+  parameters_ = ResolveParameterManager(parameters);
 }
 
 uint16_t MavlinkParameterService::Count() const

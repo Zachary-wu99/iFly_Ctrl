@@ -5,12 +5,15 @@ namespace iFly {
 bool MavlinkReceiver::DecodeCommandRequest(const mavlink_message_t &msg,
                                            CommandRequest *state)
 {
-  if ((msg.msgid != MAVLINK_MSG_ID_COMMAND_LONG) || (state == nullptr)) {
+  if ((link_ == nullptr) || (state == nullptr)) {
     return false;
   }
 
   mavlink_command_long_t command {};
-  mavlink_msg_command_long_decode(&msg, &command);
+  if (!link_->DecodeCommandLong(msg, &command)) {
+    return false;
+  }
+
   state->target_system = command.target_system;
   state->target_component = command.target_component;
   state->command = command.command;
@@ -29,12 +32,15 @@ bool MavlinkReceiver::DecodeCommandRequest(const mavlink_message_t &msg,
 bool MavlinkReceiver::DecodeManualControl(const mavlink_message_t &msg,
                                           ManualControl *state)
 {
-  if ((msg.msgid != MAVLINK_MSG_ID_MANUAL_CONTROL) || (state == nullptr)) {
+  if ((link_ == nullptr) || (state == nullptr)) {
     return false;
   }
 
   mavlink_manual_control_t control {};
-  mavlink_msg_manual_control_decode(&msg, &control);
+  if (!link_->DecodeManualControl(msg, &control)) {
+    return false;
+  }
+
   state->target = control.target;
   state->x = control.x;
   state->y = control.y;

@@ -48,6 +48,98 @@ public:
   void SendMessage(const mavlink_message_t &msg);
 
   /**
+   * @brief 解码 MAVLink PING 消息。
+   *
+   * @param msg MAVLink 消息。
+   * @param ping PING 消息负载输出。
+   * @return 解码成功返回 `true`。
+   */
+  bool DecodePing(const mavlink_message_t &msg,
+                  mavlink_ping_t *ping) const;
+
+  /**
+   * @brief 解码 MAVLink TIMESYNC 消息。
+   *
+   * @param msg MAVLink 消息。
+   * @param timesync TIMESYNC 消息负载输出。
+   * @return 解码成功返回 `true`。
+   */
+  bool DecodeTimesync(const mavlink_message_t &msg,
+                      mavlink_timesync_t *timesync) const;
+
+  /**
+   * @brief 解码 MAVLink COMMAND_LONG 消息。
+   *
+   * @param msg MAVLink 消息。
+   * @param command COMMAND_LONG 消息负载输出。
+   * @return 解码成功返回 `true`。
+   */
+  bool DecodeCommandLong(const mavlink_message_t &msg,
+                         mavlink_command_long_t *command) const;
+
+  /**
+   * @brief 解码 MAVLink COMMAND_INT 消息。
+   *
+   * @param msg MAVLink 消息。
+   * @param command COMMAND_INT 消息负载输出。
+   * @return 解码成功返回 `true`。
+   */
+  bool DecodeCommandInt(const mavlink_message_t &msg,
+                        mavlink_command_int_t *command) const;
+
+  /**
+   * @brief 解码 MAVLink COMMAND_CANCEL 消息。
+   *
+   * @param msg MAVLink 消息。
+   * @param command COMMAND_CANCEL 消息负载输出。
+   * @return 解码成功返回 `true`。
+   */
+  bool DecodeCommandCancel(const mavlink_message_t &msg,
+                           mavlink_command_cancel_t *command) const;
+
+  /**
+   * @brief 解码 MAVLink MANUAL_CONTROL 消息。
+   *
+   * @param msg MAVLink 消息。
+   * @param control MANUAL_CONTROL 消息负载输出。
+   * @return 解码成功返回 `true`。
+   */
+  bool DecodeManualControl(const mavlink_message_t &msg,
+                           mavlink_manual_control_t *control) const;
+
+  /**
+   * @brief 解码 MAVLink PARAM_REQUEST_READ 消息。
+   *
+   * @param msg MAVLink 消息。
+   * @param request PARAM_REQUEST_READ 消息负载输出。
+   * @return 解码成功返回 `true`。
+   */
+  bool DecodeParamRequestRead(
+      const mavlink_message_t &msg,
+      mavlink_param_request_read_t *request) const;
+
+  /**
+   * @brief 解码 MAVLink PARAM_REQUEST_LIST 消息。
+   *
+   * @param msg MAVLink 消息。
+   * @param request PARAM_REQUEST_LIST 消息负载输出。
+   * @return 解码成功返回 `true`。
+   */
+  bool DecodeParamRequestList(
+      const mavlink_message_t &msg,
+      mavlink_param_request_list_t *request) const;
+
+  /**
+   * @brief 解码 MAVLink PARAM_SET 消息。
+   *
+   * @param msg MAVLink 消息。
+   * @param request PARAM_SET 消息负载输出。
+   * @return 解码成功返回 `true`。
+   */
+  bool DecodeParamSet(const mavlink_message_t &msg,
+                      mavlink_param_set_t *request) const;
+
+  /**
    * @brief 打包 MAVLink HEARTBEAT 消息。
    *
    * @param msg MAVLink 消息输出。
@@ -56,6 +148,26 @@ public:
    */
   uint16_t PackHeartbeat(mavlink_message_t *msg,
                          const mavlink_heartbeat_t &heartbeat) const;
+
+  /**
+   * @brief 打包 MAVLink PING 消息。
+   *
+   * @param msg MAVLink 消息输出。
+   * @param ping PING 消息负载。
+   * @return MAVLink 消息负载长度。
+   */
+  uint16_t PackPing(mavlink_message_t *msg,
+                    const mavlink_ping_t &ping) const;
+
+  /**
+   * @brief 打包 MAVLink TIMESYNC 消息。
+   *
+   * @param msg MAVLink 消息输出。
+   * @param timesync TIMESYNC 消息负载。
+   * @return MAVLink 消息负载长度。
+   */
+  uint16_t PackTimesync(mavlink_message_t *msg,
+                        const mavlink_timesync_t &timesync) const;
 
   /**
    * @brief 打包 MAVLink SYS_STATUS 消息。
@@ -213,6 +325,17 @@ public:
       const mavlink_autopilot_version_t &version) const;
 
   /**
+   * @brief 打包 MAVLink PROTOCOL_VERSION 消息。
+   *
+   * @param msg MAVLink 消息输出。
+   * @param version PROTOCOL_VERSION 消息负载。
+   * @return MAVLink 消息负载长度。
+   */
+  uint16_t PackProtocolVersion(
+      mavlink_message_t *msg,
+      const mavlink_protocol_version_t &version) const;
+
+  /**
    * @brief 打包 MAVLink PARAM_VALUE 消息。
    *
    * @param msg MAVLink 消息输出。
@@ -306,6 +429,115 @@ inline void MavlinkLink::SendMessage(const mavlink_message_t &msg)
   (void)io_->Write(tx_buffer, tx_length);
 }
 
+inline bool MavlinkLink::DecodePing(const mavlink_message_t &msg,
+                                    mavlink_ping_t *ping) const
+{
+  if ((msg.msgid != MAVLINK_MSG_ID_PING) || (ping == nullptr)) {
+    return false;
+  }
+
+  mavlink_msg_ping_decode(&msg, ping);
+  return true;
+}
+
+inline bool MavlinkLink::DecodeTimesync(
+    const mavlink_message_t &msg,
+    mavlink_timesync_t *timesync) const
+{
+  if ((msg.msgid != MAVLINK_MSG_ID_TIMESYNC) || (timesync == nullptr)) {
+    return false;
+  }
+
+  mavlink_msg_timesync_decode(&msg, timesync);
+  return true;
+}
+
+inline bool MavlinkLink::DecodeCommandLong(
+    const mavlink_message_t &msg,
+    mavlink_command_long_t *command) const
+{
+  if ((msg.msgid != MAVLINK_MSG_ID_COMMAND_LONG) || (command == nullptr)) {
+    return false;
+  }
+
+  mavlink_msg_command_long_decode(&msg, command);
+  return true;
+}
+
+inline bool MavlinkLink::DecodeCommandInt(
+    const mavlink_message_t &msg,
+    mavlink_command_int_t *command) const
+{
+  if ((msg.msgid != MAVLINK_MSG_ID_COMMAND_INT) || (command == nullptr)) {
+    return false;
+  }
+
+  mavlink_msg_command_int_decode(&msg, command);
+  return true;
+}
+
+inline bool MavlinkLink::DecodeCommandCancel(
+    const mavlink_message_t &msg,
+    mavlink_command_cancel_t *command) const
+{
+  if ((msg.msgid != MAVLINK_MSG_ID_COMMAND_CANCEL) || (command == nullptr)) {
+    return false;
+  }
+
+  mavlink_msg_command_cancel_decode(&msg, command);
+  return true;
+}
+
+inline bool MavlinkLink::DecodeManualControl(
+    const mavlink_message_t &msg,
+    mavlink_manual_control_t *control) const
+{
+  if ((msg.msgid != MAVLINK_MSG_ID_MANUAL_CONTROL) || (control == nullptr)) {
+    return false;
+  }
+
+  mavlink_msg_manual_control_decode(&msg, control);
+  return true;
+}
+
+inline bool MavlinkLink::DecodeParamRequestRead(
+    const mavlink_message_t &msg,
+    mavlink_param_request_read_t *request) const
+{
+  if ((msg.msgid != MAVLINK_MSG_ID_PARAM_REQUEST_READ) ||
+      (request == nullptr)) {
+    return false;
+  }
+
+  mavlink_msg_param_request_read_decode(&msg, request);
+  return true;
+}
+
+inline bool MavlinkLink::DecodeParamRequestList(
+    const mavlink_message_t &msg,
+    mavlink_param_request_list_t *request) const
+{
+  if ((msg.msgid != MAVLINK_MSG_ID_PARAM_REQUEST_LIST) ||
+      (request == nullptr)) {
+    return false;
+  }
+
+  mavlink_msg_param_request_list_decode(&msg, request);
+  return true;
+}
+
+inline bool MavlinkLink::DecodeParamSet(
+    const mavlink_message_t &msg,
+    mavlink_param_set_t *request) const
+{
+  if ((msg.msgid != MAVLINK_MSG_ID_PARAM_SET) || (request == nullptr)) {
+    return false;
+  }
+
+  mavlink_msg_param_set_decode(&msg, request);
+  return true;
+}
+
 inline uint16_t MavlinkLink::PackHeartbeat(
     mavlink_message_t *msg,
     const mavlink_heartbeat_t &heartbeat) const
@@ -315,6 +547,27 @@ inline uint16_t MavlinkLink::PackHeartbeat(
   }
 
   return mavlink_msg_heartbeat_encode(kSystemId, kComponentId, msg, &heartbeat);
+}
+
+inline uint16_t MavlinkLink::PackPing(mavlink_message_t *msg,
+                                      const mavlink_ping_t &ping) const
+{
+  if (msg == nullptr) {
+    return 0U;
+  }
+
+  return mavlink_msg_ping_encode(kSystemId, kComponentId, msg, &ping);
+}
+
+inline uint16_t MavlinkLink::PackTimesync(
+    mavlink_message_t *msg,
+    const mavlink_timesync_t &timesync) const
+{
+  if (msg == nullptr) {
+    return 0U;
+  }
+
+  return mavlink_msg_timesync_encode(kSystemId, kComponentId, msg, &timesync);
 }
 
 inline uint16_t MavlinkLink::PackSystemStatus(
@@ -508,6 +761,20 @@ inline uint16_t MavlinkLink::PackAutopilotVersion(
                                               &version);
 }
 
+inline uint16_t MavlinkLink::PackProtocolVersion(
+    mavlink_message_t *msg,
+    const mavlink_protocol_version_t &version) const
+{
+  if (msg == nullptr) {
+    return 0U;
+  }
+
+  return mavlink_msg_protocol_version_encode(kSystemId,
+                                             kComponentId,
+                                             msg,
+                                             &version);
+}
+
 inline uint16_t MavlinkLink::PackParameterValue(mavlink_message_t *msg,
                                                 const char *param_id,
                                                 float param_value,
@@ -625,4 +892,3 @@ inline void MavlinkLink::SendConsoleReply(const uint8_t *data,
 } // namespace iFly
 
 #endif /* IFLY_APP_FLY_SYS_GROUND_STATION_MAVLINK_LINK_HPP */
-

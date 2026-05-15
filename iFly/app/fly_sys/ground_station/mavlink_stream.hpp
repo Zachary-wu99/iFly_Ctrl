@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include "mavlink_link.hpp"
+#include "mavlink_parameter_service.hpp"
 
 namespace iFly {
 
@@ -56,6 +57,13 @@ public:
   static MavlinkLink *ActiveLink();
 
   /**
+   * @brief 获取当前活动的 MAVLink 参数适配服务。
+   *
+   * @return MAVLink 参数适配服务。
+   */
+  static MavlinkParameterService *ActiveParameterService();
+
+  /**
    * @brief 更新周期数据流回调调度。
    *
    * @param now_ms 当前毫秒时间戳。
@@ -88,8 +96,11 @@ private:
   static const StreamConfig &StreamAt(uint8_t index);
 
   inline static MavlinkLink *active_link_ = nullptr; /**< 当前活动链路。 */
+  inline static MavlinkParameterService *active_parameter_service_ =
+      nullptr; /**< 当前活动参数适配服务。 */
 
   MavlinkLink *link_ = nullptr; /**< MAVLink 字节流链路。 */
+  MavlinkParameterService parameter_service_ {}; /**< MAVLink 参数适配服务。 */
   uint32_t next_send_ms_[kMaxStreams] {}; /**< 下次发送时间戳表。 */
   bool scheduled_[kMaxStreams] {}; /**< 下次发送时间是否已装载。 */
 };
@@ -140,12 +151,14 @@ inline MavlinkStream::MavlinkStream(MavlinkLink *link)
     : link_(link)
 {
   active_link_ = link;
+  active_parameter_service_ = &parameter_service_;
 }
 
 inline void MavlinkStream::BindLink(MavlinkLink *link)
 {
   link_ = link;
   active_link_ = link;
+  active_parameter_service_ = &parameter_service_;
 }
 
 inline MavlinkLink *MavlinkStream::Link() const
@@ -156,6 +169,11 @@ inline MavlinkLink *MavlinkStream::Link() const
 inline MavlinkLink *MavlinkStream::ActiveLink()
 {
   return active_link_;
+}
+
+inline MavlinkParameterService *MavlinkStream::ActiveParameterService()
+{
+  return active_parameter_service_;
 }
 
 inline void MavlinkStream::Update(uint32_t now_ms)
