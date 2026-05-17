@@ -1,4 +1,4 @@
-// MESSAGE ODOMETRY support class
+﻿// MESSAGE ODOMETRY support class
 
 #pragma once
 
@@ -126,3 +126,4 @@ struct ODOMETRY : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

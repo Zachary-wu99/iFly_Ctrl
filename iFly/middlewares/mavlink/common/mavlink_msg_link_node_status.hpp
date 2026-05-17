@@ -1,4 +1,4 @@
-// MESSAGE LINK_NODE_STATUS support class
+﻿// MESSAGE LINK_NODE_STATUS support class
 
 #pragma once
 
@@ -98,3 +98,4 @@ struct LINK_NODE_STATUS : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

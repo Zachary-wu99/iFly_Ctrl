@@ -1,4 +1,4 @@
-// MESSAGE SET_MODE support class
+﻿// MESSAGE SET_MODE support class
 
 #pragma once
 
@@ -66,3 +66,4 @@ struct SET_MODE : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

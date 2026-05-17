@@ -1,4 +1,4 @@
-// MESSAGE HIL_CONTROLS support class
+﻿// MESSAGE HIL_CONTROLS support class
 
 #pragma once
 
@@ -98,3 +98,4 @@ struct HIL_CONTROLS : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

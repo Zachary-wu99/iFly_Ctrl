@@ -1,4 +1,4 @@
-// MESSAGE CONTROL_SYSTEM_STATE support class
+﻿// MESSAGE CONTROL_SYSTEM_STATE support class
 
 #pragma once
 
@@ -122,3 +122,4 @@ struct CONTROL_SYSTEM_STATE : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

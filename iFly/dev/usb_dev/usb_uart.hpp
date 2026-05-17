@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file usb_uart.hpp
  * @brief USB CDC 串口封装接口。
  */
@@ -132,3 +132,4 @@ using usb_uart = UsbUart<>;
 } // namespace iFly
 
 #endif /* IFLY_USB_UART_HPP */
+

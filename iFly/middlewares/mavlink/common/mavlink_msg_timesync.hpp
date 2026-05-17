@@ -1,4 +1,4 @@
-// MESSAGE TIMESYNC support class
+﻿// MESSAGE TIMESYNC support class
 
 #pragma once
 
@@ -80,3 +80,4 @@ struct TIMESYNC : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

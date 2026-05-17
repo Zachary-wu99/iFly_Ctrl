@@ -1,4 +1,4 @@
-// MESSAGE COMMAND_LONG support class
+﻿// MESSAGE COMMAND_LONG support class
 
 #pragma once
 
@@ -98,3 +98,4 @@ struct COMMAND_LONG : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

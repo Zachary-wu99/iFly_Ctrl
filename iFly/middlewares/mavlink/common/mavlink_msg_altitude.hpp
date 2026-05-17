@@ -1,4 +1,4 @@
-// MESSAGE ALTITUDE support class
+﻿// MESSAGE ALTITUDE support class
 
 #pragma once
 
@@ -82,3 +82,4 @@ struct ALTITUDE : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

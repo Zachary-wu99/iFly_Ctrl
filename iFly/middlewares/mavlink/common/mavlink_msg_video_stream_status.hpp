@@ -1,4 +1,4 @@
-// MESSAGE VIDEO_STREAM_STATUS support class
+﻿// MESSAGE VIDEO_STREAM_STATUS support class
 
 #pragma once
 
@@ -90,3 +90,4 @@ struct VIDEO_STREAM_STATUS : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

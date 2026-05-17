@@ -1,4 +1,4 @@
-// MESSAGE RC_CHANNELS support class
+﻿// MESSAGE RC_CHANNELS support class
 
 #pragma once
 
@@ -138,3 +138,4 @@ struct RC_CHANNELS : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

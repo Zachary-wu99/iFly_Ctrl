@@ -1,4 +1,4 @@
-/** @file
+﻿/** @file
  *	@brief MAVLink comm testsuite protocol generated from standard.xml
  *	@see http://mavlink.org
  */
@@ -208,3 +208,4 @@ TEST(standard_interop, AUTOPILOT_VERSION)
 #endif
 }
 #endif
+

@@ -1,4 +1,4 @@
-// MESSAGE PING support class
+﻿// MESSAGE PING support class
 
 #pragma once
 
@@ -70,3 +70,4 @@ struct PING : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

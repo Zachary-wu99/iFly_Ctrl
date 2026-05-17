@@ -1,4 +1,4 @@
-// MESSAGE PARAM_EXT_SET support class
+﻿// MESSAGE PARAM_EXT_SET support class
 
 #pragma once
 
@@ -74,3 +74,4 @@ struct PARAM_EXT_SET : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

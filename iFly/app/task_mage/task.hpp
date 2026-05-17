@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file task.hpp
  * @brief 任务管理模块接口。
  */
@@ -185,3 +185,4 @@ uint32_t TaskNow();
 } // namespace iFly
 
 #endif /* IFLY_TASK_HPP */
+

@@ -1,4 +1,4 @@
-// MESSAGE OPEN_DRONE_ID_SELF_ID support class
+﻿// MESSAGE OPEN_DRONE_ID_SELF_ID support class
 
 #pragma once
 
@@ -74,3 +74,4 @@ struct OPEN_DRONE_ID_SELF_ID : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

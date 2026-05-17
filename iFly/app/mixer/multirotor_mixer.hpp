@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file multirotor_mixer.hpp
  * @brief 多旋翼电机混控器接口。
  */
@@ -14,7 +14,7 @@ namespace iFly {
  */
 enum class MixerFrame : uint8_t {
   kX4 = 4U, /**< 四旋翼 X 构型。 */
-  kX6 = 6U, /**< 六旋翼 X 构型。 */
+  kX8 = 8U, /**< 八旋翼 X8 构型。 */
 };
 
 /**
@@ -34,11 +34,11 @@ struct MixerFrameTraits<MixerFrame::kX4> final {
 };
 
 /**
- * @brief 六旋翼 X 构型特征。
+ * @brief 八旋翼 X8 构型特征。
  */
 template <>
-struct MixerFrameTraits<MixerFrame::kX6> final {
-  static constexpr uint8_t kMotorCount = 6U; /**< 电机数量。 */
+struct MixerFrameTraits<MixerFrame::kX8> final {
+  static constexpr uint8_t kMotorCount = 8U; /**< 电机数量。 */
 };
 
 /**
@@ -176,10 +176,11 @@ private:
 using X4Mixer = MultirotorMixer<MixerFrame::kX4>;
 
 /**
- * @brief 六旋翼 X 构型混控器。
+ * @brief 八旋翼 X8 构型混控器。
  */
-using X6Mixer = MultirotorMixer<MixerFrame::kX6>;
+using X8Mixer = MultirotorMixer<MixerFrame::kX8>;
 
 } // namespace iFly
 
 #endif /* IFLY_APP_MIXER_MULTIROTOR_MIXER_HPP */
+

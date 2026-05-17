@@ -1,4 +1,4 @@
-// MESSAGE CELLULAR_STATUS support class
+﻿// MESSAGE CELLULAR_STATUS support class
 
 #pragma once
 
@@ -82,3 +82,4 @@ struct CELLULAR_STATUS : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

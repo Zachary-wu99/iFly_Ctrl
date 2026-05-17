@@ -1,4 +1,4 @@
-// MESSAGE TRAJECTORY_REPRESENTATION_WAYPOINTS support class
+﻿// MESSAGE TRAJECTORY_REPRESENTATION_WAYPOINTS support class
 
 #pragma once
 
@@ -110,3 +110,4 @@ struct TRAJECTORY_REPRESENTATION_WAYPOINTS : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

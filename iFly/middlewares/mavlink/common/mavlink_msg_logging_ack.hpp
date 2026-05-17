@@ -1,4 +1,4 @@
-// MESSAGE LOGGING_ACK support class
+﻿// MESSAGE LOGGING_ACK support class
 
 #pragma once
 
@@ -66,3 +66,4 @@ struct LOGGING_ACK : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

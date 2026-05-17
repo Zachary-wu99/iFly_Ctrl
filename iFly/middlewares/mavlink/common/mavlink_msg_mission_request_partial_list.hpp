@@ -1,4 +1,4 @@
-// MESSAGE MISSION_REQUEST_PARTIAL_LIST support class
+﻿// MESSAGE MISSION_REQUEST_PARTIAL_LIST support class
 
 #pragma once
 
@@ -74,3 +74,4 @@ struct MISSION_REQUEST_PARTIAL_LIST : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

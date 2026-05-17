@@ -1,4 +1,4 @@
-// MESSAGE DEBUG_VECT support class
+﻿// MESSAGE DEBUG_VECT support class
 
 #pragma once
 
@@ -74,3 +74,4 @@ struct DEBUG_VECT : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

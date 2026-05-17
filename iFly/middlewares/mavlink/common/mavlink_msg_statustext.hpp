@@ -1,4 +1,4 @@
-// MESSAGE STATUSTEXT support class
+﻿// MESSAGE STATUSTEXT support class
 
 #pragma once
 
@@ -70,3 +70,4 @@ struct STATUSTEXT : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

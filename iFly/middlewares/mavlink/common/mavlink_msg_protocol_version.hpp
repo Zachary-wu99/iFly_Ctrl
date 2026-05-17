@@ -1,4 +1,4 @@
-// MESSAGE PROTOCOL_VERSION support class
+﻿// MESSAGE PROTOCOL_VERSION support class
 
 #pragma once
 
@@ -74,3 +74,4 @@ struct PROTOCOL_VERSION : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

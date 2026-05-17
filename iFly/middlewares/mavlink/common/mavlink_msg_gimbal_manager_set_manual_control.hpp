@@ -1,4 +1,4 @@
-// MESSAGE GIMBAL_MANAGER_SET_MANUAL_CONTROL support class
+﻿// MESSAGE GIMBAL_MANAGER_SET_MANUAL_CONTROL support class
 
 #pragma once
 
@@ -86,3 +86,4 @@ struct GIMBAL_MANAGER_SET_MANUAL_CONTROL : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

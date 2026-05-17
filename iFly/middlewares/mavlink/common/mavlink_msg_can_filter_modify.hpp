@@ -1,4 +1,4 @@
-// MESSAGE CAN_FILTER_MODIFY support class
+﻿// MESSAGE CAN_FILTER_MODIFY support class
 
 #pragma once
 
@@ -78,3 +78,4 @@ struct CAN_FILTER_MODIFY : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

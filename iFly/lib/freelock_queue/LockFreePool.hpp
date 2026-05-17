@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file LockFreePool.hpp
  * @brief 无锁对象队列池接口与封装。
  */
@@ -233,3 +233,4 @@ private:
 } // namespace iFly
 
 #endif /* IFLY_FREELOCK_QUEUE_LOCK_FREE_POOL_HPP */
+

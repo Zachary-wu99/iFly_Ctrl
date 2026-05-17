@@ -1,10 +1,10 @@
-/**
+﻿/**
  * @file task_pid_ctrl.cpp
  * @brief PID控制任务。
  */
 
 #include "pid.hpp"
-#include "project_parameter_manager.hpp"
+#include "parameter_manager.hpp"
 #include "task.hpp"
 
 namespace {
@@ -16,18 +16,12 @@ namespace {
 
 void ConfigurePidControllers()
 {
-  const iFly::ProjectParameters &parameters =
-      iFly::ProjectParameterManager::Instance().Data();
+  const iFly::SysParameters &parameters =
+      iFly::ParameterManager::Instance().Data();
 
-  speed_pid.Configure(iFly::GetProjectParameter(parameters,
-                                                &iFly::ProjectParameters::control,
-                                                &iFly::ControlParameters::speed_pid));
-  angle_pid.Configure(iFly::GetProjectParameter(parameters,
-                                                &iFly::ProjectParameters::control,
-                                                &iFly::ControlParameters::angle_pid));
-  position_pid.Configure(iFly::GetProjectParameter(parameters,
-                                                   &iFly::ProjectParameters::control,
-                                                   &iFly::ControlParameters::position_pid));
+  speed_pid.Configure(parameters.control.speed_pid);
+  angle_pid.Configure(parameters.control.angle_pid);
+  position_pid.Configure(parameters.control.position_pid);
 }
 
 
@@ -54,3 +48,4 @@ bool InitPidCtrlTask(void)
 
   return pid_ctrl_handle != iFly::kInvalidTaskHandle;
 }
+

@@ -1,4 +1,4 @@
-// MESSAGE FIGURE_EIGHT_EXECUTION_STATUS support class
+﻿// MESSAGE FIGURE_EIGHT_EXECUTION_STATUS support class
 
 #pragma once
 
@@ -89,3 +89,4 @@ struct FIGURE_EIGHT_EXECUTION_STATUS : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

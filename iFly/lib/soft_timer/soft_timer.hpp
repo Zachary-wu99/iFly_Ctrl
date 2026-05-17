@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file soft_timer.hpp
  * @brief 基于 SysTick 的软定时器服务接口。
  */
@@ -200,3 +200,4 @@ using SoftTimer = SoftTimerService;
 #endif
 
 #endif /* IFLY_SOFT_TIMER_HPP */
+

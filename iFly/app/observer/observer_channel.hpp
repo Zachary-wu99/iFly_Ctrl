@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file observer_channel.hpp
  * @brief 观察者通道模板接口。
  */
@@ -704,3 +704,4 @@ private:
 } // namespace iFly
 
 #endif /* IFLY_APP_OBSERVER_OBSERVER_CHANNEL_HPP */
+

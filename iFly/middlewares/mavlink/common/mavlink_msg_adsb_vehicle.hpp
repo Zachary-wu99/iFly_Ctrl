@@ -1,4 +1,4 @@
-// MESSAGE ADSB_VEHICLE support class
+﻿// MESSAGE ADSB_VEHICLE support class
 
 #pragma once
 
@@ -106,3 +106,4 @@ struct ADSB_VEHICLE : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

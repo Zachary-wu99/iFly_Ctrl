@@ -1,4 +1,4 @@
-// MESSAGE SET_HOME_POSITION support class
+﻿// MESSAGE SET_HOME_POSITION support class
 
 #pragma once
 
@@ -110,3 +110,4 @@ struct SET_HOME_POSITION : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

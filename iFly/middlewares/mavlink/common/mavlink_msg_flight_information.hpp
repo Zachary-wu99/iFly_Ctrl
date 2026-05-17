@@ -1,4 +1,4 @@
-// MESSAGE FLIGHT_INFORMATION support class
+﻿// MESSAGE FLIGHT_INFORMATION support class
 
 #pragma once
 
@@ -79,3 +79,4 @@ struct FLIGHT_INFORMATION : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

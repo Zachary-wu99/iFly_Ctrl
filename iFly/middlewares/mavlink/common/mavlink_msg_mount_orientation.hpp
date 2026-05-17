@@ -1,4 +1,4 @@
-// MESSAGE MOUNT_ORIENTATION support class
+﻿// MESSAGE MOUNT_ORIENTATION support class
 
 #pragma once
 
@@ -74,3 +74,4 @@ struct MOUNT_ORIENTATION : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

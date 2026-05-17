@@ -1,4 +1,4 @@
-// MESSAGE PARAM_EXT_ACK support class
+﻿// MESSAGE PARAM_EXT_ACK support class
 
 #pragma once
 
@@ -70,3 +70,4 @@ struct PARAM_EXT_ACK : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

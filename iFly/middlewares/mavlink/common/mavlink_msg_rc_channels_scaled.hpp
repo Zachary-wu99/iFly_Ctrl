@@ -1,4 +1,4 @@
-// MESSAGE RC_CHANNELS_SCALED support class
+﻿// MESSAGE RC_CHANNELS_SCALED support class
 
 #pragma once
 
@@ -98,3 +98,4 @@ struct RC_CHANNELS_SCALED : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

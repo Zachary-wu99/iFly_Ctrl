@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file tick.hpp
  * @brief 时间工具模块接口。
  */
@@ -376,3 +376,4 @@ private:
 #endif
 
 #endif /* IFLY_TICK_HPP */
+

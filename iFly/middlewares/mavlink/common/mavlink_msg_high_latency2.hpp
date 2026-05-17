@@ -1,4 +1,4 @@
-// MESSAGE HIGH_LATENCY2 support class
+﻿// MESSAGE HIGH_LATENCY2 support class
 
 #pragma once
 
@@ -162,3 +162,4 @@ struct HIGH_LATENCY2 : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

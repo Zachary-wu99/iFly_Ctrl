@@ -1,4 +1,4 @@
-// MESSAGE LOG_ENTRY support class
+﻿// MESSAGE LOG_ENTRY support class
 
 #pragma once
 
@@ -74,3 +74,4 @@ struct LOG_ENTRY : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

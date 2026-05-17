@@ -1,4 +1,4 @@
-// MESSAGE OBSTACLE_DISTANCE support class
+﻿// MESSAGE OBSTACLE_DISTANCE support class
 
 #pragma once
 
@@ -90,3 +90,4 @@ struct OBSTACLE_DISTANCE : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

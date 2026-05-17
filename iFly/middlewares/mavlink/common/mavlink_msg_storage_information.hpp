@@ -1,4 +1,4 @@
-// MESSAGE STORAGE_INFORMATION support class
+﻿// MESSAGE STORAGE_INFORMATION support class
 
 #pragma once
 
@@ -105,3 +105,4 @@ struct STORAGE_INFORMATION : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

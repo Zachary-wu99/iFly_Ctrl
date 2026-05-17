@@ -1,4 +1,4 @@
-// MESSAGE LOG_ERASE support class
+﻿// MESSAGE LOG_ERASE support class
 
 #pragma once
 
@@ -62,3 +62,4 @@ struct LOG_ERASE : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

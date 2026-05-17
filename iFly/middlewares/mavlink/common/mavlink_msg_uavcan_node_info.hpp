@@ -1,4 +1,4 @@
-// MESSAGE UAVCAN_NODE_INFO support class
+﻿// MESSAGE UAVCAN_NODE_INFO support class
 
 #pragma once
 
@@ -90,3 +90,4 @@ struct UAVCAN_NODE_INFO : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

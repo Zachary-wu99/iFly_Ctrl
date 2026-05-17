@@ -1,4 +1,4 @@
-// MESSAGE EVENT support class
+﻿// MESSAGE EVENT support class
 
 #pragma once
 
@@ -82,3 +82,4 @@ struct EVENT : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

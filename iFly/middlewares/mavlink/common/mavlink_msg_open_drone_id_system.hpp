@@ -1,4 +1,4 @@
-// MESSAGE OPEN_DRONE_ID_SYSTEM support class
+﻿// MESSAGE OPEN_DRONE_ID_SYSTEM support class
 
 #pragma once
 
@@ -114,3 +114,4 @@ struct OPEN_DRONE_ID_SYSTEM : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

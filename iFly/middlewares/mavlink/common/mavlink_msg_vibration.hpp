@@ -1,4 +1,4 @@
-// MESSAGE VIBRATION support class
+﻿// MESSAGE VIBRATION support class
 
 #pragma once
 
@@ -82,3 +82,4 @@ struct VIBRATION : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

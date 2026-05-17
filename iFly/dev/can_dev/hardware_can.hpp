@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file hardware_can.hpp
  * @brief 硬件 CAN 设备封装接口。
  */
@@ -156,3 +156,4 @@ using can_port = HardwareCan<>;
 } // namespace iFly
 
 #endif /* IFLY_HARDWARE_CAN_HPP */
+

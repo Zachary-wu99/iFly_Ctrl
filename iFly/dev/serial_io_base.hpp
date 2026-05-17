@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file serial_io_base.hpp
  * @brief 串行 IO 抽象基类。
  */
@@ -161,3 +161,4 @@ private:
 } // namespace iFly
 
 #endif /* IFLY_SERIAL_IO_BASE_HPP */
+

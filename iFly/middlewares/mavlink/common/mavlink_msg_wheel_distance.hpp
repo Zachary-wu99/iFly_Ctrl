@@ -1,4 +1,4 @@
-// MESSAGE WHEEL_DISTANCE support class
+﻿// MESSAGE WHEEL_DISTANCE support class
 
 #pragma once
 
@@ -66,3 +66,4 @@ struct WHEEL_DISTANCE : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

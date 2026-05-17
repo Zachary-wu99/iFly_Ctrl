@@ -1,4 +1,4 @@
-#include "project_parameter_manager.hpp"
+﻿#include "parameter_manager.hpp"
 
 namespace iFly {
 
@@ -10,36 +10,55 @@ bool IsNameValid(const char *name) {
 
 } // namespace
 
-ProjectParameterManager &ProjectParameterManager::Instance() {
-  static ProjectParameterManager instance;
+ParameterManager &ParameterManager::Instance() {
+  static ParameterManager instance;
   return instance;
 }
 
-ProjectParameterManager::ProjectParameterManager()
-    : data_(MakeDefaultProjectParameters()) {
+ParameterManager::ParameterManager()
+    : data_(MakeDefaultSysParameters()) {
   // 启动时按默认参数表注册全部绑定项。
   (void)BuildDefaultRegistry();
 }
 
-void ProjectParameterManager::ResetToDefaults() {
-  data_ = MakeDefaultProjectParameters();
+void ParameterManager::ResetToDefaults() {
+  data_ = MakeDefaultSysParameters();
 }
 
-bool ProjectParameterManager::Contains(const char *name) const {
+bool ParameterManager::Contains(const char *name) const {
   return FindEntry(name) != nullptr;
 }
 
-const ProjectParameterManager::EntryView *ProjectParameterManager::Find(const char *name) const {
+const ParameterManager::EntryView *ParameterManager::Find(const char *name) const {
   const Entry *entry = FindEntry(name);
   return (entry != nullptr) ? &entry->view : nullptr;
 }
 
-uint32_t ProjectParameterManager::SizeOf(const char *name) const {
+const ParameterManager::EntryView *ParameterManager::At(uint16_t index) const {
+  return (index < count_) ? &entries_[index].view : nullptr;
+}
+
+int16_t ParameterManager::IndexOf(const char *name) const {
+  if (!IsNameValid(name)) {
+    return -1;
+  }
+
+  for (uint16_t index = 0U; index < count_; ++index) {
+    if ((entries_[index].view.name != nullptr) &&
+        (strcmp(entries_[index].view.name, name) == 0)) {
+      return static_cast<int16_t>(index);
+    }
+  }
+
+  return -1;
+}
+
+uint32_t ParameterManager::SizeOf(const char *name) const {
   const Entry *entry = FindEntry(name);
   return (entry != nullptr) ? entry->view.size : 0U;
 }
 
-bool ProjectParameterManager::ReadRaw(const char *name, void *buffer, uint32_t bufferSize) const {
+bool ParameterManager::ReadRaw(const char *name, void *buffer, uint32_t bufferSize) const {
   const Entry *entry = FindEntry(name);
   if ((entry == nullptr) || (buffer == nullptr) || (bufferSize < entry->view.size) ||
       (entry->view.storage == nullptr)) {
@@ -50,7 +69,7 @@ bool ProjectParameterManager::ReadRaw(const char *name, void *buffer, uint32_t b
   return true;
 }
 
-bool ProjectParameterManager::WriteRaw(const char *name, const void *data, uint32_t dataSize) {
+bool ParameterManager::WriteRaw(const char *name, const void *data, uint32_t dataSize) {
   Entry *entry = FindEntry(name);
   if ((entry == nullptr) || (data == nullptr) || (entry->view.storage == nullptr) ||
       (entry->view.access != AccessMode::kReadWrite) ||
@@ -63,7 +82,7 @@ bool ProjectParameterManager::WriteRaw(const char *name, const void *data, uint3
   return true;
 }
 
-bool ProjectParameterManager::SetChangeHandler(const char *name,
+bool ParameterManager::SetChangeHandler(const char *name,
                                                ChangeHandler handler,
                                                void *context) {
   Entry *entry = FindEntry(name);
@@ -76,13 +95,13 @@ bool ProjectParameterManager::SetChangeHandler(const char *name,
   return true;
 }
 
-bool ProjectParameterManager::ClearChangeHandler(const char *name) {
+bool ParameterManager::ClearChangeHandler(const char *name) {
   return SetChangeHandler(name, nullptr, nullptr);
 }
 
-bool ProjectParameterManager::BuildDefaultRegistry() {
+bool ParameterManager::BuildDefaultRegistry() {
   uint16_t binding_count = 0U;
-  const ProjectParameterBinding *bindings = GetProjectParameterBindings(&binding_count);
+  const ParameterBinding *bindings = GetSysParameterBindings(&binding_count);
   if ((bindings == nullptr) || (binding_count == 0U)) {
     return false;
   }
@@ -103,7 +122,7 @@ bool ProjectParameterManager::BuildDefaultRegistry() {
   return success;
 }
 
-bool ProjectParameterManager::Register(const ProjectParameterBinding &binding) {
+bool ParameterManager::Register(const ParameterBinding &binding) {
   if (!IsNameValid(binding.name) || (binding.size == 0U) || (count_ >= kMaxEntryCount)) {
     return false;
   }
@@ -112,7 +131,7 @@ bool ProjectParameterManager::Register(const ProjectParameterBinding &binding) {
     return false;
   }
 
-  if ((binding.offset + binding.size) > sizeof(ProjectParameters)) {
+  if ((binding.offset + binding.size) > sizeof(SysParameters)) {
     return false;
   }
 
@@ -122,13 +141,14 @@ bool ProjectParameterManager::Register(const ProjectParameterBinding &binding) {
   entry.view.help = binding.help;
   entry.view.storage = reinterpret_cast<const uint8_t *>(&data_) + binding.offset;
   entry.view.size = binding.size;
+  entry.view.type = binding.type;
   entry.view.access = binding.read_only ? AccessMode::kReadOnly : AccessMode::kReadWrite;
 
   ++count_;
   return true;
 }
 
-ProjectParameterManager::Entry *ProjectParameterManager::FindEntry(const char *name) {
+ParameterManager::Entry *ParameterManager::FindEntry(const char *name) {
   if (!IsNameValid(name)) {
     return nullptr;
   }
@@ -143,7 +163,7 @@ ProjectParameterManager::Entry *ProjectParameterManager::FindEntry(const char *n
   return nullptr;
 }
 
-const ProjectParameterManager::Entry *ProjectParameterManager::FindEntry(const char *name) const {
+const ParameterManager::Entry *ParameterManager::FindEntry(const char *name) const {
   if (!IsNameValid(name)) {
     return nullptr;
   }
@@ -158,7 +178,7 @@ const ProjectParameterManager::Entry *ProjectParameterManager::FindEntry(const c
   return nullptr;
 }
 
-void ProjectParameterManager::NotifyUpdated(const Entry &entry) {
+void ParameterManager::NotifyUpdated(const Entry &entry) {
   if (entry.on_updated == nullptr) {
     return;
   }
@@ -167,3 +187,4 @@ void ProjectParameterManager::NotifyUpdated(const Entry &entry) {
 }
 
 } // namespace iFly
+

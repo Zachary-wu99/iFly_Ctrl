@@ -1,4 +1,4 @@
-// MESSAGE DATA_TRANSMISSION_HANDSHAKE support class
+﻿// MESSAGE DATA_TRANSMISSION_HANDSHAKE support class
 
 #pragma once
 
@@ -82,3 +82,4 @@ struct DATA_TRANSMISSION_HANDSHAKE : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

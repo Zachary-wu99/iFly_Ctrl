@@ -1,4 +1,4 @@
-#include "tick.hpp"
+﻿#include "tick.hpp"
 
 #include <stdint.h>
 
@@ -228,3 +228,4 @@ extern "C" void ifly_tick_delay_us(uint32_t delay_us)
 {
   iFly::tick::DelayUs(delay_us);
 }
+

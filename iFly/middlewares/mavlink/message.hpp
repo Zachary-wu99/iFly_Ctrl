@@ -1,4 +1,4 @@
-
+﻿
 #pragma once
 
 #include <array>
@@ -147,3 +147,4 @@ void set_string_z(std::array<char, _N> &a, const std::string &s)
 }
 
 } // namespace mavlink
+

@@ -1,4 +1,4 @@
-// MESSAGE NAV_CONTROLLER_OUTPUT support class
+﻿// MESSAGE NAV_CONTROLLER_OUTPUT support class
 
 #pragma once
 
@@ -86,3 +86,4 @@ struct NAV_CONTROLLER_OUTPUT : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

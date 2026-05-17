@@ -1,4 +1,4 @@
-// MESSAGE GPS_RTCM_DATA support class
+﻿// MESSAGE GPS_RTCM_DATA support class
 
 #pragma once
 
@@ -66,3 +66,4 @@ struct GPS_RTCM_DATA : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

@@ -1,4 +1,4 @@
-// MESSAGE HIL_SENSOR support class
+﻿// MESSAGE HIL_SENSOR support class
 
 #pragma once
 
@@ -118,3 +118,4 @@ struct HIL_SENSOR : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

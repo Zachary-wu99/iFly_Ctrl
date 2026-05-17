@@ -1,4 +1,4 @@
-#include "lock_free_queue.hpp"
+﻿#include "lock_free_queue.hpp"
 
 #include <new>
 #include <string.h>
@@ -193,3 +193,4 @@ void DynamicLockFreeQueue::ReleaseStorage() {
 }
 
 } // namespace iFly
+

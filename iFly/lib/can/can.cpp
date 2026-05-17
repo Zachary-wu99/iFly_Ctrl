@@ -1,4 +1,4 @@
-#include "can.hpp"
+﻿#include "can.hpp"
 
 #include <atomic>
 #include <string.h>
@@ -464,3 +464,4 @@ extern "C" void HAL_CAN_TxMailbox2AbortCallback(CAN_HandleTypeDef *hcan) {
 extern "C" void HAL_CAN_ErrorCallback(CAN_HandleTypeDef *hcan) {
   iFly::CanService::Instance().OnError(hcan);
 }
+

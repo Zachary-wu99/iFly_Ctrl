@@ -1,4 +1,4 @@
-// MESSAGE SUPPORTED_TUNES support class
+﻿// MESSAGE SUPPORTED_TUNES support class
 
 #pragma once
 
@@ -66,3 +66,4 @@ struct SUPPORTED_TUNES : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

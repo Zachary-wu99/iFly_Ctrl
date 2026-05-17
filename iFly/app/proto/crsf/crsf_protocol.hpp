@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file crsf_protocol.hpp
  * @brief CRSF 协议接口。
  */
@@ -221,3 +221,4 @@ private:
 } // namespace iFly
 
 #endif /* IFLY_APP_PROTO_CRSF_PROTOCOL_HPP */
+

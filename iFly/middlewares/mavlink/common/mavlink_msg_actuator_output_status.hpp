@@ -1,4 +1,4 @@
-// MESSAGE ACTUATOR_OUTPUT_STATUS support class
+﻿// MESSAGE ACTUATOR_OUTPUT_STATUS support class
 
 #pragma once
 
@@ -66,3 +66,4 @@ struct ACTUATOR_OUTPUT_STATUS : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

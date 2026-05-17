@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file sbus_protocol.hpp
  * @brief SBUS 协议接口。
  */
@@ -155,3 +155,4 @@ private:
 } // namespace iFly
 
 #endif /* IFLY_APP_PROTO_SBUS_PROTOCOL_HPP */
+

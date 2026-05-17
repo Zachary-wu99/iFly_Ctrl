@@ -1,4 +1,4 @@
-// MESSAGE LANDING_TARGET support class
+﻿// MESSAGE LANDING_TARGET support class
 
 #pragma once
 
@@ -110,3 +110,4 @@ struct LANDING_TARGET : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

@@ -1,4 +1,4 @@
-// MESSAGE BATTERY_INFO support class
+﻿// MESSAGE BATTERY_INFO support class
 
 #pragma once
 
@@ -138,3 +138,4 @@ struct BATTERY_INFO : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

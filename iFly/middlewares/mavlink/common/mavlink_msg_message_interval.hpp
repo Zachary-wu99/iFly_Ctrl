@@ -1,4 +1,4 @@
-// MESSAGE MESSAGE_INTERVAL support class
+﻿// MESSAGE MESSAGE_INTERVAL support class
 
 #pragma once
 
@@ -66,3 +66,4 @@ struct MESSAGE_INTERVAL : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

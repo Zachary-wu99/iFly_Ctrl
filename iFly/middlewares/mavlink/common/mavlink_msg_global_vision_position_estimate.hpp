@@ -1,4 +1,4 @@
-// MESSAGE GLOBAL_VISION_POSITION_ESTIMATE support class
+﻿// MESSAGE GLOBAL_VISION_POSITION_ESTIMATE support class
 
 #pragma once
 
@@ -90,3 +90,4 @@ struct GLOBAL_VISION_POSITION_ESTIMATE : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

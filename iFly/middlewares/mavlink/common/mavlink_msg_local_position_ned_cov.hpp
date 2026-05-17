@@ -1,4 +1,4 @@
-// MESSAGE LOCAL_POSITION_NED_COV support class
+﻿// MESSAGE LOCAL_POSITION_NED_COV support class
 
 #pragma once
 
@@ -102,3 +102,4 @@ struct LOCAL_POSITION_NED_COV : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

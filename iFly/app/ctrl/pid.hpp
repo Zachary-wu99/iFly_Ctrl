@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file pid.hpp
  * @brief PID 控制器接口。
  */
@@ -251,3 +251,4 @@ private:
 } // namespace iFly
 
 #endif /* IFLY_APP_CTRL_PIDCTRL_PID_HPP */
+
