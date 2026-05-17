@@ -5,7 +5,6 @@
 
 #include "mavlink_main.hpp"
 
-#include "cli.hpp"
 #include "mavlink_console.hpp"
 #include "mavlink_link.hpp"
 #include "mavlink_receiver.hpp"
@@ -15,7 +14,6 @@ namespace iFly {
 
 namespace {
 
-CliService mavlink_cli;
 MavlinkConsole mavlink_console;
 MavlinkReceiver mavlink_receiver;
 MavlinkStream mavlink_stream;
@@ -28,10 +26,7 @@ bool MavlinkMainInit(MavlinkLink *link)
     return false;
   }
 
-  mavlink_cli.Init();
-  mavlink_cli.Console().DisableActivationKey();
   mavlink_console.BindLink(link);
-  mavlink_console.BindCli(&mavlink_cli);
   mavlink_receiver.BindLink(link);
   mavlink_stream.BindLink(link);
   mavlink_stream.ResetStreams();

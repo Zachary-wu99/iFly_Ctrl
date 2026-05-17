@@ -50,11 +50,13 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/app_main.cpp
-    iFly/app/cli/cli.cpp
     iFly/app/ctrl/pid.cpp
     iFly/app/fly_sys/parameter/parameter_manager.cpp
     iFly/app/fly_sys/parameter/sys_parameters.cpp
     iFly/app/fly_sys/mavlink/mavlink_main.cpp
+    iFly/app/fly_sys/mavlink/mavlink_cli.cpp
+    iFly/app/fly_sys/mavlink/mavlink_cli_functions.cpp
+    iFly/app/fly_sys/mavlink/mavlink_cli_parameters.cpp
     iFly/app/fly_sys/mavlink/mavlink_parameter_service.cpp
     iFly/app/fly_sys/mavlink/mavlink_receiver.cpp
     iFly/app/fly_sys/mavlink/mavlink_receiver_decode.cpp
@@ -81,7 +83,6 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     iFly
-    iFly/app/cli
     iFly/app/ctrl
     iFly/app/observer
     iFly/app/task_mage

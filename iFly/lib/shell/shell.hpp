@@ -20,9 +20,9 @@ namespace iFly {
  */
 class Shell final {
 public:
-  static constexpr uint8_t kMaxCommandCount = 12U; /**< 最大普通命令数量。 */
-  static constexpr uint8_t kMaxFunctionCount = 16U; /**< 最大功能函数数量。 */
-  static constexpr uint8_t kMaxParameterCount = 24U; /**< 最大参数数量。 */
+  static constexpr uint8_t kMaxCommandCount = 20U; /**< 最大普通命令数量。 */
+  static constexpr uint8_t kMaxFunctionCount = 20U; /**< 最大功能函数数量。 */
+  static constexpr uint8_t kMaxParameterCount = 64U; /**< 最大参数数量。 */
   static constexpr uint8_t kMaxArgumentCount = 10U; /**< 单条命令最大参数个数。 */
   static constexpr uint16_t kInputLineBufferSize = 128U; /**< 输入行缓冲区大小。 */
   static constexpr uint16_t kValueBufferSize = 96U; /**< 参数值格式化缓冲区大小。 */

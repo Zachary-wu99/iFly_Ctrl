@@ -5,7 +5,7 @@
 #ifndef IFLY_APP_FLY_SYS_GROUND_STATION_MAVLINK_CONSOLE_HPP
 #define IFLY_APP_FLY_SYS_GROUND_STATION_MAVLINK_CONSOLE_HPP
 
-#include "cli.hpp"
+#include "mavlink_cli.hpp"
 #include "mavlink_link.hpp"
 
 namespace iFly {
@@ -19,13 +19,12 @@ public:
    * @brief 构造 MAVLink 控制台服务对象。
    *
    * @param link MAVLink 字节流链路。
-   * @param cli 飞控 CLI 对象。
    */
-  explicit MavlinkConsole(MavlinkLink *link = nullptr,
-                          CliService *cli = nullptr)
+  explicit MavlinkConsole(MavlinkLink *link = nullptr)
       : link_(link)
   {
-    BindCli(cli);
+    cli_.Init();
+    cli_.SetOutput(&MavlinkConsole::ConsoleOutput, this);
   }
 
   /**
@@ -39,19 +38,6 @@ public:
   }
 
   /**
-   * @brief 绑定飞控 CLI 对象。
-   *
-   * @param cli 飞控 CLI 对象。
-   */
-  void BindCli(CliService *cli)
-  {
-    cli_ = cli;
-    if (cli_ != nullptr) {
-      cli_->SetOutput(&MavlinkConsole::ConsoleOutput, this);
-    }
-  }
-
-  /**
    * @brief 处理 MAVLink 控制台消息。
    *
    * @param msg MAVLink 消息。
@@ -59,7 +45,7 @@ public:
    */
   bool ProcessConsoleMessage(const mavlink_message_t &msg)
   {
-    if ((link_ == nullptr) || (cli_ == nullptr)) {
+    if (link_ == nullptr) {
       return false;
     }
 
@@ -68,9 +54,9 @@ public:
       return false;
     }
 
-    cli_->SetConnected(true);
+    cli_.SetConnected(true);
     if (control.count > 0U) {
-      cli_->ProcessInput(control.data, control.count);
+      cli_.ProcessInput(control.data, control.count);
     }
 
     return true;
@@ -130,7 +116,7 @@ private:
   }
 
   MavlinkLink *link_ = nullptr; /**< MAVLink 字节流链路。 */
-  CliService *cli_ = nullptr; /**< 飞控 CLI 对象指针。 */
+  MavlinkCliService cli_ {}; /**< MAVLink CLI 对象。 */
 };
 
 } // namespace iFly
