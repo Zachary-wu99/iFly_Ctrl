@@ -1,5 +1,5 @@
 ﻿/**
- * @file flight_ctrl_cli.hpp
+ * @file cli.hpp
  * @brief 飞控 CLI 接口。
  */
 #ifndef IFLY_FLIGHT_CTRL_CLI_HPP
@@ -16,12 +16,12 @@ namespace iFly {
 /**
  * @brief 飞控命令行控制台。
  */
-class FlightCtrlCli final {
+class CliService final {
 public:
   /**
    * @brief 构造飞控 CLI 对象。
    */
-  FlightCtrlCli();
+  CliService();
 
   /**
    * @brief 初始化 CLI、参数入口和功能入口。
@@ -85,7 +85,7 @@ private:
    * @brief 受管参数运行时上下文。
    */
   struct ManagedParameterContext final {
-    FlightCtrlCli *owner = nullptr; /**< 所属 CLI 对象。 */
+    CliService *owner = nullptr; /**< 所属 CLI 对象。 */
     const char *internal_name = nullptr; /**< 系统参数中心内部参数名。 */
     ManagedParameterType type = ManagedParameterType::kFloat; /**< 参数类型。 */
     float min_float = 0.0f; /**< 浮点参数最小值。 */

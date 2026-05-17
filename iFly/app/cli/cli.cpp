@@ -1,4 +1,4 @@
-﻿#include "flight_ctrl_cli.hpp"
+#include "cli.hpp"
 
 #include <math.h>
 #include <stdio.h>
@@ -131,13 +131,13 @@ const char *ConfiguredCliPassword()
 
 } // namespace
 
-FlightCtrlCli::FlightCtrlCli()
+CliService::CliService()
     : parameter_manager_(ParameterManager::Instance())
 {
   ResetIntroAnimation();
 }
 
-void FlightCtrlCli::Init()
+void CliService::Init()
 {
   parameter_manager_.ResetToDefaults();
   ResetIntroAnimation();
@@ -145,29 +145,29 @@ void FlightCtrlCli::Init()
   shell_.SetPrompt(kCliPrompt);
   shell_.SetPassword(ConfiguredCliPassword());
   shell_.SetActivationKey(' ', kActivationPrompt);
-  shell_.SetSessionAnimation(&FlightCtrlCli::IntroAnimation, this);
+  shell_.SetSessionAnimation(&CliService::IntroAnimation, this);
   active_transport_name_ = "mavlink";
   UpdateShellBanner();
   RegisterParameters();
   RegisterFunctions();
 }
 
-void FlightCtrlCli::SetOutput(Shell::OutputHandler output, void *context)
+void CliService::SetOutput(Shell::OutputHandler output, void *context)
 {
   shell_.SetOutput(output, context);
 }
 
-void FlightCtrlCli::SetConnected(bool connected)
+void CliService::SetConnected(bool connected)
 {
   shell_.SetConnected(connected);
 }
 
-void FlightCtrlCli::ProcessInput(const uint8_t *data, uint32_t length)
+void CliService::ProcessInput(const uint8_t *data, uint32_t length)
 {
   shell_.ProcessInput(data, length);
 }
 
-void FlightCtrlCli::RegisterParameters()
+void CliService::RegisterParameters()
 {
   uint8_t index = 0U;
   auto register_managed_parameter =
@@ -197,8 +197,8 @@ void FlightCtrlCli::RegisterParameters()
         (void)shell_.RegisterParameter(
             {shell_name,
              help,
-             &FlightCtrlCli::GetManagedParameter,
-             &FlightCtrlCli::SetManagedParameter,
+             &CliService::GetManagedParameter,
+             &CliService::SetManagedParameter,
              &context});
         ++index;
       };
@@ -298,24 +298,24 @@ void FlightCtrlCli::RegisterParameters()
                              ManagedParameterType::kFloat, 0.0f, 1000.0f, 0U, 0U);
   (void)shell_.RegisterParameter(
       {"sys.transport", "active CLI transport",
-       &FlightCtrlCli::GetTransportParameter, nullptr, this});
+       &CliService::GetTransportParameter, nullptr, this});
   (void)shell_.RegisterParameter(
       {"sys.uptime_ms", "system uptime in milliseconds",
-       &FlightCtrlCli::GetUptimeParameter, nullptr, this});
+       &CliService::GetUptimeParameter, nullptr, this});
 
 }
 
-void FlightCtrlCli::RegisterFunctions()
+void CliService::RegisterFunctions()
 {
   (void)shell_.RegisterFunction(
-      {"status", "print flight-controller status", &FlightCtrlCli::StatusFunction,
+      {"status", "print flight-controller status", &CliService::StatusFunction,
        this});
   (void)shell_.RegisterFunction(
       {"sys.reboot", "trigger MCU software reset",
-       &FlightCtrlCli::RebootFunction, this});
+       &CliService::RebootFunction, this});
 }
 
-void FlightCtrlCli::UpdateShellBanner()
+void CliService::UpdateShellBanner()
 {
   const int written = snprintf(
       banner_subtitle_, sizeof(banner_subtitle_),
@@ -329,7 +329,7 @@ void FlightCtrlCli::UpdateShellBanner()
   shell_.SetBanner("iFly Flight Controller", banner_subtitle_);
 }
 
-void FlightCtrlCli::ResetIntroAnimation()
+void CliService::ResetIntroAnimation()
 {
   intro_animation_.phase = IntroAnimationPhase::kIdle;
   intro_animation_.delay.Reset();
@@ -337,7 +337,7 @@ void FlightCtrlCli::ResetIntroAnimation()
   intro_animation_.phase_started = false;
 }
 
-void FlightCtrlCli::AdvanceIntroAnimation(IntroAnimationPhase next_phase)
+void CliService::AdvanceIntroAnimation(IntroAnimationPhase next_phase)
 {
   intro_animation_.phase = next_phase;
   intro_animation_.delay.Reset();
@@ -345,7 +345,7 @@ void FlightCtrlCli::AdvanceIntroAnimation(IntroAnimationPhase next_phase)
   intro_animation_.phase_started = false;
 }
 
-bool FlightCtrlCli::StepTypewriterLine(Shell *shell, uint64_t now_ns,
+bool CliService::StepTypewriterLine(Shell *shell, uint64_t now_ns,
                                        const char *text, uint32_t delay_ms)
 {
   if ((shell == nullptr) || (text == nullptr)) {
@@ -387,7 +387,7 @@ bool FlightCtrlCli::StepTypewriterLine(Shell *shell, uint64_t now_ns,
   return false;
 }
 
-bool FlightCtrlCli::StepSpinnerLine(Shell *shell, uint64_t now_ns,
+bool CliService::StepSpinnerLine(Shell *shell, uint64_t now_ns,
                                     const char *label, uint8_t rounds,
                                     uint32_t frame_delay_ms)
 {
@@ -434,7 +434,7 @@ bool FlightCtrlCli::StepSpinnerLine(Shell *shell, uint64_t now_ns,
   return false;
 }
 
-bool FlightCtrlCli::StepProgressLine(Shell *shell, uint64_t now_ns,
+bool CliService::StepProgressLine(Shell *shell, uint64_t now_ns,
                                      const char *label, uint8_t steps,
                                      uint32_t step_delay_ms)
 {
@@ -474,7 +474,7 @@ bool FlightCtrlCli::StepProgressLine(Shell *shell, uint64_t now_ns,
   return false;
 }
 
-bool FlightCtrlCli::UpdateIntroAnimation(Shell *shell, bool start)
+bool CliService::UpdateIntroAnimation(Shell *shell, bool start)
 {
   if (shell == nullptr) {
     return true;
@@ -500,10 +500,10 @@ bool FlightCtrlCli::UpdateIntroAnimation(Shell *shell, bool start)
   return true;
 }
 
-bool FlightCtrlCli::GetTransportParameter(void *context, char *buffer,
+bool CliService::GetTransportParameter(void *context, char *buffer,
                                           uint32_t bufferSize)
 {
-  FlightCtrlCli *cli = reinterpret_cast<FlightCtrlCli *>(context);
+  CliService *cli = reinterpret_cast<CliService *>(context);
   if ((cli == nullptr) || (buffer == nullptr) || (bufferSize == 0U)) {
     return false;
   }
@@ -516,7 +516,7 @@ bool FlightCtrlCli::GetTransportParameter(void *context, char *buffer,
          (static_cast<uint32_t>(written) < bufferSize);
 }
 
-bool FlightCtrlCli::GetUptimeParameter(void *context, char *buffer,
+bool CliService::GetUptimeParameter(void *context, char *buffer,
                                        uint32_t bufferSize)
 {
   (void)context;
@@ -530,7 +530,7 @@ bool FlightCtrlCli::GetUptimeParameter(void *context, char *buffer,
   return (written > 0) && (static_cast<uint32_t>(written) < bufferSize);
 }
 
-bool FlightCtrlCli::GetManagedParameter(void *context, char *buffer,
+bool CliService::GetManagedParameter(void *context, char *buffer,
                                         uint32_t bufferSize)
 {
   ManagedParameterContext *parameter =
@@ -578,7 +578,7 @@ bool FlightCtrlCli::GetManagedParameter(void *context, char *buffer,
   return (written > 0) && (static_cast<uint32_t>(written) < bufferSize);
 }
 
-bool FlightCtrlCli::SetManagedParameter(void *context, const char *value)
+bool CliService::SetManagedParameter(void *context, const char *value)
 {
   ManagedParameterContext *parameter =
       reinterpret_cast<ManagedParameterContext *>(context);
@@ -621,12 +621,12 @@ bool FlightCtrlCli::SetManagedParameter(void *context, const char *value)
   }
 }
 
-bool FlightCtrlCli::StatusFunction(Shell *shell, void *context, uint8_t argc,
+bool CliService::StatusFunction(Shell *shell, void *context, uint8_t argc,
                                    const char *const *argv)
 {
   (void)argv;
 
-  FlightCtrlCli *cli = reinterpret_cast<FlightCtrlCli *>(context);
+  CliService *cli = reinterpret_cast<CliService *>(context);
   if ((shell == nullptr) || (cli == nullptr) || (argc != 0U)) {
     if (shell != nullptr) {
       shell->WriteLine("Usage: call status");
@@ -645,7 +645,7 @@ bool FlightCtrlCli::StatusFunction(Shell *shell, void *context, uint8_t argc,
   return true;
 }
 
-bool FlightCtrlCli::RebootFunction(Shell *shell, void *context, uint8_t argc,
+bool CliService::RebootFunction(Shell *shell, void *context, uint8_t argc,
                                    const char *const *argv)
 {
   (void)context;
@@ -663,9 +663,9 @@ bool FlightCtrlCli::RebootFunction(Shell *shell, void *context, uint8_t argc,
   return true;
 }
 
-bool FlightCtrlCli::IntroAnimation(Shell *shell, void *context, bool start)
+bool CliService::IntroAnimation(Shell *shell, void *context, bool start)
 {
-  FlightCtrlCli *owner = reinterpret_cast<FlightCtrlCli *>(context);
+  CliService *owner = reinterpret_cast<CliService *>(context);
   if (owner == nullptr) {
     return true;
   }

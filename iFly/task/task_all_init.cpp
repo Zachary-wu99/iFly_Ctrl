@@ -5,15 +5,13 @@
 
 #include "task.hpp"
 #include "task_all_init.hpp"
-#include "flight_ctrl_cli.hpp"
 #include "mavlink_link.hpp"
 #include "usb_uart.hpp"
 
 namespace {
 
-  constexpr uint16_t kUsbRxQueueSize = 500U;
+  constexpr uint16_t kUsbRxQueueSize = 1000U;
 
-  iFly::FlightCtrlCli Mavlink_CLI;
   iFly::UsbUart Usb_Cdc(kUsbRxQueueSize);
   iFly::MavlinkLink Mavlink(&Usb_Cdc);
 
@@ -27,9 +25,6 @@ namespace iFly {
 
   bool InitAllTasks(void)
   {
-    Mavlink_CLI.Init();
-    Mavlink_CLI.Console().DisableActivationKey();
-
     Usb_Cdc.Init();
 
     bool init_sta = InitMavlinkTask(&Mavlink);

@@ -5,7 +5,7 @@
 #ifndef IFLY_APP_FLY_SYS_GROUND_STATION_MAVLINK_CONSOLE_HPP
 #define IFLY_APP_FLY_SYS_GROUND_STATION_MAVLINK_CONSOLE_HPP
 
-#include "flight_ctrl_cli.hpp"
+#include "cli.hpp"
 #include "mavlink_link.hpp"
 
 namespace iFly {
@@ -22,7 +22,7 @@ public:
    * @param cli 飞控 CLI 对象。
    */
   explicit MavlinkConsole(MavlinkLink *link = nullptr,
-                          FlightCtrlCli *cli = nullptr)
+                          CliService *cli = nullptr)
       : link_(link)
   {
     BindCli(cli);
@@ -43,7 +43,7 @@ public:
    *
    * @param cli 飞控 CLI 对象。
    */
-  void BindCli(FlightCtrlCli *cli)
+  void BindCli(CliService *cli)
   {
     cli_ = cli;
     if (cli_ != nullptr) {
@@ -130,7 +130,7 @@ private:
   }
 
   MavlinkLink *link_ = nullptr; /**< MAVLink 字节流链路。 */
-  FlightCtrlCli *cli_ = nullptr; /**< 飞控 CLI 对象指针。 */
+  CliService *cli_ = nullptr; /**< 飞控 CLI 对象指针。 */
 };
 
 } // namespace iFly

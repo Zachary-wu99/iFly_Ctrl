@@ -1,5 +1,6 @@
 #include "mavlink_receiver.hpp"
 
+#include "mavlink_main.hpp"
 #include "tick.hpp"
 
 namespace iFly {
@@ -319,7 +320,7 @@ void MavlinkReceiver::HandleManualControl(const ManualControl &state)
 
 void MavlinkReceiver::HandleConsoleMessage(const mavlink_message_t &msg)
 {
-  (void)msg;
+  (void)MavlinkMainHandleConsole(msg);
 }
 
 void MavlinkReceiver::HandleUnknownMessage(const mavlink_message_t &msg)
