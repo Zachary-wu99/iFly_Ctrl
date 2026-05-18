@@ -61,6 +61,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/app/fly_sys/mavlink/mavlink_receiver.cpp
     iFly/app/fly_sys/mavlink/mavlink_receiver_decode.cpp
     iFly/app/fly_sys/mavlink/mavlink_receiver_handlers.cpp
+    iFly/app/fly_sys/RC/rc_main.cpp
     iFly/app/task_mage/task.cpp
     iFly/app/tick/tick.cpp
     iFly/app/proto/crsf/crsf_protocol.cpp
@@ -78,6 +79,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/task/task_mavlink.cpp
     iFly/task/task_led_ctrl.cpp
     iFly/task/task_pid_ctrl.cpp
+    iFly/task/task_rc.cpp
 )
 
 # Add include paths
@@ -93,6 +95,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/app/fly_sys
     iFly/app/fly_sys/parameter
     iFly/app/fly_sys/mavlink
+    iFly/app/fly_sys/RC
     iFly/dev
     iFly/lib/double_buffer
     iFly/dev/can_dev
