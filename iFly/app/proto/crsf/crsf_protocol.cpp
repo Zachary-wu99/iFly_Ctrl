@@ -1,4 +1,4 @@
-#include "crsf_protocol.hpp"
+﻿#include "crsf_protocol.hpp"
 
 #include <string.h>
 
@@ -327,3 +327,4 @@ void CrsfProtocol::ConsumeLeadingBytes(uint8_t count)
 }
 
 } // namespace iFly::Crsf
+

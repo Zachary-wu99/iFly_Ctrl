@@ -1,4 +1,4 @@
-// MESSAGE COMMAND_INT support class
+﻿// MESSAGE COMMAND_INT support class
 
 #pragma once
 
@@ -106,3 +106,4 @@ struct COMMAND_INT : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

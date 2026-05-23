@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file can.hpp
  * @brief CAN 底层服务接口。
  */
@@ -181,3 +181,4 @@ private:
 } // namespace iFly
 
 #endif /* IFLY_CAN_HPP */
+

@@ -1,4 +1,4 @@
-// MESSAGE DISTANCE_SENSOR support class
+﻿// MESSAGE DISTANCE_SENSOR support class
 
 #pragma once
 
@@ -102,3 +102,4 @@ struct DISTANCE_SENSOR : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file usermath.hpp
  * @brief 通用数值辅助函数。
  */
@@ -50,3 +50,4 @@ constexpr T Clamp(T value, T lower, T upper) {
 } // namespace iFly::usermath
 
 #endif /* IFLY_LIB_USERMATH_HPP */
+

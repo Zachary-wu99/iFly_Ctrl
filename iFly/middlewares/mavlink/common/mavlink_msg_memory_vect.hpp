@@ -1,4 +1,4 @@
-// MESSAGE MEMORY_VECT support class
+﻿// MESSAGE MEMORY_VECT support class
 
 #pragma once
 
@@ -70,3 +70,4 @@ struct MEMORY_VECT : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

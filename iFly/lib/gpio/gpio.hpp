@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file gpio.hpp
  * @brief GPIO control interface.
  */
@@ -222,3 +222,4 @@ private:
 } // namespace iFly
 
 #endif /* IFLY_GPIO_HPP */
+

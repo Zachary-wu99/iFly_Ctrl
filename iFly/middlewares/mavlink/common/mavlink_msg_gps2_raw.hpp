@@ -1,4 +1,4 @@
-// MESSAGE GPS2_RAW support class
+﻿// MESSAGE GPS2_RAW support class
 
 #pragma once
 
@@ -126,3 +126,4 @@ struct GPS2_RAW : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

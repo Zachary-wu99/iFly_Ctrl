@@ -1,4 +1,4 @@
-// MESSAGE MISSION_REQUEST support class
+﻿// MESSAGE MISSION_REQUEST support class
 
 #pragma once
 
@@ -70,3 +70,4 @@ struct MISSION_REQUEST : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

@@ -1,4 +1,4 @@
-// MESSAGE UAVCAN_NODE_STATUS support class
+﻿// MESSAGE UAVCAN_NODE_STATUS support class
 
 #pragma once
 
@@ -78,3 +78,4 @@ struct UAVCAN_NODE_STATUS : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

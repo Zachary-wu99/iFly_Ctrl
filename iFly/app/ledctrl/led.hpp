@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file led.hpp
  * @brief LED control interface.
  */
@@ -140,3 +140,4 @@ private:
 } // namespace iFly
 
 #endif /* IFLY_APP_LED_HPP */
+

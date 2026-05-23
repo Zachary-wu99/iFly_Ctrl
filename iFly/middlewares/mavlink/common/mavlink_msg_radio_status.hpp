@@ -1,4 +1,4 @@
-// MESSAGE RADIO_STATUS support class
+﻿// MESSAGE RADIO_STATUS support class
 
 #pragma once
 
@@ -82,3 +82,4 @@ struct RADIO_STATUS : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

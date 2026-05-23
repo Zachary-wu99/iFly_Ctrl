@@ -1,4 +1,4 @@
-// MESSAGE HIL_RC_INPUTS_RAW support class
+﻿// MESSAGE HIL_RC_INPUTS_RAW support class
 
 #pragma once
 
@@ -110,3 +110,4 @@ struct HIL_RC_INPUTS_RAW : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

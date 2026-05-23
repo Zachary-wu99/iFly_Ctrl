@@ -1,4 +1,4 @@
-// MESSAGE SAFETY_ALLOWED_AREA support class
+﻿// MESSAGE SAFETY_ALLOWED_AREA support class
 
 #pragma once
 
@@ -82,3 +82,4 @@ struct SAFETY_ALLOWED_AREA : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

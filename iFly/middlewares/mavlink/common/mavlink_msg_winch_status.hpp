@@ -1,4 +1,4 @@
-// MESSAGE WINCH_STATUS support class
+﻿// MESSAGE WINCH_STATUS support class
 
 #pragma once
 
@@ -86,3 +86,4 @@ struct WINCH_STATUS : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

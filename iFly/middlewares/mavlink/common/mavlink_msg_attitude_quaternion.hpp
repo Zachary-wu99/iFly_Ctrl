@@ -1,4 +1,4 @@
-// MESSAGE ATTITUDE_QUATERNION support class
+﻿// MESSAGE ATTITUDE_QUATERNION support class
 
 #pragma once
 
@@ -90,3 +90,4 @@ struct ATTITUDE_QUATERNION : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

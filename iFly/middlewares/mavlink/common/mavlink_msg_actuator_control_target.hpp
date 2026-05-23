@@ -1,4 +1,4 @@
-// MESSAGE ACTUATOR_CONTROL_TARGET support class
+﻿// MESSAGE ACTUATOR_CONTROL_TARGET support class
 
 #pragma once
 
@@ -66,3 +66,4 @@ struct ACTUATOR_CONTROL_TARGET : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

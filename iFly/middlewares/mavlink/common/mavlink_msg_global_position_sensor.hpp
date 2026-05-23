@@ -1,4 +1,4 @@
-// MESSAGE GLOBAL_POSITION_SENSOR support class
+﻿// MESSAGE GLOBAL_POSITION_SENSOR support class
 
 #pragma once
 
@@ -106,3 +106,4 @@ struct GLOBAL_POSITION_SENSOR : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

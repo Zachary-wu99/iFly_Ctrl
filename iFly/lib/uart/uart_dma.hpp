@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file uart_dma.hpp
  * @brief UART DMA 底层服务接口。
  */
@@ -285,3 +285,4 @@ private:
 } // namespace iFly
 
 #endif /* IFLY_UART_DMA_HPP */
+

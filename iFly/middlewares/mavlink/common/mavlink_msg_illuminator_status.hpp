@@ -1,4 +1,4 @@
-// MESSAGE ILLUMINATOR_STATUS support class
+﻿// MESSAGE ILLUMINATOR_STATUS support class
 
 #pragma once
 
@@ -98,3 +98,4 @@ struct ILLUMINATOR_STATUS : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

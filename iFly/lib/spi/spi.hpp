@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file spi.hpp
  * @brief SPI 抽象接口。
  */
@@ -420,3 +420,4 @@ using spi_device = SpiDevice;
 } // namespace iFly
 
 #endif /* IFLY_SPI_HPP */
+

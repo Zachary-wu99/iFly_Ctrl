@@ -1,4 +1,4 @@
-// MESSAGE SETUP_SIGNING support class
+﻿// MESSAGE SETUP_SIGNING support class
 
 #pragma once
 
@@ -70,3 +70,4 @@ struct SETUP_SIGNING : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

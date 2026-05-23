@@ -1,4 +1,4 @@
-// MESSAGE AUTH_KEY support class
+﻿// MESSAGE AUTH_KEY support class
 
 #pragma once
 
@@ -58,3 +58,4 @@ struct AUTH_KEY : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

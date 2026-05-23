@@ -1,4 +1,4 @@
-// MESSAGE CAMERA_INFORMATION support class
+﻿// MESSAGE CAMERA_INFORMATION support class
 
 #pragma once
 
@@ -114,3 +114,4 @@ struct CAMERA_INFORMATION : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

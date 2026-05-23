@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file usb_cdc.hpp
  * @brief USB CDC ACM 协议层接口。
  */
@@ -486,3 +486,4 @@ private:
 } // namespace iFly
 
 #endif /* IFLY_USB_CDC_HPP */
+

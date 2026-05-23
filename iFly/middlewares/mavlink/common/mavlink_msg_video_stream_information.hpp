@@ -1,4 +1,4 @@
-// MESSAGE VIDEO_STREAM_INFORMATION support class
+﻿// MESSAGE VIDEO_STREAM_INFORMATION support class
 
 #pragma once
 
@@ -110,3 +110,4 @@ struct VIDEO_STREAM_INFORMATION : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

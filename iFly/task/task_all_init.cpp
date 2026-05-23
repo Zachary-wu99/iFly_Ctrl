@@ -1,21 +1,19 @@
-/**
+﻿/**
  * @file task_all_init.cpp
  * @brief 初始化任务。
  */
 
 #include "task.hpp"
 #include "task_all_init.hpp"
-#include "flight_ctrl_cli.hpp"
 #include "mavlink_link.hpp"
 #include "usb_uart.hpp"
 
 namespace {
 
-  constexpr uint16_t kUsbRxQueueSize = 500U;
+  constexpr uint16_t kUsbRxQueueSize = 1000U;
 
-  iFly::FlightCtrlCli Mavlink_CLI;
   iFly::UsbUart Usb_Cdc(kUsbRxQueueSize);
-  iFly::MavlinkLink Usb_Mavlink(&Usb_Cdc);
+  iFly::MavlinkLink Mavlink(&Usb_Cdc);
 
 }
 
@@ -23,22 +21,21 @@ bool InitMavlinkTask(iFly::MavlinkLink *link);
 bool InitLedCtrlTask(void);
 bool InitPidCtrlTask(void);
 bool InitW25q32TestTask(void);
+bool InitRcTask(void);
 
 namespace iFly {
 
   bool InitAllTasks(void)
   {
-    Mavlink_CLI.Init();
-    Mavlink_CLI.Console().DisableActivationKey();
-    Usb_Mavlink.BindConsole(&Mavlink_CLI);
-
     Usb_Cdc.Init();
 
-    bool init_sta = InitMavlinkTask(&Usb_Mavlink);
+    bool init_sta = InitMavlinkTask(&Mavlink);
     init_sta = InitLedCtrlTask() && init_sta;
     init_sta = InitPidCtrlTask() && init_sta;
     init_sta = InitW25q32TestTask() && init_sta;
+    init_sta = InitRcTask() && init_sta;
     return init_sta;
   }
 
 }
+

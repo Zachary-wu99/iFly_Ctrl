@@ -1,4 +1,4 @@
-// MESSAGE SYSTEM_TIME support class
+﻿// MESSAGE SYSTEM_TIME support class
 
 #pragma once
 
@@ -66,3 +66,4 @@ struct SYSTEM_TIME : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

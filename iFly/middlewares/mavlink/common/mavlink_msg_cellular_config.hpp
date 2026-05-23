@@ -1,4 +1,4 @@
-// MESSAGE CELLULAR_CONFIG support class
+﻿// MESSAGE CELLULAR_CONFIG support class
 
 #pragma once
 
@@ -88,3 +88,4 @@ struct CELLULAR_CONFIG : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

@@ -1,4 +1,4 @@
-// MESSAGE UTM_GLOBAL_POSITION support class
+﻿// MESSAGE UTM_GLOBAL_POSITION support class
 
 #pragma once
 
@@ -126,3 +126,4 @@ struct UTM_GLOBAL_POSITION : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

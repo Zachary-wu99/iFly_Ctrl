@@ -1,4 +1,4 @@
-// MESSAGE NAMED_VALUE_FLOAT support class
+﻿// MESSAGE NAMED_VALUE_FLOAT support class
 
 #pragma once
 
@@ -66,3 +66,4 @@ struct NAMED_VALUE_FLOAT : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

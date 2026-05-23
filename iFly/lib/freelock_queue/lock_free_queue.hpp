@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file lock_free_queue.hpp
  * @brief 无锁字节队列接口与封装。
  */
@@ -228,3 +228,4 @@ private:
 } // namespace iFly
 
 #endif /* IFLY_FREELOCK_QUEUE_LOCK_FREE_QUEUE_HPP */
+

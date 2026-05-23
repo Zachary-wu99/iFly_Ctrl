@@ -1,4 +1,4 @@
-// MESSAGE ONBOARD_COMPUTER_STATUS support class
+﻿// MESSAGE ONBOARD_COMPUTER_STATUS support class
 
 #pragma once
 
@@ -138,3 +138,4 @@ struct ONBOARD_COMPUTER_STATUS : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

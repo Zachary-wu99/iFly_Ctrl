@@ -1,4 +1,4 @@
-// MESSAGE WIFI_CONFIG_AP support class
+﻿// MESSAGE WIFI_CONFIG_AP support class
 
 #pragma once
 
@@ -70,3 +70,4 @@ struct WIFI_CONFIG_AP : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

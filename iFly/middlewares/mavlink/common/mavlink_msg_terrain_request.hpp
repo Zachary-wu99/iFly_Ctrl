@@ -1,4 +1,4 @@
-// MESSAGE TERRAIN_REQUEST support class
+﻿// MESSAGE TERRAIN_REQUEST support class
 
 #pragma once
 
@@ -70,3 +70,4 @@ struct TERRAIN_REQUEST : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

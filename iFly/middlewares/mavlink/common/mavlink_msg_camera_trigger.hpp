@@ -1,4 +1,4 @@
-// MESSAGE CAMERA_TRIGGER support class
+﻿// MESSAGE CAMERA_TRIGGER support class
 
 #pragma once
 
@@ -62,3 +62,4 @@ struct CAMERA_TRIGGER : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

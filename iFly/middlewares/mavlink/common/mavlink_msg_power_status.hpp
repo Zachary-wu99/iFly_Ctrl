@@ -1,4 +1,4 @@
-// MESSAGE POWER_STATUS support class
+﻿// MESSAGE POWER_STATUS support class
 
 #pragma once
 
@@ -66,3 +66,4 @@ struct POWER_STATUS : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

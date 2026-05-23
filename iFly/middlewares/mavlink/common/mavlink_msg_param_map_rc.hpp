@@ -1,4 +1,4 @@
-// MESSAGE PARAM_MAP_RC support class
+﻿// MESSAGE PARAM_MAP_RC support class
 
 #pragma once
 
@@ -90,3 +90,4 @@ struct PARAM_MAP_RC : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

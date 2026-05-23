@@ -1,4 +1,4 @@
-// MESSAGE RC_CHANNELS_OVERRIDE support class
+﻿// MESSAGE RC_CHANNELS_OVERRIDE support class
 
 #pragma once
 
@@ -134,3 +134,4 @@ struct RC_CHANNELS_OVERRIDE : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

@@ -1,4 +1,4 @@
-#include "spi.hpp"
+﻿#include "spi.hpp"
 
 #include "stm32f4xx_hal.h"
 
@@ -446,3 +446,4 @@ bool SpiDevice::IsReady() const {
 }
 
 } // namespace iFly
+

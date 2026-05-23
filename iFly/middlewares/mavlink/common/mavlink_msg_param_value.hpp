@@ -1,4 +1,4 @@
-// MESSAGE PARAM_VALUE support class
+﻿// MESSAGE PARAM_VALUE support class
 
 #pragma once
 
@@ -74,3 +74,4 @@ struct PARAM_VALUE : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

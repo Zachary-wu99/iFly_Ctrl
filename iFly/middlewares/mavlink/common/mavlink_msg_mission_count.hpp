@@ -1,4 +1,4 @@
-// MESSAGE MISSION_COUNT support class
+﻿// MESSAGE MISSION_COUNT support class
 
 #pragma once
 
@@ -80,3 +80,4 @@ struct MISSION_COUNT : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

@@ -1,4 +1,4 @@
-// MESSAGE GPS_INPUT support class
+﻿// MESSAGE GPS_INPUT support class
 
 #pragma once
 
@@ -130,3 +130,4 @@ struct GPS_INPUT : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

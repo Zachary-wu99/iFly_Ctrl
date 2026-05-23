@@ -1,4 +1,4 @@
-// MESSAGE RESOURCE_REQUEST support class
+﻿// MESSAGE RESOURCE_REQUEST support class
 
 #pragma once
 
@@ -74,3 +74,4 @@ struct RESOURCE_REQUEST : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

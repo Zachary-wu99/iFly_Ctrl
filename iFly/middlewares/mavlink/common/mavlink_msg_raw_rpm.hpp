@@ -1,4 +1,4 @@
-// MESSAGE RAW_RPM support class
+﻿// MESSAGE RAW_RPM support class
 
 #pragma once
 
@@ -62,3 +62,4 @@ struct RAW_RPM : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

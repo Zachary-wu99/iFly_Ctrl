@@ -1,4 +1,4 @@
-// MESSAGE COMPONENT_METADATA support class
+﻿// MESSAGE COMPONENT_METADATA support class
 
 #pragma once
 
@@ -77,3 +77,4 @@ struct COMPONENT_METADATA : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

@@ -1,4 +1,4 @@
-// MESSAGE FUEL_STATUS support class
+﻿// MESSAGE FUEL_STATUS support class
 
 #pragma once
 
@@ -99,3 +99,4 @@ struct FUEL_STATUS : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

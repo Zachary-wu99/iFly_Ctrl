@@ -1,4 +1,4 @@
-// MESSAGE CAMERA_IMAGE_CAPTURED support class
+﻿// MESSAGE CAMERA_IMAGE_CAPTURED support class
 
 #pragma once
 
@@ -104,3 +104,4 @@ struct CAMERA_IMAGE_CAPTURED : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

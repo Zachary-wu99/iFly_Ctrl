@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file hardware_uart.hpp
  * @brief 硬件 UART 设备封装接口。
  */
@@ -138,3 +138,4 @@ using uart_port = HardwareUart<>;
 } // namespace iFly
 
 #endif /* IFLY_HARDWARE_UART_HPP */
+

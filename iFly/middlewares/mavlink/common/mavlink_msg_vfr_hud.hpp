@@ -1,4 +1,4 @@
-// MESSAGE VFR_HUD support class
+﻿// MESSAGE VFR_HUD support class
 
 #pragma once
 
@@ -78,3 +78,4 @@ struct VFR_HUD : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

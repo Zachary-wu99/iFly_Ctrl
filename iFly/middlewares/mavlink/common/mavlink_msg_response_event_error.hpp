@@ -1,4 +1,4 @@
-// MESSAGE RESPONSE_EVENT_ERROR support class
+﻿// MESSAGE RESPONSE_EVENT_ERROR support class
 
 #pragma once
 
@@ -74,3 +74,4 @@ struct RESPONSE_EVENT_ERROR : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

@@ -1,4 +1,4 @@
-// MESSAGE SIM_STATE support class
+﻿// MESSAGE SIM_STATE support class
 
 #pragma once
 
@@ -146,3 +146,4 @@ struct SIM_STATE : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

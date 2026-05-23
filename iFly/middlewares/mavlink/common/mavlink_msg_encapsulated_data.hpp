@@ -1,4 +1,4 @@
-// MESSAGE ENCAPSULATED_DATA support class
+﻿// MESSAGE ENCAPSULATED_DATA support class
 
 #pragma once
 
@@ -62,3 +62,4 @@ struct ENCAPSULATED_DATA : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

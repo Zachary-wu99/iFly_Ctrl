@@ -1,4 +1,4 @@
-// MESSAGE RAW_PRESSURE support class
+﻿// MESSAGE RAW_PRESSURE support class
 
 #pragma once
 
@@ -74,3 +74,4 @@ struct RAW_PRESSURE : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

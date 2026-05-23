@@ -1,4 +1,4 @@
-// MESSAGE PARAM_EXT_REQUEST_READ support class
+﻿// MESSAGE PARAM_EXT_REQUEST_READ support class
 
 #pragma once
 
@@ -70,3 +70,4 @@ struct PARAM_EXT_REQUEST_READ : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

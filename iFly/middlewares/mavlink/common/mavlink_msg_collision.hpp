@@ -1,4 +1,4 @@
-// MESSAGE COLLISION support class
+﻿// MESSAGE COLLISION support class
 
 #pragma once
 
@@ -82,3 +82,4 @@ struct COLLISION : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

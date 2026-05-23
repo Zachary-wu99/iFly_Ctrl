@@ -1,4 +1,4 @@
-// MESSAGE BUTTON_CHANGE support class
+﻿// MESSAGE BUTTON_CHANGE support class
 
 #pragma once
 
@@ -66,3 +66,4 @@ struct BUTTON_CHANGE : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

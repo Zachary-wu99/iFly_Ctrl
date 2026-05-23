@@ -1,4 +1,4 @@
-// MESSAGE CAMERA_FOV_STATUS support class
+﻿// MESSAGE CAMERA_FOV_STATUS support class
 
 #pragma once
 
@@ -98,3 +98,4 @@ struct CAMERA_FOV_STATUS : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

@@ -1,4 +1,4 @@
-// MESSAGE FOLLOW_TARGET support class
+﻿// MESSAGE FOLLOW_TARGET support class
 
 #pragma once
 
@@ -98,3 +98,4 @@ struct FOLLOW_TARGET : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

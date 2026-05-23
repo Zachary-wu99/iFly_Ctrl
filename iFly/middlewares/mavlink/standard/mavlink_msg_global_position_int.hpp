@@ -1,4 +1,4 @@
-// MESSAGE GLOBAL_POSITION_INT support class
+﻿// MESSAGE GLOBAL_POSITION_INT support class
 
 #pragma once
 
@@ -90,3 +90,4 @@ struct GLOBAL_POSITION_INT : mavlink::Message {
 } // namespace msg
 } // namespace standard
 } // namespace mavlink
+

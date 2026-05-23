@@ -1,4 +1,4 @@
-// MESSAGE LOG_REQUEST_END support class
+﻿// MESSAGE LOG_REQUEST_END support class
 
 #pragma once
 
@@ -62,3 +62,4 @@ struct LOG_REQUEST_END : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

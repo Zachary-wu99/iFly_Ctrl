@@ -1,4 +1,4 @@
-// MESSAGE MAG_CAL_REPORT support class
+﻿// MESSAGE MAG_CAL_REPORT support class
 
 #pragma once
 
@@ -126,3 +126,4 @@ struct MAG_CAL_REPORT : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

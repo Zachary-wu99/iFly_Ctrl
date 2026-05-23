@@ -1,4 +1,4 @@
-/** @file
+﻿/** @file
  *	@brief MAVLink comm protocol generated from minimal.xml
  *	@see http://mavlink.org
  */
@@ -332,4 +332,5 @@ constexpr auto MAV_COMPONENT_ENUM_END = 251;
 #include "./mavlink_msg_heartbeat.hpp"
 
 // base include
+
 

@@ -1,4 +1,4 @@
-// MESSAGE COMPONENT_INFORMATION_BASIC support class
+﻿// MESSAGE COMPONENT_INFORMATION_BASIC support class
 
 #pragma once
 
@@ -86,3 +86,4 @@ struct COMPONENT_INFORMATION_BASIC : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+

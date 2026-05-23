@@ -1,4 +1,4 @@
-// MESSAGE DATA_STREAM support class
+﻿// MESSAGE DATA_STREAM support class
 
 #pragma once
 
@@ -66,3 +66,4 @@ struct DATA_STREAM : mavlink::Message {
 } // namespace msg
 } // namespace common
 } // namespace mavlink
+
