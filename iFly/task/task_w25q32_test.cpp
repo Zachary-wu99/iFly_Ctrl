@@ -8,6 +8,15 @@
 #include "task.hpp"
 #include "w25q32.hpp"
 
+extern "C" {
+volatile bool ifly_w25q32_test_completed = false;
+volatile bool ifly_w25q32_test_passed = false;
+volatile uint8_t ifly_w25q32_test_step = 0U;
+volatile uint32_t ifly_w25q32_test_jedec_raw = 0U;
+volatile uint8_t ifly_w25q32_test_flash_status = 0U;
+volatile uint8_t ifly_w25q32_test_spi_status = 0U;
+}
+
 namespace {
 
 using W25q32TestFlash =
@@ -66,6 +75,24 @@ W25q32TestResult w25q32_test_result {};
 uint8_t w25q32_test_tx[kW25q32TestLength] {};
 uint8_t w25q32_test_rx[kW25q32TestLength] {};
 
+void PublishDebugState()
+{
+  ifly_w25q32_test_completed = w25q32_test_result.completed;
+  ifly_w25q32_test_passed = w25q32_test_result.passed;
+  ifly_w25q32_test_step = static_cast<uint8_t>(w25q32_test_result.step);
+  ifly_w25q32_test_jedec_raw = w25q32_test_result.jedec_id.Raw();
+  ifly_w25q32_test_flash_status =
+      static_cast<uint8_t>(w25q32_test_result.flash_status);
+  ifly_w25q32_test_spi_status =
+      static_cast<uint8_t>(w25q32_test_result.spi_status);
+}
+
+void SetStep(W25q32TestStep step)
+{
+  w25q32_test_result.step = step;
+  PublishDebugState();
+}
+
 void CaptureDriverStatus()
 {
   w25q32_test_result.flash_status = w25q32_flash.LastStatus();
@@ -79,6 +106,7 @@ void FinishTest(W25q32TestStep step, bool passed)
   w25q32_test_result.completed = true;
   w25q32_test_result.passed = passed;
   CaptureDriverStatus();
+  PublishDebugState();
 }
 
 void FillTestPattern()
@@ -124,21 +152,23 @@ void W25q32TestTask(void *context)
 
   w25q32_test_result = W25q32TestResult {};
   w25q32_test_result.test_address = kW25q32TestAddress;
+  PublishDebugState();
   FillTestPattern();
 
-  w25q32_test_result.step = W25q32TestStep::kInit;
+  SetStep(W25q32TestStep::kInit);
   if (!w25q32_flash.Init()) {
     FinishTest(W25q32TestStep::kInit, false);
     return;
   }
 
-  w25q32_test_result.step = W25q32TestStep::kReadJedecId;
+  SetStep(W25q32TestStep::kReadJedecId);
   if (!w25q32_flash.ReadJedecId(&w25q32_test_result.jedec_id)) {
     FinishTest(W25q32TestStep::kReadJedecId, false);
     return;
   }
+  PublishDebugState();
 
-  w25q32_test_result.step = W25q32TestStep::kProbe;
+  SetStep(W25q32TestStep::kProbe);
   w25q32_test_result.jedec_id_matched =
       w25q32_test_result.jedec_id.IsW25q32();
   if (!w25q32_test_result.jedec_id_matched || !w25q32_flash.Probe()) {
@@ -146,20 +176,20 @@ void W25q32TestTask(void *context)
     return;
   }
 
-  w25q32_test_result.step = W25q32TestStep::kReadUniqueId;
+  SetStep(W25q32TestStep::kReadUniqueId);
   if (!w25q32_flash.ReadUniqueId(w25q32_test_result.unique_id)) {
     FinishTest(W25q32TestStep::kReadUniqueId, false);
     return;
   }
 
   // 自检会擦除外部 Flash 最末尾 4KB 扇区，避免覆盖业务数据请调整测试地址。
-  w25q32_test_result.step = W25q32TestStep::kEraseSector;
+  SetStep(W25q32TestStep::kEraseSector);
   if (!w25q32_flash.EraseSectorByIndex(kW25q32TestSectorIndex)) {
     FinishTest(W25q32TestStep::kEraseSector, false);
     return;
   }
 
-  w25q32_test_result.step = W25q32TestStep::kReadErased;
+  SetStep(W25q32TestStep::kReadErased);
   if (!w25q32_flash.Read(kW25q32TestAddress,
                          w25q32_test_rx,
                          kW25q32TestLength)) {
@@ -167,13 +197,13 @@ void W25q32TestTask(void *context)
     return;
   }
 
-  w25q32_test_result.step = W25q32TestStep::kVerifyErased;
+  SetStep(W25q32TestStep::kVerifyErased);
   if (!VerifyErasedData()) {
     FinishTest(W25q32TestStep::kVerifyErased, false);
     return;
   }
 
-  w25q32_test_result.step = W25q32TestStep::kWritePattern;
+  SetStep(W25q32TestStep::kWritePattern);
   if (!w25q32_flash.WriteAll(kW25q32TestAddress,
                              w25q32_test_tx,
                              kW25q32TestLength)) {
@@ -181,7 +211,7 @@ void W25q32TestTask(void *context)
     return;
   }
 
-  w25q32_test_result.step = W25q32TestStep::kReadPattern;
+  SetStep(W25q32TestStep::kReadPattern);
   if (!w25q32_flash.Read(kW25q32TestAddress,
                          w25q32_test_rx,
                          kW25q32TestLength)) {
@@ -189,7 +219,7 @@ void W25q32TestTask(void *context)
     return;
   }
 
-  w25q32_test_result.step = W25q32TestStep::kVerifyPattern;
+  SetStep(W25q32TestStep::kVerifyPattern);
   if (!VerifyPatternData()) {
     FinishTest(W25q32TestStep::kVerifyPattern, false);
     return;
