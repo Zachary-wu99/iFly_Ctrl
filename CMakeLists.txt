@@ -79,6 +79,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/task/task_mavlink.cpp
     iFly/task/task_led_ctrl.cpp
     iFly/task/task_pid_ctrl.cpp
+    iFly/task/task_w25q32_test.cpp
     iFly/task/task_rc.cpp
 )
 
@@ -89,6 +90,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     iFly/app/observer
     iFly/app/task_mage
     iFly/app/tick
+    iFly/app/flash
     iFly/app/proto/crsf
     iFly/app/proto/sbus
     iFly/app/ledctrl
